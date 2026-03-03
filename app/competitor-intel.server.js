@@ -157,6 +157,7 @@ export async function analyzeWithCompetitorIntel(products, storeDomain) {
         keywords: [{text:product.title.toLowerCase(),match_type:"PHRASE"},{text:`buy ${product.title.toLowerCase()}`,match_type:"BROAD"}],
         path1:"Shop",path2:"Buy",negative_keywords:["free","diy","cheap"],recommended_bid:1.00,target_demographics:"Adults 25-50",
         sitelinks:[{title:"Free Shipping",description:"On all orders",url:"/shipping"},{title:"New Arrivals",description:"Latest products",url:"/new"},{title:"Sale",description:"Great deals today",url:"/sale"},{title:"Contact Us",description:"Here to help",url:"/contact"}],
+        competitor_intel: { store_ranking: { found: false, position: null, status: "not_found", query: "buy " + product.title }, strategy: "aggressive", strategy_reason: "Fallback", top_competitors: [], keyword_gaps: [product.title.toLowerCase() + " online", "best " + product.title.toLowerCase(), product.title.toLowerCase() + " deals", product.title.toLowerCase() + " buy"], competitive_advantages: [], threats: ["Competitors likely bidding on product name"], ad_landscape: "unknown", opportunity_score: 50, competitor_ads: [] },
       });
     }
   }

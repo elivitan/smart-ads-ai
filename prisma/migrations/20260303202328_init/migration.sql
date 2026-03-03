@@ -1,4 +1,25 @@
 -- CreateTable
+CREATE TABLE "Session" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shop" TEXT NOT NULL,
+    "state" TEXT NOT NULL,
+    "isOnline" BOOLEAN NOT NULL DEFAULT false,
+    "scope" TEXT,
+    "expires" DATETIME,
+    "accessToken" TEXT NOT NULL,
+    "userId" BIGINT,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "email" TEXT,
+    "accountOwner" BOOLEAN NOT NULL DEFAULT false,
+    "locale" TEXT,
+    "collaborator" BOOLEAN DEFAULT false,
+    "emailVerified" BOOLEAN DEFAULT false,
+    "refreshToken" TEXT,
+    "refreshTokenExpires" DATETIME
+);
+
+-- CreateTable
 CREATE TABLE "Product" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "shop" TEXT NOT NULL,
@@ -53,6 +74,43 @@ CREATE TABLE "SyncLog" (
     "error" TEXT
 );
 
+-- CreateTable
+CREATE TABLE "ShopSubscription" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shop" TEXT NOT NULL,
+    "plan" TEXT NOT NULL DEFAULT 'free',
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "scanCredits" INTEGER NOT NULL DEFAULT 0,
+    "aiCredits" INTEGER NOT NULL DEFAULT 0,
+    "maxProducts" INTEGER NOT NULL DEFAULT 3,
+    "maxCampaigns" INTEGER NOT NULL DEFAULT 0,
+    "scanCountToday" INTEGER NOT NULL DEFAULT 0,
+    "lastScanAt" DATETIME,
+    "apiCallsToday" INTEGER NOT NULL DEFAULT 0,
+    "rateLimitReset" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "trialEndsAt" DATETIME,
+    "billingStartedAt" DATETIME,
+    "cancelledAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "CampaignJob" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shop" TEXT NOT NULL,
+    "state" TEXT NOT NULL DEFAULT 'QUEUED',
+    "payload" TEXT NOT NULL DEFAULT '{}',
+    "idempotencyKey" TEXT NOT NULL DEFAULT '',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "stepsJson" TEXT NOT NULL DEFAULT '[]',
+    "googleCampaignId" TEXT,
+    "lastError" TEXT,
+    "lastStepAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
 -- CreateIndex
 CREATE INDEX "Product_shop_idx" ON "Product"("shop");
 
@@ -73,3 +131,24 @@ CREATE INDEX "SyncLog_shop_idx" ON "SyncLog"("shop");
 
 -- CreateIndex
 CREATE INDEX "SyncLog_shop_type_idx" ON "SyncLog"("shop", "type");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ShopSubscription_shop_key" ON "ShopSubscription"("shop");
+
+-- CreateIndex
+CREATE INDEX "ShopSubscription_shop_idx" ON "ShopSubscription"("shop");
+
+-- CreateIndex
+CREATE INDEX "ShopSubscription_plan_idx" ON "ShopSubscription"("plan");
+
+-- CreateIndex
+CREATE INDEX "CampaignJob_shop_idx" ON "CampaignJob"("shop");
+
+-- CreateIndex
+CREATE INDEX "CampaignJob_shop_state_idx" ON "CampaignJob"("shop", "state");
+
+-- CreateIndex
+CREATE INDEX "CampaignJob_idempotencyKey_idx" ON "CampaignJob"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "CampaignJob_state_createdAt_idx" ON "CampaignJob"("state", "createdAt");

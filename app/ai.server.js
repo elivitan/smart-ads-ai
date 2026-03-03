@@ -65,11 +65,7 @@ Return:
       "path2": "Sale",
       "negative_keywords": ["free","diy","cheap"],
       "recommended_bid": 1.20, "target_demographics": "Adults 25-45", "sitelinks": [{"title":"Free Shipping","description":"On orders over $50","url":"/shipping"},{"title":"Sale Items","description":"Up to 50% off","url":"/sale"},{"title":"New Arrivals","description":"Latest products","url":"/new"},{"title":"Contact Us","description":"Get in touch","url":"/contact"}]
-      "target_demographics": "Adults 25-45",
-      "sitelinks": [
-        {"title":"Free Shipping","description":"On orders over $50","url":"/shipping"},
-        {"title":"Sale Items","description":"Up to 50% off","url":"/sale"}
-      ]
+
     }
   ]
 }`
