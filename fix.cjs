@@ -1,0 +1,1 @@
+const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.shopSubscription.updateMany({data:{plan:'pro',scanCredits:100,aiCredits:200,maxProducts:9999,maxCampaigns:9999}}).then(r=>{console.log('Done:',r);p['\x24disconnect']()})

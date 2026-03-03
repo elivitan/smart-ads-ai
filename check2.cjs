@@ -1,0 +1,1 @@
+const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.aiAnalysis.count().then(r=>{console.log('AI analyses in DB:',r);return p.aiAnalysis.findMany({take:2,select:{productId:true,adScore:true}})}).then(r=>{console.log(r);p['\x24disconnect']()})

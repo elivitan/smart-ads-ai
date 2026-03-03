@@ -1,0 +1,1 @@
+const fs=require('fs');let c=fs.readFileSync('app/routes/app._index.jsx','utf-8');c=c.replace('// Subscription is now read from database via license.server.js\n}','// Subscription is now read from database via license.server.js');fs.writeFileSync('app/routes/app._index.jsx',c);console.log('Fixed!')

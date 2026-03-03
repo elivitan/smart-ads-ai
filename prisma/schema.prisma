@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// ─── Product: synced from Shopify, always up to date ───
+model Product {
+  id              String    @id              // Shopify GID e.g. "gid://shopify/Product/123"
+  shop            String                     // myshopify domain
+  title           String
+  description     String    @default("")
+  handle          String    @default("")
+  image           String    @default("")     // main image URL
+  price           String    @default("0")    // from first variant
+  status          String    @default("ACTIVE") // ACTIVE, DRAFT, ARCHIVED
+  inventoryTotal  Int       @default(0)      // total inventory across all variants
+  inStock         Boolean   @default(true)
+  productType     String    @default("")
+  vendor          String    @default("")
+  tags            String    @default("")     // comma-separated
+  shopifyUpdatedAt DateTime?                 // when Shopify last updated this product
+  syncedAt        DateTime  @default(now())  // when we last synced from Shopify
+  createdAt       DateTime  @default(now())
+
+  aiAnalysis      AiAnalysis?
+
+  @@index([shop])
+  @@index([shop, inStock])
+}
+
+// ─── AI Analysis: cached results from Claude ───
+model AiAnalysis {
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  shop            String
+  adScore         Int       @default(0)
+  adStrength      String    @default("AVERAGE")
+  headlines       String    @default("[]")   // JSON array
+  descriptions    String    @default("[]")   // JSON array
+  keywords        String    @default("[]")   // JSON array of {text, match_type}
+  negativeKeywords String   @default("[]")   // JSON array
+  path1           String    @default("Shop")
+  path2           String    @default("")
+  recommendedBid  Float     @default(1.0)
+  targetDemographics String @default("")
+  sitelinks       String    @default("[]")   // JSON array
+  competitorIntel String    @default("{}")   // JSON object
+  analyzedAt      DateTime  @default(now())  // when AI last analyzed this
+  productHash     String    @default("")     // hash of title+price+desc to detect changes
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([shop])
+  @@index([productId])
+}
+
+// ─── Sync Log: track sync operations ───
+model SyncLog {
+  id          String    @id @default(cuid())
+  shop        String
+  type        String    // "full_sync", "webhook_create", "webhook_update", "webhook_delete", "ai_analysis"
+  status      String    // "started", "completed", "failed"
+  details     String    @default("")  // human-readable summary
+  productsAffected Int  @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  error       String?
+
+  @@index([shop])
+  @@index([shop, type])
+}
+
+model ShopSubscription {
+  id              String    @id @default(cuid())
+  shop            String    @unique
+  plan            String    @default("free")
+  status          String    @default("active")
+  scanCredits     Int       @default(0)
+  aiCredits       Int       @default(0)
+  maxProducts     Int       @default(3)
+  maxCampaigns    Int       @default(0)
+  scanCountToday  Int       @default(0)
+  lastScanAt      DateTime?
+  apiCallsToday   Int       @default(0)
+  rateLimitReset  DateTime  @default(now())
+  trialEndsAt     DateTime?
+  billingStartedAt DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@index([shop])
+  @@index([plan])
+}
+// ═══ Add this to the END of your prisma/schema.prisma file ═══
+
+// Campaign Job: tracks lifecycle of each campaign creation attempt
+model CampaignJob {
+  id                String    @id              // job_1234567890_abc123
+  shop              String
+  state             String    @default("QUEUED") // QUEUED, VALIDATING, CREATING_BUDGET, CREATING_CAMPAIGN, UPLOADING_ASSETS, LINKING_CONVERSIONS, ENABLING, ENABLED, FAILED, FAILED_PARTIAL, RETRYING, ROLLBACK, CANCELLED
+  payload           String    @default("{}")   // Full campaign config JSON
+  idempotencyKey    String    @default("")     // Prevents duplicate launches
+  attempts          Int       @default(0)      // Number of retry attempts
+  stepsJson         String    @default("[]")   // Array of {state, timestamp, error?, campaignId?}
+  googleCampaignId  String?                    // Google Ads campaign resource name (set after creation)
+  lastError         String?                    // Most recent error message
+  lastStepAt        DateTime  @default(now())  // When the last step was executed
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, state])
+  @@index([idempotencyKey])
+  @@index([state, createdAt])
+}
