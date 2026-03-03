@@ -266,18 +266,18 @@ const Speedometer = React.memo(function Speedometer({ value, max, label, color =
   const cx = size / 2, cy = size / 2, r = size * 0.38;
   function ptXY(cx, cy, r, deg) { const rad = deg * Math.PI / 180; return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }; }
   const arcStart = ptXY(cx,cy,r,startAngle), arcEnd = ptXY(cx,cy,r,endAngle), fillEnd = ptXY(cx,cy,r,angle);
-  const needleX = cx + r * 0.75 * Math.cos(angle * Math.PI / 180);
-  const needleY = cy + r * 0.75 * Math.sin(angle * Math.PI / 180);
+  const needleX = cx + r * 0.55 * Math.cos(angle * Math.PI / 180);
+  const needleY = cy + r * 0.55 * Math.sin(angle * Math.PI / 180);
   const arcPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 1 1 ${arcEnd.x} ${arcEnd.y}`;
   const fillPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 ${pct > 0.5 ? 1 : 0} 1 ${fillEnd.x} ${fillEnd.y}`;
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={size} height={size * 0.75} viewBox={`0 0 ${size} ${size * 0.75}`}>
+      <svg width={size} height={size * 0.82} viewBox={`0 0 ${size} ${size * 0.82}`}>
         <path d={arcPath} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="6" strokeLinecap="round"/>
         <path d={fillPath} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" style={{ transition:"d 1s cubic-bezier(.4,0,.2,1)" }}/>
         <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#fff" strokeWidth="2" strokeLinecap="round" style={{ transition:"x2 1s cubic-bezier(.4,0,.2,1),y2 1s cubic-bezier(.4,0,.2,1)" }}/>
         <circle cx={cx} cy={cy} r="4" fill={color}/>
-        <text x={cx} y={cy-14} textAnchor="middle" fill="#fff" fontSize="14" fontWeight="800">{animated}</text>
+        <text x={cx} y={cy+2} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="18" fontWeight="800">{animated}</text>
       </svg>
       <span style={{ fontSize:11, color:"rgba(255,255,255,.4)", textTransform:"uppercase", letterSpacing:".5px" }}>{label}</span>
     </div>
