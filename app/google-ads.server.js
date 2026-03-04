@@ -232,8 +232,11 @@ export async function createCampaign({
   keywords = [],
   finalUrl,
   dailyBudget = 50,
-  campaignType = "search",
-  bidding = "max_conversions",
+  campaignType = "search",,
+bidding = "max_conversions",
+imageUrls = [],
+videoUrls = [],
+})
 }) {
   const customer = getCustomer();
   const budgetResourceName = await createBudget(customer, productTitle, dailyBudget);
