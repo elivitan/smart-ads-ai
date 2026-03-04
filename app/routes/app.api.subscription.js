@@ -1,9 +1,22 @@
 // app/routes/app.api.subscription.js
 // ══════════════════════════════════════════════
-// Handles plan selection — saves to DB
+// Handles plan selection — validates and saves to DB.
+//
+// SECURITY NOTE: In production, plan changes should go through
+// Shopify Billing API (AppSubscriptionCreate mutation) so Shopify
+// handles payment. This endpoint should only be called AFTER
+// Shopify confirms the subscription.
+//
+// TODO: Replace direct plan update with Shopify Billing flow:
+//   1. Client calls this API with desired plan
+//   2. Server creates AppSubscriptionCreate mutation
+//   3. Shopify redirects user to payment confirmation
+//   4. On confirmation webhook, update DB via updatePlan()
 // ══════════════════════════════════════════════
 import { authenticate } from "../shopify.server";
 import { updatePlan, getSubscriptionInfo } from "../license.server.js";
+
+const VALID_PLANS = ["free", "starter", "pro", "premium"];
 
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -13,13 +26,25 @@ export const action = async ({ request }) => {
     const body = await request.json();
     const { plan } = body;
 
-    if (!["free", "starter", "pro", "premium"].includes(plan)) {
-      return Response.json({ success: false, error: "Invalid plan" }, { status: 400 });
+    if (!plan || !VALID_PLANS.includes(plan)) {
+      return Response.json(
+        { success: false, error: `Invalid plan. Must be one of: ${VALID_PLANS.join(", ")}` },
+        { status: 400 }
+      );
     }
 
-    await updatePlan(shop, plan);
-    const info = await getSubscriptionInfo(shop);
+    // TODO: For paid plans, validate through Shopify Billing API first
+    // For now, directly update (development mode only)
+    if (plan !== "free") {
+      console.warn(`[SmartAds] WARNING: Plan "${plan}" set for ${shop} without Shopify Billing verification. Add billing flow before production!`);
+    }
 
+    await updatePlan(shop, plan, {
+      trial: plan !== "free",
+      trialDays: 7,
+    });
+
+    const info = await getSubscriptionInfo(shop);
     return Response.json({ success: true, subscription: info });
   } catch (err) {
     console.error("[SmartAds] Subscription error:", err);

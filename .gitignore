@@ -1,26 +1,6 @@
-# Secrets
-.env
-.env.*
-!.env.example
-
-# Database
-*.sqlite
-*.sqlite-journal
-prisma/dev.sqlite
-
-# Node
 node_modules/
-.cache/
-
-# Build
+.env
+prisma/dev.db
+prisma/dev.db-journal
 build/
-dist/
-
-# Shopify
-extensions/*/dist/
-
-# OS
-.DS_Store
-Thumbs.db
-# Generated types
-.react-router/
+.cache/
