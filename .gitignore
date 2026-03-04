@@ -22,3 +22,5 @@ extensions/*/dist/
 # OS
 .DS_Store
 Thumbs.db
+# Generated types
+.react-router/
