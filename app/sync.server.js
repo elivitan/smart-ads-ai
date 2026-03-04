@@ -11,8 +11,9 @@ import crypto from "crypto";
 
 // ─── Helpers ───
 
-function productHash(title, price, description) {
-  return crypto.createHash("md5").update(`${title}|${price}|${(description || "").slice(0, 200)}`).digest("hex");
+function productHash(title, price, description, image) {
+  const str = `${title}|${price}|${(description || "").slice(0, 200)}|${(image || "").slice(0, 100)}`;
+  return crypto.createHash("md5").update(str).digest("hex");
 }
 
 function mapGraphQLProduct(node) {

@@ -5,6 +5,7 @@
 import { authenticate } from "../shopify.server";
 import Anthropic from "@anthropic-ai/sdk";
 import { checkLicense, useAiCredit } from "../license.server.js";
+import { checkAnthropicLimit } from "../rateLimit.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,7 +17,14 @@ export const action = async ({ request }) => {
   const license = await checkLicense(shop, "ai-improve");
   if (!license.allowed) {
     return Response.json(
-      { success: false, error: license.reason },
+      { success: false, error: license.reason, creditsRemaining: 0 },
+      { status: 403 }
+    );
+  }
+  // Double-check credits from DB
+  if (license.sub.aiCredits <= 0) {
+    return Response.json(
+      { success: false, error: "No AI credits remaining.", creditsRemaining: 0 },
       { status: 403 }
     );
   }

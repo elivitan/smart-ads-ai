@@ -6,6 +6,7 @@
 import { authenticate } from "../shopify.server";
 import { analyzeBatch } from "../ai.server";
 import { checkLicense, useScanCredit } from "../license.server.js";
+import { checkAnthropicLimit, checkSerpApiLimit } from "../rateLimit.server.js";
 import prisma from "../db.server.js";
 import crypto from "crypto";
 
