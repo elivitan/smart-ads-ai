@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
+import { OnboardModal, BuyCreditsModal } from "../components/Modals.jsx";
 
 // Cookie helper — read plan from request cookie
 function getPlanFromCookie(request) {
@@ -822,6 +823,32 @@ body{-webkit-overflow-scrolling:touch}
 }
 /* Fix .da needs position:relative so bg-m stays behind it */
 .da{position:relative;z-index:1}
+/* RESPONSIVE FIX: narrow mobile */
+@media(max-width:480px){
+  .gap-table-head,.gap-row{grid-template-columns:2fr 1fr 1fr}
+  .gap-diff,.gap-freq,.gap-action{display:none}
+  .comp-metrics-row{grid-template-columns:repeat(2,1fr)}
+  .hero-h{font-size:24px}
+  .hero-p{font-size:14px}
+  .da-header{flex-direction:column;gap:12px}
+  .tmo-content{flex-direction:column}
+}
+/* FIX: .da needs position:relative for gradient bg */
+.da{position:relative;z-index:1}
+
+/* RESPONSIVE FIX: narrow mobile */
+@media(max-width:480px){
+  .gap-table-head,.gap-row{grid-template-columns:2fr 1fr 1fr}
+  .gap-diff,.gap-freq,.gap-action{display:none}
+  .comp-metrics-row{grid-template-columns:repeat(2,1fr)}
+  .hero-h{font-size:24px}
+  .hero-p{font-size:14px}
+  .da-header{flex-direction:column;gap:12px}
+  .tmo-content{flex-direction:column}
+}
+/* FIX: .da needs position:relative for gradient bg */
+.da{position:relative;z-index:1}
+
 `;
 
 export const loader = async ({ request }) => {
@@ -838,6 +865,20 @@ export const loader = async ({ request }) => {
 };
 
 const FREE_SCAN_LIMIT = 3;
+
+const REAL_STEPS = [
+  { label: "Fetching products from your store", icon: "📦", threshold: 5 },
+  { label: "Searching Google for competitors", icon: "🔍", threshold: 20 },
+  { label: "Analyzing competitor websites", icon: "🕵️", threshold: 40 },
+  { label: "Checking your Google rankings", icon: "📍", threshold: 60 },
+  { label: "Generating AI-optimized ad copy", icon: "🤖", threshold: 80 },
+  { label: "Building your competitive strategy", icon: "📊", threshold: 98 },
+];
+const INTRO_PHASES = [
+  { label: "Connecting to your Shopify store", icon: "🔗", duration: 1400 },
+  { label: "Reading your product catalog", icon: "📦", duration: 1200 },
+  { label: "Connecting AI analysis engine", icon: "🤖", duration: 1200 },
+];
 
 // ══════════════════════════════════════════════
 // GOOGLE ADS LIVE DATA HOOK
@@ -1058,23 +1099,28 @@ const Speedometer = React.memo(function Speedometer({ value, max, label, color =
   const [animated, setAnimated] = useState(0);
   useEffect(() => { const t = setTimeout(() => setAnimated(value), 300); return () => clearTimeout(t); }, [value]);
   const pct = Math.min(animated / max, 1);
-  const startAngle = -210, endAngle = 30;
-  const angle = startAngle + pct * (endAngle - startAngle);
-  const cx = size / 2, cy = size / 2, r = size * 0.38;
-  function ptXY(cx, cy, r, deg) { const rad = deg * Math.PI / 180; return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }; }
+  const startAngle = -225, endAngle = 45;
+  const sweepRange = endAngle - startAngle; // 270 degrees
+  const angle = startAngle + pct * sweepRange;
+  const svgW = size, svgH = size * 0.78;
+  const cx = svgW / 2, cy = svgH * 0.58, r = size * 0.34;
+  function ptXY(pcx, pcy, pr, deg) { const rad = deg * Math.PI / 180; return { x: pcx + pr * Math.cos(rad), y: pcy + pr * Math.sin(rad) }; }
   const arcStart = ptXY(cx,cy,r,startAngle), arcEnd = ptXY(cx,cy,r,endAngle), fillEnd = ptXY(cx,cy,r,angle);
-  const needleX = cx + r * 0.75 * Math.cos(angle * Math.PI / 180);
-  const needleY = cy + r * 0.75 * Math.sin(angle * Math.PI / 180);
-  const arcPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 1 1 ${arcEnd.x} ${arcEnd.y}`;
-  const fillPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 ${pct > 0.5 ? 1 : 0} 1 ${fillEnd.x} ${fillEnd.y}`;
+  const needleLen = r * 0.78;
+  const needleTip = ptXY(cx,cy,needleLen,angle);
+  const largeArc = sweepRange > 180 ? 1 : 0;
+  const fillSweep = pct * sweepRange;
+  const fillLargeArc = fillSweep > 180 ? 1 : 0;
+  const arcPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 ${largeArc} 1 ${arcEnd.x} ${arcEnd.y}`;
+  const fillPath = `M ${arcStart.x} ${arcStart.y} A ${r} ${r} 0 ${fillLargeArc} 1 ${fillEnd.x} ${fillEnd.y}`;
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={size} height={size * 0.75} viewBox={`0 0 ${size} ${size * 0.75}`}>
+      <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
         <path d={arcPath} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="6" strokeLinecap="round"/>
         <path d={fillPath} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" style={{ transition:"d 1s cubic-bezier(.4,0,.2,1)" }}/>
-        <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#fff" strokeWidth="2" strokeLinecap="round" style={{ transition:"x2 1s cubic-bezier(.4,0,.2,1),y2 1s cubic-bezier(.4,0,.2,1)" }}/>
-        <circle cx={cx} cy={cy} r="4" fill={color}/>
-        <text x={cx} y={cy-14} textAnchor="middle" fill="#fff" fontSize="14" fontWeight="800">{animated}</text>
+        <line x1={cx} y1={cy} x2={needleTip.x} y2={needleTip.y} stroke="#fff" strokeWidth="1.5" strokeLinecap="round" style={{ transition:"x2 1s cubic-bezier(.4,0,.2,1),y2 1s cubic-bezier(.4,0,.2,1)" }}/>
+        <circle cx={cx} cy={cy} r="3" fill={color}/>
+        <text x={cx} y={cy + r * 0.62} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="18" fontWeight="800">{animated}</text>
       </svg>
       <span style={{ fontSize:11, color:"rgba(255,255,255,.4)", textTransform:"uppercase", letterSpacing:".5px" }}>{label}</span>
     </div>
@@ -1093,22 +1139,7 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
   const [dots, setDots] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Real scan steps (shown once real scan starts)
-  const realSteps = [
-    { label: "Fetching products from your store", icon: "📦", threshold: 5 },
-    { label: "Searching Google for competitors", icon: "🔍", threshold: 20 },
-    { label: "Analyzing competitor websites", icon: "🕵️", threshold: 40 },
-    { label: "Checking your Google rankings", icon: "📍", threshold: 60 },
-    { label: "Generating AI-optimized ad copy", icon: "🤖", threshold: 80 },
-    { label: "Building your competitive strategy", icon: "📊", threshold: 98 },
-  ];
 
-  // Intro phases (before real scan starts)
-  const introPhases = [
-    { label: "Connecting to your Shopify store", icon: "🔗", duration: 1400 },
-    { label: "Reading your product catalog", icon: "📦", duration: 1200 },
-    { label: "Connecting AI analysis engine", icon: "🤖", duration: 1200 },
-  ];
 
   // Animated dots
   useEffect(() => {
@@ -1120,12 +1151,12 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      for (let i = 0; i < introPhases.length; i++) {
+      for (let i = 0; i < INTRO_PHASES.length; i++) {
         if (cancelled) return;
         setCurrentStep(i);
-        const from = Math.round((i / introPhases.length) * 15);
-        const to = Math.round(((i + 1) / introPhases.length) * 15);
-        await animateProgress(from, to, introPhases[i].duration);
+        const from = Math.round((i / INTRO_PHASES.length) * 15);
+        const to = Math.round(((i + 1) / INTRO_PHASES.length) * 15);
+        await animateProgress(from, to, INTRO_PHASES[i].duration);
         if (cancelled) return;
       }
       if (!scanStarted) { setScanStarted(true); onScan(); }
@@ -1158,11 +1189,11 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
   // Current step label
   let currentLabel, currentIcon;
   if (!scanStarted) {
-    const p = introPhases[Math.min(currentStep, introPhases.length - 1)];
+    const p = INTRO_PHASES[Math.min(currentStep, INTRO_PHASES.length - 1)];
     currentLabel = p?.label;
     currentIcon = p?.icon;
   } else {
-    const activeStep = realSteps.findLast(s => displayProgress >= s.threshold - 20) || realSteps[0];
+    const activeStep = REAL_STEPS.findLast(s => displayProgress >= s.threshold - 20) || REAL_STEPS[0];
     currentLabel = isDone ? "Your store is ready!" : activeStep.label;
     currentIcon = activeStep.icon;
   }
@@ -1209,7 +1240,7 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
         </div>
 
         <div className="cds-steps">
-          {(scanStarted ? realSteps : introPhases).map((p, i) => {
+          {(scanStarted ? REAL_STEPS : INTRO_PHASES).map((p, i) => {
             let done, active;
             if (scanStarted) {
               // Determine active step from scanMsg content
@@ -1226,7 +1257,7 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
               for (let k = 0; k < stepKeywords.length; k++) {
                 if (stepKeywords[k].some(kw => msgLower.includes(kw))) activeIdx = k;
               }
-              if (displayProgress >= 100) activeIdx = realSteps.length;
+              if (displayProgress >= 100) activeIdx = REAL_STEPS.length;
               done = i < activeIdx;
               active = i === activeIdx;
             } else {
@@ -2409,6 +2440,12 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
 // Single CSS injection — renders once, never duplicated
 function StyleTag() { return <style dangerouslySetInnerHTML={{__html: CSS}}/>; }
 
+
+// Single CSS injection — no more 8x duplication
+
+
+// Single CSS injection — no more 8x duplication
+
 export default function Index() {
   const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync } = useLoaderData();
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
@@ -2504,11 +2541,11 @@ export default function Index() {
   const canPublish = isPaid;
 
   // ⚠️ ALL HOOKS MUST BE CALLED HERE — before any early returns
-  // Pre-compute values needed for the hook without using const names that conflict later
-  const _ac = analyzedDbProducts.length;
-  const _as = _ac > 0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/_ac) : 0;
-  const _mc = isPaid && _ac > 0 ? Math.min(Math.floor(_ac * 0.6), 12) : 0;
-  const liveAds = useGoogleAdsData(_mc, _as);
+  // Pre-compute values for the Google Ads hook
+  const _analyzedCount = analyzedDbProducts.length;
+  const _avgScore = _analyzedCount > 0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/_analyzedCount) : 0;
+  const _mockCampaigns = isPaid && _analyzedCount > 0 ? Math.min(Math.floor(_analyzedCount * 0.6), 12) : 0;
+  const liveAds = useGoogleAdsData(_mockCampaigns, _avgScore);
 
   function triggerConfetti() { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3500); }
   useEffect(() => { setVis(true); }, []);
@@ -2775,99 +2812,53 @@ export default function Index() {
   }
 
   // ── ONBOARD MODAL ──
-  function OnboardModal() {
-    return (
-      <div className="modal-overlay" onClick={()=>setShowOnboard(false)}>
-        <div className="modal onboard-modal" onClick={e=>e.stopPropagation()}>
-          <button className="modal-close" onClick={()=>setShowOnboard(false)}>✕</button>
-          <div className="onboard-tabs">
-            <button className={`onboard-tab ${onboardTab==="subscription"?"active":""}`} onClick={()=>{setOnboardTab("subscription");setOnboardStep(1);}}>📋 Subscription Plans</button>
-            <button className={`onboard-tab ${onboardTab==="credits"?"active":""}`} onClick={()=>setOnboardTab("credits")}>⚡ Buy Scan Credits</button>
-          </div>
-          {onboardTab==="credits" ? (
-            <div className="onboard-content">
-              <h2 className="onboard-title">Buy Scan Credits</h2>
-              <p className="onboard-sub">No subscription needed. Each credit = one full product scan with competitor intelligence & AI ad copy.</p>
-              <div className="scan-credit-packages">
-                {[{amt:10,price:"$9.99",per:"$0.99/scan"},{amt:50,price:"$34.99",per:"$0.70/scan",best:true},{amt:100,price:"$59.99",per:"$0.60/scan"}].map((pkg,i)=>(
-                  <div key={i} className={`scan-credit-pkg ${pkg.best?"scp-popular":""}`} onClick={()=>{setScanCredits(scanCredits+pkg.amt);setShowOnboard(false);}}>
-                    {pkg.best && <div className="scp-badge">BEST VALUE</div>}
-                    <div className="scp-amount">{pkg.amt}</div><div className="scp-label">scans</div>
-                    <div className="scp-price">{pkg.price}</div><div className="scp-per">{pkg.per}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="onboard-credits-info">
-                <div className="oci-row">✅ Full AI analysis per product</div>
-                <div className="oci-row">✅ Competitor intelligence included</div>
-                <div className="oci-row">✅ Ad copy & keywords generated</div>
-                <div className="oci-row">🔒 Publishing to Google Ads requires subscription</div>
-              </div>
-              <div className="onboard-credits-tip">💡 Want unlimited scans + publishing? <span onClick={()=>setOnboardTab("subscription")}>Compare subscription plans →</span></div>
-            </div>
-          ) : onboardStep===1 ? (
-            <div className="onboard-content">
-              <div className="onboard-progress"><div className="onboard-step-dot active">1</div><div className="onboard-line"/><div className="onboard-step-dot">2</div></div>
-              <h2 className="onboard-title">Choose Your Plan</h2>
-              <p className="onboard-sub">Start with 7 days free. Cancel anytime.</p>
-              <div className="plan-cards plan-cards-3">
-                {[
-                  {id:"starter",name:"Starter",price:"$29",features:["Up to 25 products","5 active campaigns","AI ad copy generation","10 AI credits/mo","Publish to Google Ads"]},
-                  {id:"pro",name:"Pro",price:"$79",badge:"MOST POPULAR",features:["Unlimited products","Unlimited campaigns","Advanced AI optimization","200 AI credits/mo","Competitor analysis","Publish to Google Ads"]},
-                  {id:"premium",name:"Premium",price:"$149",badge:"👑 PREMIUM",badgeGold:true,features:["Everything in Pro","1,000 AI credits/mo","Priority AI processing","Dedicated support","Multi-store support"]}
-                ].map(plan=>(
-                  <div key={plan.id} className={`plan-card ${selectedPlan===plan.id?"plan-selected":""}`} onClick={()=>selectPlan(plan.id)}>
-                    {plan.badge && <div className={`plan-badge ${plan.badgeGold?"plan-badge-gold":""}`}>{plan.badge}</div>}
-                    <div className="plan-name">{plan.name}</div>
-                    <div className="plan-price">{plan.price}<span>/mo</span></div>
-                    <ul className="plan-features">{plan.features.map((f,i)=><li key={i}>✓ {f}</li>)}</ul>
-                  </div>
-                ))}
-              </div>
-              <button className="btn-onboard" disabled={!selectedPlan} onClick={()=>setOnboardStep(2)}>Continue →</button>
-            </div>
-          ) : (
-            <div className="onboard-content">
-              <div className="onboard-progress"><div className="onboard-step-dot active">1</div><div className="onboard-line active"/><div className="onboard-step-dot active">2</div></div>
-              <h2 className="onboard-title">Connect Google Ads</h2>
-              <p className="onboard-sub">Link your Google Ads account to start creating campaigns.</p>
-              <div className="google-connect-box">
-                <div className="google-logo"><svg width="40" height="40" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></div>
-                {googleConnected ? <div className="google-connected"><span className="google-check">✓</span> Google Ads Connected</div> : <button className="btn-google" onClick={()=>setTimeout(()=>setGoogleConnected(true),1500)}>Connect Google Ads</button>}
-                <div className="google-trust"><span>🔒 Secure OAuth 2.0</span><span>🚫 No passwords stored</span></div>
-              </div>
-              {googleConnected && <button className="btn-onboard" onClick={()=>{setShowOnboard(false);setShowLaunchChoice(true);}}>🚀 Start Scanning My Store</button>}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
-  function BuyCreditsModal() {
-    return (
-      <div className="credits-modal-overlay" onClick={()=>setShowBuyCredits(false)}>
-        <div className="credits-modal" onClick={e=>e.stopPropagation()}>
-          <button className="modal-close" onClick={()=>setShowBuyCredits(false)}>✕</button>
-          <div style={{fontSize:40,marginBottom:12}}>✨</div>
-          <h3 style={{fontSize:20,fontWeight:800,marginBottom:4}}>AI Improvement Credits</h3>
-          <p style={{fontSize:13,color:"rgba(255,255,255,.5)",marginBottom:20}}>Balance: <strong style={{color:"#a5b4fc"}}>{aiCredits} credits</strong></p>
-          <div className="credits-packages">
-            {[{amt:50,price:"$4.99"},{amt:200,price:"$14.99",best:true},{amt:500,price:"$29.99"}].map((pkg,i)=>(
-              <div key={i} className={`credit-pkg ${pkg.best?"credit-pkg-popular":""}`} onClick={()=>{setAiCredits(aiCredits+pkg.amt);setShowBuyCredits(false);}}>
-                {pkg.best && <div className="credit-pkg-badge">BEST VALUE</div>}
-                <div className="credit-pkg-amount">{pkg.amt}</div><div className="credit-pkg-label">credits</div><div className="credit-pkg-price">{pkg.price}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // ── Computed values + useMemo hooks (MUST be before any early returns) ──
+    const totalProducts = totalDbProducts;
+    const analyzedCount = analyzedDbProducts.length;
+    const avgScore = analyzedCount>0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/analyzedCount) : 0;
+  // ── These useMemo hooks were inside if(hasScanAccess) — moved out to fix React hooks rule ──
+    const sortedProducts = useMemo(() =>
+      [...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0)),
+    [allDbProducts]);
+    const topCompetitors = useMemo(() => {
+      const allCompetitors = analyzedDbProducts.flatMap(p=>p.aiAnalysis?.competitor_intel?.top_competitors||[]);
+      const competitorMap = {};
+      allCompetitors.forEach(c => { if (!c.domain) return; if (!competitorMap[c.domain]) competitorMap[c.domain]={count:0,strength:c.strength||"unknown"}; competitorMap[c.domain].count++; });
+      return Object.entries(competitorMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
+    }, [analyzedDbProducts]);
+    const { keywordGaps, totalMonthlyGapLoss } = useMemo(() => {
+      const myKeywords = new Set(
+        analyzedDbProducts.flatMap(p => (p.aiAnalysis?.keywords||[]).map(k => (typeof k==="string"?k:k?.text||"").toLowerCase().trim()))
+          .filter(Boolean)
+      );
+      const competitorKeywords = analyzedDbProducts.flatMap(p => p.aiAnalysis?.competitor_intel?.keyword_gaps||[])
+        .map(k => (typeof k==="string"?k:k?.text||k).toLowerCase().trim())
+        .filter(Boolean);
+      const gapKeywordCounts = {};
+      competitorKeywords.forEach(k => { gapKeywordCounts[k] = (gapKeywordCounts[k]||0)+1; });
+      const gaps = Object.entries(gapKeywordCounts)
+        .filter(([k]) => !myKeywords.has(k) && k.length > 3)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0, 8)
+        .map(([keyword, freq]) => ({
+          keyword,
+          freq,
+          estMonthlyLoss: Math.round((freq * 280) * (avgScore < 60 ? 1.4 : 1)),
+          estClicks: Math.round(freq * 22),
+          difficulty: freq >= 3 ? "High" : freq === 2 ? "Medium" : "Low",
+          diffColor: freq >= 3 ? "#ef4444" : freq === 2 ? "#f59e0b" : "#22c55e",
+        }));
+      return { keywordGaps: gaps, totalMonthlyGapLoss: gaps.reduce((a,g) => a+g.estMonthlyLoss, 0) };
+    }, [analyzedDbProducts, avgScore]);
+
+  // OnboardModal — now imported from ../components/Modals.jsx
+
+  // BuyCreditsModal — now imported from ../components/Modals.jsx
 
   // ── ERROR / LOADING SCREENS ──
   if (scanError) return (
-    <div className="sr dk"><StyleTag/><style>{CSS}</style>
+    <div className="sr dk"><StyleTag/>
       <div className="ld-wrap">
         <div style={{fontSize:64,marginBottom:20}}>⚠️</div>
         <h2 className="ld-title">Scan Failed</h2>
@@ -2895,7 +2886,7 @@ export default function Index() {
       {label:"Generating preview",done:pct>=100,active:pct>=55&&pct<100},
     ];
     return (
-      <div className="sr dk"><StyleTag/><style>{CSS}</style>
+      <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/>
         <div className="ld-wrap">
           <div className="ld-pct-ring">
@@ -2931,7 +2922,7 @@ export default function Index() {
   }
 
   if (autoLaunching) return (
-    <div className="sr dk"><StyleTag/><style>{CSS}</style>
+    <div className="sr dk"><StyleTag/>
       <div className="ld-wrap">
         <div style={{fontSize:64,marginBottom:20,animation:"ldPulse 1s ease infinite"}}>⚡</div>
         <h2 className="ld-title">Launching Your Campaigns...</h2>
@@ -2942,7 +2933,7 @@ export default function Index() {
   );
 
   if (autoStatus==="success"||autoStatus==="error") return (
-    <div className="sr dk"><StyleTag/><style>{CSS}</style>
+    <div className="sr dk"><StyleTag/>
       <Confetti active={showConfetti}/>
       <div className="ld-wrap">
         <div style={{fontSize:64,marginBottom:20}}>{autoStatus==="success"?"✅":"❌"}</div>
@@ -2957,12 +2948,8 @@ export default function Index() {
   );
 
   // ══════════════════════════════════════════════
-  // MAIN DASHBOARD
-  // ══════════════════════════════════════════════
+
   if (hasScanAccess) {
-    const totalProducts = totalDbProducts;
-    const analyzedCount = analyzedDbProducts.length;
-    const avgScore = analyzedCount>0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/analyzedCount) : 0;
     const totalKeywords = analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.keywords?.length||0),0);
     const highPotential = analyzedDbProducts.filter(p=>(p.aiAnalysis?.ad_score||0)>=70).length;
     const topProduct = analyzedDbProducts.reduce((best,p)=>((p.aiAnalysis?.ad_score||0)>(best.aiAnalysis?.ad_score||0)?p:best),analyzedDbProducts[0]||null);
@@ -2971,44 +2958,11 @@ export default function Index() {
     const competitorThreat = avgScore>=70?"Low":avgScore>=50?"Moderate":"High";
     const threatColor = {Low:"#22c55e",Moderate:"#f59e0b",High:"#ef4444"}[competitorThreat];
     const googleRankStatus = avgScore>=70?"page_1":avgScore>=50?"page_2":"page_3";
-    const sortedProducts = useMemo(() =>
-      [...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0)),
-    [allDbProducts]);
 
     // Competitor aggregation — sorted by count
-    const topCompetitors = useMemo(() => {
-      const allCompetitors = analyzedDbProducts.flatMap(p=>p.aiAnalysis?.competitor_intel?.top_competitors||[]);
-      const competitorMap = {};
-      allCompetitors.forEach(c => { if (!c.domain) return; if (!competitorMap[c.domain]) competitorMap[c.domain]={count:0,strength:c.strength||"unknown"}; competitorMap[c.domain].count++; });
-      return Object.entries(competitorMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
-    }, [analyzedDbProducts]);
     const competitorCount = topCompetitors.length;
 
     // Competitor Gap Finder — keywords competitors use that we don't
-    const { keywordGaps, totalMonthlyGapLoss } = useMemo(() => {
-      const myKeywords = new Set(
-        analyzedDbProducts.flatMap(p => (p.aiAnalysis?.keywords||[]).map(k => (typeof k==="string"?k:k?.text||"").toLowerCase().trim()))
-          .filter(Boolean)
-      );
-      const competitorKeywords = analyzedDbProducts.flatMap(p => p.aiAnalysis?.competitor_intel?.keyword_gaps||[])
-        .map(k => (typeof k==="string"?k:k?.text||k).toLowerCase().trim())
-        .filter(Boolean);
-      const gapKeywordCounts = {};
-      competitorKeywords.forEach(k => { gapKeywordCounts[k] = (gapKeywordCounts[k]||0)+1; });
-      const gaps = Object.entries(gapKeywordCounts)
-        .filter(([k]) => !myKeywords.has(k) && k.length > 3)
-        .sort((a,b) => b[1]-a[1])
-        .slice(0, 8)
-        .map(([keyword, freq]) => ({
-          keyword,
-          freq,
-          estMonthlyLoss: Math.round((freq * 280) * (avgScore < 60 ? 1.4 : 1)),
-          estClicks: Math.round(freq * 22),
-          difficulty: freq >= 3 ? "High" : freq === 2 ? "Medium" : "Low",
-          diffColor: freq >= 3 ? "#ef4444" : freq === 2 ? "#f59e0b" : "#22c55e",
-        }));
-      return { keywordGaps: gaps, totalMonthlyGapLoss: gaps.reduce((a,g) => a+g.estMonthlyLoss, 0) };
-    }, [analyzedDbProducts, avgScore]);
 
     // Live Google Ads data — from top-level hook
     const impressionsBase = liveAds.impressions;
@@ -3016,7 +2970,7 @@ export default function Index() {
 
     // ── Fresh paid subscriber — never scanned yet ──
     if (isPaid && analyzedCount === 0) return (
-      <div className="sr dk"><StyleTag/><style>{CSS}</style><div className="bg-m"/>
+      <div className="sr dk"><StyleTag/><div className="bg-m"/>
         <div className="status-bar"><div className="status-bar-inner">
           <div className="sb-row sb-row-data">
             <div className="sb-chips-left">
@@ -3044,7 +2998,7 @@ export default function Index() {
     );
 
     return (
-      <div className="sr dk"><StyleTag/><style>{CSS}</style>
+      <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/>
         <div className="bg-m"/>
 
@@ -3384,8 +3338,8 @@ export default function Index() {
           shop={shopDomain}
         />}
         {selCompetitor && <CompetitorModal competitor={selCompetitor} products={analyzedDbProducts} onClose={()=>setSelCompetitor(null)}/>}
-        {showOnboard && <OnboardModal/>}
-        {showBuyCredits && <BuyCreditsModal/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
   }
@@ -3396,7 +3350,7 @@ export default function Index() {
     const avgScore = aiResults?.products?.length ? Math.round(aiResults.products.reduce((a,p)=>a+(p.ad_score||0),0)/aiResults.products.length) : 0;
     const highPotential = aiResults?.products?.filter(p=>p.ad_score>=70).length||0;
     return (
-      <div className="sr dk"><StyleTag/><style>{CSS}</style>
+      <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/><div className="bg-m"/>
         {isHydrated && !isPaid && scanCredits === 0 && <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>}
         <div className="da">
@@ -3457,15 +3411,15 @@ export default function Index() {
           setOnboardTab={setOnboardTab} setOnboardStep={setOnboardStep}
           shop={shopDomain}
         />}
-        {showOnboard && <OnboardModal/>}
-        {showBuyCredits && <BuyCreditsModal/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
   }
 
   // ── LANDING PAGE ──
   return (
-    <div className="sr dk"><StyleTag/><style>{CSS}</style>
+    <div className="sr dk"><StyleTag/>
       <div className="bg-m"/>
       <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>
       <div className={`la ${vis?"la-v":""}`}>
@@ -3514,8 +3468,8 @@ export default function Index() {
           </div>
         </section>
       </div>
-      {showOnboard && <OnboardModal/>}
-      {showBuyCredits && <BuyCreditsModal/>}
+      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+      {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       {showLaunchChoice && (
         <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,textAlign:"center",padding:"44px 36px"}}>
