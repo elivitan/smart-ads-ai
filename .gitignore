@@ -4,3 +4,7 @@ prisma/dev.db
 prisma/dev.db-journal
 build/
 .cache/
+
+*.cjs
+*.bak_*
+.vscode/
