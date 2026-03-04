@@ -225,18 +225,17 @@ function buildBiddingConfig(bidding, campaignType) {
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────
-export async function createCampaign({
+export async function createCampaignexport async function createCampaign({
   productTitle,
   headlines,
   descriptions,
   keywords = [],
   finalUrl,
   dailyBudget = 50,
-  campaignType = "search",,
-bidding = "max_conversions",
-imageUrls = [],
-videoUrls = [],
-})
+  campaignType = "search",
+  bidding = "max_conversions",
+  imageUrls = [],
+  videoUrls = [],
 }) {
   const customer = getCustomer();
   const budgetResourceName = await createBudget(customer, productTitle, dailyBudget);

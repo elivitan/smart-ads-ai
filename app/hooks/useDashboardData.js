@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 
 /**
@@ -8,54 +7,73 @@ import { useMemo } from "react";
  */
 export function useDashboardData(allDbProducts) {
   const analyzedDbProducts = useMemo(
-    () => allDbProducts.filter(p => p.hasAiAnalysis),
-    [allDbProducts]
+    () => allDbProducts.filter((p) => p.hasAiAnalysis),
+    [allDbProducts],
   );
 
   // O(1) lookup maps ג€” no more O(n) find() in render
   const productById = useMemo(() => {
     const map = new Map();
-    allDbProducts.forEach(p => { if (p.id) map.set(p.id, p); });
+    allDbProducts.forEach((p) => {
+      if (p.id) map.set(p.id, p);
+    });
     return map;
   }, [allDbProducts]);
 
   const productByTitle = useMemo(() => {
     const map = new Map();
-    allDbProducts.forEach(p => { if (p.title) map.set(p.title.toLowerCase(), p); });
+    allDbProducts.forEach((p) => {
+      if (p.title) map.set(p.title.toLowerCase(), p);
+    });
     return map;
   }, [allDbProducts]);
 
   const analyzedCount = analyzedDbProducts.length;
   const totalProducts = allDbProducts.length;
 
-  const avgScore = useMemo(() =>
-    analyzedCount > 0
-      ? Math.round(analyzedDbProducts.reduce((a, p) => a + (p.aiAnalysis?.ad_score || 0), 0) / analyzedCount)
-      : 0,
-    [analyzedDbProducts, analyzedCount]
+  const avgScore = useMemo(
+    () =>
+      analyzedCount > 0
+        ? Math.round(
+            analyzedDbProducts.reduce(
+              (a, p) => a + (p.aiAnalysis?.ad_score || 0),
+              0,
+            ) / analyzedCount,
+          )
+        : 0,
+    [analyzedDbProducts, analyzedCount],
   );
 
-  const highPotential = useMemo(() =>
-    analyzedDbProducts.filter(p => (p.aiAnalysis?.ad_score || 0) >= 70).length,
-    [analyzedDbProducts]
+  const highPotential = useMemo(
+    () =>
+      analyzedDbProducts.filter((p) => (p.aiAnalysis?.ad_score || 0) >= 70)
+        .length,
+    [analyzedDbProducts],
   );
 
-  const sortedProducts = useMemo(() =>
-    [...allDbProducts].sort((a, b) => (b.aiAnalysis?.ad_score || 0) - (a.aiAnalysis?.ad_score || 0)),
-    [allDbProducts]
+  const sortedProducts = useMemo(
+    () =>
+      [...allDbProducts].sort(
+        (a, b) => (b.aiAnalysis?.ad_score || 0) - (a.aiAnalysis?.ad_score || 0),
+      ),
+    [allDbProducts],
   );
 
   const topProduct = sortedProducts[0] || null;
 
   const topCompetitors = useMemo(() => {
     const allCompetitors = analyzedDbProducts.flatMap(
-      p => p.aiAnalysis?.competitor_intel?.top_competitors || []
+      (p) => p.aiAnalysis?.competitor_intel?.top_competitors || [],
     );
     const competitorMap = {};
-    allCompetitors.forEach(c => {
+    allCompetitors.forEach((c) => {
       if (!c.domain) return;
       if (!competitorMap[c.domain]) {
-        competitorMap[c.domain] = { count: 0, strength: c.strength || "medium", keywords: [] };
+        competitorMap[c.domain] = {
+          count: 0,
+          strength: c.strength || "medium",
+          keywords: [],
+        };
       }
       competitorMap[c.domain].count++;
       if (c.keywords) competitorMap[c.domain].keywords.push(...c.keywords);
@@ -70,14 +88,16 @@ export function useDashboardData(allDbProducts) {
     // Deterministic hash to avoid random jumps on re-render
     function simpleHash(str) {
       let h = 0;
-      for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+      for (let i = 0; i < str.length; i++)
+        h = ((h << 5) - h + str.charCodeAt(i)) | 0;
       return Math.abs(h);
     }
-    analyzedDbProducts.forEach(p => {
+    analyzedDbProducts.forEach((p) => {
       const intel = p.aiAnalysis?.competitor_intel;
       if (!intel) return;
-      (intel.keyword_gaps || []).forEach(kw => {
-        const keyword = typeof kw === "string" ? kw : kw?.keyword || kw?.text || "";
+      (intel.keyword_gaps || []).forEach((kw) => {
+        const keyword =
+          typeof kw === "string" ? kw : kw?.keyword || kw?.text || "";
         if (!keyword) return;
         const hash = simpleHash(keyword + (p.title || ""));
         const estLoss = Math.round((avgScore || 50) * 0.8 + (hash % 200));
@@ -86,8 +106,9 @@ export function useDashboardData(allDbProducts) {
           product: p.title,
           productId: p.id,
           estMonthlyLoss: estLoss,
-          difficulty: estLoss > 300 ? "Hard" : estLoss > 150 ? "Medium" : "Easy",
-          competitor: (intel.top_competitors?.[0]?.domain) || "competitor.com",
+          difficulty:
+            estLoss > 300 ? "Hard" : estLoss > 150 ? "Medium" : "Easy",
+          competitor: intel.top_competitors?.[0]?.domain || "competitor.com",
         });
       });
     });
@@ -100,11 +121,15 @@ export function useDashboardData(allDbProducts) {
 
   const healthScore = useMemo(() => {
     if (analyzedCount === 0) return 0;
-    const coverage = totalProducts > 0 ? (analyzedCount / totalProducts) * 25 : 0;
+    const coverage =
+      totalProducts > 0 ? (analyzedCount / totalProducts) * 25 : 0;
     const scoreComp = avgScore * 0.4;
     const competitorComp = Math.min(topCompetitors.length * 5, 20);
     const keywordComp = Math.min(keywordGaps.length * 1.5, 15);
-    return Math.min(Math.round(coverage + scoreComp + competitorComp + keywordComp), 100);
+    return Math.min(
+      Math.round(coverage + scoreComp + competitorComp + keywordComp),
+      100,
+    );
   }, [analyzedCount, totalProducts, avgScore, topCompetitors, keywordGaps]);
 
   return {
@@ -123,4 +148,3 @@ export function useDashboardData(allDbProducts) {
     productByTitle,
   };
 }
-

@@ -9,7 +9,11 @@ export function rateLimit(key, limit, windowMs) {
   const ts = windows.get(key);
   while (ts.length > 0 && ts[0] <= now - windowMs) ts.shift();
   if (ts.length >= limit) {
-    return { allowed: false, remaining: 0, retryAfterMs: ts[0] + windowMs - now };
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterMs: ts[0] + windowMs - now,
+    };
   }
   ts.push(now);
   return { allowed: true, remaining: limit - ts.length, retryAfterMs: 0 };

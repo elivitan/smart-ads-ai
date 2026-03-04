@@ -1,6 +1,6 @@
 /**
  * Product Sync Service
- * 
+ *
  * Keeps the local DB in sync with Shopify products.
  * - Full sync: fetches all products via GraphQL pagination
  * - Incremental: handles webhook events (create/update/delete)
@@ -17,9 +17,13 @@ function productHash(title, price, description, image) {
 }
 
 function mapGraphQLProduct(node) {
-  const totalInventory = (node.totalInventory != null)
-    ? node.totalInventory
-    : (node.variants?.edges || []).reduce((sum, v) => sum + (v.node?.inventoryQuantity || 0), 0);
+  const totalInventory =
+    node.totalInventory != null
+      ? node.totalInventory
+      : (node.variants?.edges || []).reduce(
+          (sum, v) => sum + (v.node?.inventoryQuantity || 0),
+          0,
+        );
 
   return {
     id: node.id,
@@ -46,7 +50,12 @@ function mapGraphQLProduct(node) {
  */
 export async function fullSync(admin, shop) {
   const log = await prisma.syncLog.create({
-    data: { shop, type: "full_sync", status: "started", details: "Starting full product sync..." },
+    data: {
+      shop,
+      type: "full_sync",
+      status: "started",
+      details: "Starting full product sync...",
+    },
   });
 
   try {
@@ -86,15 +95,21 @@ export async function fullSync(admin, shop) {
       where: { shop },
       select: { id: true },
     });
-    const existingIds = new Set(existing.map(p => p.id));
-    const fetchedIds = new Set(allProducts.map(p => p.id));
+    const existingIds = new Set(existing.map((p) => p.id));
+    const fetchedIds = new Set(allProducts.map((p) => p.id));
 
-    let created = 0, updated = 0, deleted = 0;
+    let created = 0,
+      updated = 0,
+      deleted = 0;
     const needsAi = [];
 
     // Upsert all fetched products
     for (const product of allProducts) {
-      const hash = productHash(product.title, product.price, product.description);
+      const hash = productHash(
+        product.title,
+        product.price,
+        product.description,
+      );
 
       const dbProduct = await prisma.product.upsert({
         where: { id: product.id },
@@ -109,14 +124,17 @@ export async function fullSync(admin, shop) {
       } else {
         updated++;
         // Check if product changed since last AI analysis
-        if (!dbProduct.aiAnalysis || dbProduct.aiAnalysis.productHash !== hash) {
+        if (
+          !dbProduct.aiAnalysis ||
+          dbProduct.aiAnalysis.productHash !== hash
+        ) {
           needsAi.push(product.id);
         }
       }
     }
 
     // Delete products that no longer exist in Shopify
-    const toDelete = [...existingIds].filter(id => !fetchedIds.has(id));
+    const toDelete = [...existingIds].filter((id) => !fetchedIds.has(id));
     if (toDelete.length > 0) {
       await prisma.product.deleteMany({ where: { id: { in: toDelete } } });
       deleted = toDelete.length;
@@ -141,7 +159,6 @@ export async function fullSync(admin, shop) {
       needsAi: needsAi.length,
       needsAiIds: needsAi,
     };
-
   } catch (err) {
     await prisma.syncLog.update({
       where: { id: log.id },
@@ -159,13 +176,19 @@ export async function fullSync(admin, shop) {
  */
 export async function handleProductWebhook(shop, shopifyProduct, eventType) {
   const log = await prisma.syncLog.create({
-    data: { shop, type: `webhook_${eventType}`, status: "started", details: `Product: ${shopifyProduct.title}` },
+    data: {
+      shop,
+      type: `webhook_${eventType}`,
+      status: "started",
+      details: `Product: ${shopifyProduct.title}`,
+    },
   });
 
   try {
     const productId = `gid://shopify/Product/${shopifyProduct.id}`;
     const totalInventory = (shopifyProduct.variants || []).reduce(
-      (sum, v) => sum + (v.inventory_quantity || 0), 0
+      (sum, v) => sum + (v.inventory_quantity || 0),
+      0,
     );
 
     const productData = {
@@ -180,11 +203,17 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
       productType: shopifyProduct.product_type || "",
       vendor: shopifyProduct.vendor || "",
       tags: shopifyProduct.tags || "",
-      shopifyUpdatedAt: shopifyProduct.updated_at ? new Date(shopifyProduct.updated_at) : new Date(),
+      shopifyUpdatedAt: shopifyProduct.updated_at
+        ? new Date(shopifyProduct.updated_at)
+        : new Date(),
       syncedAt: new Date(),
     };
 
-    const hash = productHash(productData.title, productData.price, productData.description);
+    const hash = productHash(
+      productData.title,
+      productData.price,
+      productData.description,
+    );
 
     await prisma.product.upsert({
       where: { id: productId },
@@ -211,7 +240,6 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
     });
 
     return { productId, needsAi };
-
   } catch (err) {
     await prisma.syncLog.update({
       where: { id: log.id },
@@ -255,7 +283,9 @@ export async function saveAiAnalysis(productId, shop, aiResult) {
     select: { title: true, price: true, description: true },
   });
 
-  const hash = product ? productHash(product.title, product.price, product.description) : "";
+  const hash = product
+    ? productHash(product.title, product.price, product.description)
+    : "";
 
   return prisma.aiAnalysis.upsert({
     where: { productId },
@@ -301,7 +331,10 @@ export async function saveAiAnalysis(productId, shop, aiResult) {
 /**
  * Get all products for a shop with their AI analysis status.
  */
-export async function getShopProducts(shop, { inStockOnly = false, withAiOnly = false } = {}) {
+export async function getShopProducts(
+  shop,
+  { inStockOnly = false, withAiOnly = false } = {},
+) {
   const where = { shop };
   if (inStockOnly) where.inStock = true;
 
@@ -311,52 +344,57 @@ export async function getShopProducts(shop, { inStockOnly = false, withAiOnly = 
     orderBy: { title: "asc" },
   });
 
-  return products.map(p => ({
-    id: p.id,
-    title: p.title,
-    description: p.description,
-    handle: p.handle,
-    image: p.image,
-    price: p.price,
-    status: p.status,
-    inventoryTotal: p.inventoryTotal,
-    inStock: p.inStock,
-    productType: p.productType,
-    vendor: p.vendor,
-    tags: p.tags ? p.tags.split(",").filter(Boolean) : [],
-    syncedAt: p.syncedAt,
-    hasAiAnalysis: !!p.aiAnalysis,
-    aiAnalysis: p.aiAnalysis ? {
-      ad_score: p.aiAnalysis.adScore,
-      ad_strength: p.aiAnalysis.adStrength,
-      headlines: JSON.parse(p.aiAnalysis.headlines),
-      descriptions: JSON.parse(p.aiAnalysis.descriptions),
-      keywords: JSON.parse(p.aiAnalysis.keywords),
-      negative_keywords: JSON.parse(p.aiAnalysis.negativeKeywords),
-      path1: p.aiAnalysis.path1,
-      path2: p.aiAnalysis.path2,
-      recommended_bid: p.aiAnalysis.recommendedBid,
-      target_demographics: p.aiAnalysis.targetDemographics,
-      sitelinks: JSON.parse(p.aiAnalysis.sitelinks),
-      competitor_intel: JSON.parse(p.aiAnalysis.competitorIntel),
-      analyzedAt: p.aiAnalysis.analyzedAt,
-    } : null,
-  })).filter(p => !withAiOnly || p.hasAiAnalysis);
+  return products
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      handle: p.handle,
+      image: p.image,
+      price: p.price,
+      status: p.status,
+      inventoryTotal: p.inventoryTotal,
+      inStock: p.inStock,
+      productType: p.productType,
+      vendor: p.vendor,
+      tags: p.tags ? p.tags.split(",").filter(Boolean) : [],
+      syncedAt: p.syncedAt,
+      hasAiAnalysis: !!p.aiAnalysis,
+      aiAnalysis: p.aiAnalysis
+        ? {
+            ad_score: p.aiAnalysis.adScore,
+            ad_strength: p.aiAnalysis.adStrength,
+            headlines: JSON.parse(p.aiAnalysis.headlines),
+            descriptions: JSON.parse(p.aiAnalysis.descriptions),
+            keywords: JSON.parse(p.aiAnalysis.keywords),
+            negative_keywords: JSON.parse(p.aiAnalysis.negativeKeywords),
+            path1: p.aiAnalysis.path1,
+            path2: p.aiAnalysis.path2,
+            recommended_bid: p.aiAnalysis.recommendedBid,
+            target_demographics: p.aiAnalysis.targetDemographics,
+            sitelinks: JSON.parse(p.aiAnalysis.sitelinks),
+            competitor_intel: JSON.parse(p.aiAnalysis.competitorIntel),
+            analyzedAt: p.aiAnalysis.analyzedAt,
+          }
+        : null,
+    }))
+    .filter((p) => !withAiOnly || p.hasAiAnalysis);
 }
 
 /**
  * Get sync status summary for a shop.
  */
 export async function getSyncStatus(shop) {
-  const [totalProducts, inStockProducts, analyzedProducts, lastSync] = await Promise.all([
-    prisma.product.count({ where: { shop } }),
-    prisma.product.count({ where: { shop, inStock: true } }),
-    prisma.aiAnalysis.count({ where: { shop } }),
-    prisma.syncLog.findFirst({
-      where: { shop, type: "full_sync", status: "completed" },
-      orderBy: { completedAt: "desc" },
-    }),
-  ]);
+  const [totalProducts, inStockProducts, analyzedProducts, lastSync] =
+    await Promise.all([
+      prisma.product.count({ where: { shop } }),
+      prisma.product.count({ where: { shop, inStock: true } }),
+      prisma.aiAnalysis.count({ where: { shop } }),
+      prisma.syncLog.findFirst({
+        where: { shop, type: "full_sync", status: "completed" },
+        orderBy: { completedAt: "desc" },
+      }),
+    ]);
 
   return {
     totalProducts,
@@ -382,8 +420,8 @@ export async function getShopCredits(shop) {
     });
     return {
       scanCredits: record?.scanCredits ?? 0,
-      aiCredits:   record?.aiCredits   ?? 0,
-      plan:        record?.plan        ?? null,
+      aiCredits: record?.aiCredits ?? 0,
+      plan: record?.plan ?? null,
     };
   } catch {
     return { scanCredits: 0, aiCredits: 0, plan: null };
@@ -396,16 +434,18 @@ export async function getShopCredits(shop) {
 export async function updateShopCredits(shop, { scanCredits, aiCredits } = {}) {
   const data = {};
   if (typeof scanCredits === "number") data.scanCredits = scanCredits;
-  if (typeof aiCredits   === "number") data.aiCredits   = aiCredits;
+  if (typeof aiCredits === "number") data.aiCredits = aiCredits;
   if (Object.keys(data).length === 0) return;
 
   await prisma.shopSubscription.upsert({
     where: { shop },
     update: data,
-    create: { shop, scanCredits: scanCredits ?? 0, aiCredits: aiCredits ?? 0, plan: "free", status: "active" },
+    create: {
+      shop,
+      scanCredits: scanCredits ?? 0,
+      aiCredits: aiCredits ?? 0,
+      plan: "free",
+      status: "active",
+    },
   });
-
-
-
-
 }

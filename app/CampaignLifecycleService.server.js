@@ -1,19 +1,19 @@
 /**
  * CampaignLifecycleService.server.js (v3)
- * 
+ *
  * Complete campaign orchestration engine.
- * 
+ *
  * Architecture:
  *   POST /api/campaign → creates job → returns jobId immediately
  *   Worker picks up job → runs state machine → updates DB at each step
  *   GET /api/campaign-status?jobId=xxx → polls DB for current state
- * 
+ *
  * State Machine:
- *   QUEUED → VALIDATING → CREATING_BUDGET → CREATING_CAMPAIGN 
+ *   QUEUED → VALIDATING → CREATING_BUDGET → CREATING_CAMPAIGN
  *   → UPLOADING_ASSETS → LINKING_CONVERSIONS → ENABLING → ENABLED
  *   Any step can → FAILED / FAILED_PARTIAL → RETRYING → (resume from last step)
  *   FAILED_PARTIAL → ROLLBACK
- * 
+ *
  * Features:
  *   - Idempotency (duplicate detection within 60s)
  *   - Step-by-step DB persistence (survives crash/restart)
@@ -23,7 +23,11 @@
  *   - Concurrent launch protection (1 active launch per shop)
  */
 
-import { createSearchCampaign, createPMaxCampaign, getCustomer } from "./google-ads.server.js";
+import {
+  createSearchCampaign,
+  createPMaxCampaign,
+  getCustomer,
+} from "./google-ads.server.js";
 import { withRetry } from "./retry.server.js";
 import prisma from "./db.server.js";
 
@@ -31,19 +35,19 @@ import prisma from "./db.server.js";
 // STATES
 // ══════════════════════════════════════════════════════════════════════════
 export const STATES = {
-  QUEUED:                "QUEUED",
-  VALIDATING:            "VALIDATING",
-  CREATING_BUDGET:       "CREATING_BUDGET",
-  CREATING_CAMPAIGN:     "CREATING_CAMPAIGN",
-  UPLOADING_ASSETS:      "UPLOADING_ASSETS",
-  LINKING_CONVERSIONS:   "LINKING_CONVERSIONS",
-  ENABLING:              "ENABLING",
-  ENABLED:               "ENABLED",
-  FAILED:                "FAILED",
-  FAILED_PARTIAL:        "FAILED_PARTIAL",
-  RETRYING:              "RETRYING",
-  ROLLBACK:              "ROLLBACK",
-  CANCELLED:             "CANCELLED",
+  QUEUED: "QUEUED",
+  VALIDATING: "VALIDATING",
+  CREATING_BUDGET: "CREATING_BUDGET",
+  CREATING_CAMPAIGN: "CREATING_CAMPAIGN",
+  UPLOADING_ASSETS: "UPLOADING_ASSETS",
+  LINKING_CONVERSIONS: "LINKING_CONVERSIONS",
+  ENABLING: "ENABLING",
+  ENABLED: "ENABLED",
+  FAILED: "FAILED",
+  FAILED_PARTIAL: "FAILED_PARTIAL",
+  RETRYING: "RETRYING",
+  ROLLBACK: "ROLLBACK",
+  CANCELLED: "CANCELLED",
 };
 
 // Terminal states — no further transitions allowed
@@ -51,19 +55,33 @@ const TERMINAL = new Set([STATES.ENABLED, STATES.ROLLBACK, STATES.CANCELLED]);
 
 // Valid transitions
 const TRANSITIONS = {
-  [STATES.QUEUED]:              [STATES.VALIDATING, STATES.CANCELLED],
-  [STATES.VALIDATING]:          [STATES.CREATING_BUDGET, STATES.FAILED],
-  [STATES.CREATING_BUDGET]:     [STATES.CREATING_CAMPAIGN, STATES.FAILED],
-  [STATES.CREATING_CAMPAIGN]:   [STATES.UPLOADING_ASSETS, STATES.LINKING_CONVERSIONS, STATES.FAILED, STATES.FAILED_PARTIAL],
-  [STATES.UPLOADING_ASSETS]:    [STATES.LINKING_CONVERSIONS, STATES.FAILED_PARTIAL],
+  [STATES.QUEUED]: [STATES.VALIDATING, STATES.CANCELLED],
+  [STATES.VALIDATING]: [STATES.CREATING_BUDGET, STATES.FAILED],
+  [STATES.CREATING_BUDGET]: [STATES.CREATING_CAMPAIGN, STATES.FAILED],
+  [STATES.CREATING_CAMPAIGN]: [
+    STATES.UPLOADING_ASSETS,
+    STATES.LINKING_CONVERSIONS,
+    STATES.FAILED,
+    STATES.FAILED_PARTIAL,
+  ],
+  [STATES.UPLOADING_ASSETS]: [
+    STATES.LINKING_CONVERSIONS,
+    STATES.FAILED_PARTIAL,
+  ],
   [STATES.LINKING_CONVERSIONS]: [STATES.ENABLING, STATES.FAILED_PARTIAL],
-  [STATES.ENABLING]:            [STATES.ENABLED, STATES.FAILED_PARTIAL],
-  [STATES.ENABLED]:             [],
-  [STATES.FAILED]:              [STATES.RETRYING, STATES.CANCELLED],
-  [STATES.FAILED_PARTIAL]:      [STATES.RETRYING, STATES.ROLLBACK, STATES.CANCELLED],
-  [STATES.RETRYING]:            [STATES.VALIDATING, STATES.CREATING_BUDGET, STATES.CREATING_CAMPAIGN, STATES.UPLOADING_ASSETS, STATES.FAILED],
-  [STATES.ROLLBACK]:            [],
-  [STATES.CANCELLED]:           [],
+  [STATES.ENABLING]: [STATES.ENABLED, STATES.FAILED_PARTIAL],
+  [STATES.ENABLED]: [],
+  [STATES.FAILED]: [STATES.RETRYING, STATES.CANCELLED],
+  [STATES.FAILED_PARTIAL]: [STATES.RETRYING, STATES.ROLLBACK, STATES.CANCELLED],
+  [STATES.RETRYING]: [
+    STATES.VALIDATING,
+    STATES.CREATING_BUDGET,
+    STATES.CREATING_CAMPAIGN,
+    STATES.UPLOADING_ASSETS,
+    STATES.FAILED,
+  ],
+  [STATES.ROLLBACK]: [],
+  [STATES.CANCELLED]: [],
 };
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -73,17 +91,26 @@ const MAX_ATTEMPTS = 5;
 const BACKOFF_BASE = 2000; // 2s, 4s, 8s, 16s, 32s
 
 function getBackoffDelay(attempt) {
-  return Math.min(BACKOFF_BASE * Math.pow(2, attempt), 32000) + Math.random() * 1000;
+  return (
+    Math.min(BACKOFF_BASE * Math.pow(2, attempt), 32000) + Math.random() * 1000
+  );
 }
 
 function isRetryableError(err) {
   const msg = (err?.message || "").toLowerCase();
   const code = err?.status || err?.statusCode || 0;
   return (
-    code === 429 || code === 500 || code === 502 || code === 503 || code === 504 ||
-    msg.includes("rate_limit") || msg.includes("deadline_exceeded") ||
-    msg.includes("internal") || msg.includes("unavailable") ||
-    msg.includes("econnreset") || msg.includes("etimedout") ||
+    code === 429 ||
+    code === 500 ||
+    code === 502 ||
+    code === 503 ||
+    code === 504 ||
+    msg.includes("rate_limit") ||
+    msg.includes("deadline_exceeded") ||
+    msg.includes("internal") ||
+    msg.includes("unavailable") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout") ||
     msg.includes("resource_exhausted")
   );
 }
@@ -94,16 +121,19 @@ function isRetryableError(err) {
 function validatePayload(payload) {
   const errors = [];
   if (!payload.productTitle?.trim()) errors.push("Product title is required");
-  if (!payload.finalUrl?.startsWith("http")) errors.push("Valid final URL required");
+  if (!payload.finalUrl?.startsWith("http"))
+    errors.push("Valid final URL required");
   const budget = parseFloat(payload.budgetAmount);
-  if (isNaN(budget) || budget < 1) errors.push("Budget must be at least $1/day");
+  if (isNaN(budget) || budget < 1)
+    errors.push("Budget must be at least $1/day");
   if (budget > 10000) errors.push("Budget exceeds $10,000/day limit");
   const hl = payload.headlines || [];
   if (hl.length < 3) errors.push("At least 3 headlines required");
-  if (hl.some(h => h.length > 30)) errors.push("Headlines must be ≤30 chars");
+  if (hl.some((h) => h.length > 30)) errors.push("Headlines must be ≤30 chars");
   const desc = payload.descriptions || [];
   if (desc.length < 2) errors.push("At least 2 descriptions required");
-  if (desc.some(d => d.length > 90)) errors.push("Descriptions must be ≤90 chars");
+  if (desc.some((d) => d.length > 90))
+    errors.push("Descriptions must be ≤90 chars");
   return { valid: errors.length === 0, errors };
 }
 
@@ -126,20 +156,32 @@ async function createJob(shop, payload, idempotencyKey) {
     if (existing) {
       return { duplicate: true, jobId: existing.id, state: existing.state };
     }
-  } catch { /* table may not exist yet */ }
+  } catch {
+    /* table may not exist yet */
+  }
 
   // Concurrency check — only 1 active job per shop
   try {
     const active = await prisma.campaignJob.findFirst({
       where: {
         shop,
-        state: { notIn: [STATES.ENABLED, STATES.FAILED, STATES.FAILED_PARTIAL, STATES.ROLLBACK, STATES.CANCELLED] },
+        state: {
+          notIn: [
+            STATES.ENABLED,
+            STATES.FAILED,
+            STATES.FAILED_PARTIAL,
+            STATES.ROLLBACK,
+            STATES.CANCELLED,
+          ],
+        },
       },
     });
     if (active) {
       return { concurrent: true, jobId: active.id, state: active.state };
     }
-  } catch { /* table may not exist yet */ }
+  } catch {
+    /* table may not exist yet */
+  }
 
   try {
     await prisma.campaignJob.create({
@@ -185,7 +227,9 @@ async function updateJob(jobId, state, meta = {}) {
         ...(state === STATES.RETRYING ? { attempts: { increment: 1 } } : {}),
       },
     });
-  } catch { /* ignore if table missing */ }
+  } catch {
+    /* ignore if table missing */
+  }
 }
 
 async function getJob(jobId) {
@@ -225,11 +269,16 @@ async function executeStep(jobId, payload, fromStep = null) {
   // If resuming, skip completed steps
   let startIdx = 0;
   if (fromStep) {
-    startIdx = steps.findIndex(s => s.state === fromStep);
+    startIdx = steps.findIndex((s) => s.state === fromStep);
     if (startIdx < 0) startIdx = 0;
   }
 
-  const context = { payload, campaignId: null, budgetId: null, assetGroupId: null };
+  const context = {
+    payload,
+    campaignId: null,
+    budgetId: null,
+    assetGroupId: null,
+  };
 
   for (let i = startIdx; i < steps.length; i++) {
     const { state, fn } = steps[i];
@@ -238,16 +287,21 @@ async function executeStep(jobId, payload, fromStep = null) {
     try {
       await fn(context);
     } catch (err) {
-      const errMsg = err?.errors?.[0]?.message || err?.message || "Unknown error";
+      const errMsg =
+        err?.errors?.[0]?.message || err?.message || "Unknown error";
       const retryable = isRetryableError(err);
       const isPartial = context.campaignId != null;
 
-      await updateJob(jobId, isPartial ? STATES.FAILED_PARTIAL : STATES.FAILED, {
-        error: errMsg,
-        campaignId: context.campaignId,
-        failedStep: state,
-        retryable,
-      });
+      await updateJob(
+        jobId,
+        isPartial ? STATES.FAILED_PARTIAL : STATES.FAILED,
+        {
+          error: errMsg,
+          campaignId: context.campaignId,
+          failedStep: state,
+          retryable,
+        },
+      );
 
       return {
         success: false,
@@ -285,13 +339,16 @@ async function stepCreateBudget(ctx) {
   const customer = await getCustomer();
   const dailyBudget = parseFloat(ctx.payload.budgetAmount) || 50;
 
-  const { results } = await withRetry(() =>
-    customer.campaignBudgets.create([{
-      name: `SmartAds Budget ${Date.now()}`,
-      amount_micros: Math.round(dailyBudget * 1_000_000),
-      delivery_method: "STANDARD",
-    }]),
-    { label: "CreateBudget" }
+  const { results } = await withRetry(
+    () =>
+      customer.campaignBudgets.create([
+        {
+          name: `SmartAds Budget ${Date.now()}`,
+          amount_micros: Math.round(dailyBudget * 1_000_000),
+          delivery_method: "STANDARD",
+        },
+      ]),
+    { label: "CreateBudget" },
   );
 
   ctx.budgetId = results[0];
@@ -351,20 +408,36 @@ async function stepEnable(ctx) {
 /**
  * Submit a campaign creation job.
  * Returns immediately with jobId. Worker processes asynchronously.
- * 
+ *
  * @param {string} shop
  * @param {object} payload
  * @returns {{ jobId, state, duplicate?, concurrent?, error? }}
  */
 export async function submitCampaignJob(shop, payload) {
   const idempotencyKey = payload.idempotencyKey || `auto_${Date.now()}`;
-  const { duplicate, concurrent, jobId, state } = await createJob(shop, payload, idempotencyKey);
+  const { duplicate, concurrent, jobId, state } = await createJob(
+    shop,
+    payload,
+    idempotencyKey,
+  );
 
   if (duplicate) {
-    return { success: false, jobId, state, error: "Duplicate launch detected", duplicate: true };
+    return {
+      success: false,
+      jobId,
+      state,
+      error: "Duplicate launch detected",
+      duplicate: true,
+    };
   }
   if (concurrent) {
-    return { success: false, jobId, state, error: "Another campaign is being created", concurrent: true };
+    return {
+      success: false,
+      jobId,
+      state,
+      error: "Another campaign is being created",
+      concurrent: true,
+    };
   }
 
   // Process synchronously for now (future: move to background worker/queue)
@@ -382,18 +455,19 @@ export async function submitCampaignJob(shop, payload) {
 export async function retryJob(jobId) {
   const job = await getJob(jobId);
   if (!job) return { success: false, error: "Job not found" };
-  if (TERMINAL.has(job.state)) return { success: false, error: `Job is ${job.state}, cannot retry` };
+  if (TERMINAL.has(job.state))
+    return { success: false, error: `Job is ${job.state}, cannot retry` };
   if (job.attempts >= MAX_ATTEMPTS) {
     return { success: false, error: `Max attempts (${MAX_ATTEMPTS}) reached` };
   }
 
   // Find last successful step to resume from
-  const failedStep = job.steps.find(s => s.failedStep)?.failedStep;
+  const failedStep = job.steps.find((s) => s.failedStep)?.failedStep;
   await updateJob(jobId, STATES.RETRYING);
 
   // Wait with backoff
   const delay = getBackoffDelay(job.attempts);
-  await new Promise(r => setTimeout(r, delay));
+  await new Promise((r) => setTimeout(r, delay));
 
   return await executeStep(jobId, job.payload, failedStep);
 }
@@ -407,30 +481,48 @@ export async function rollbackJob(jobId) {
   const job = await getJob(jobId);
   if (!job) return { success: false, error: "Job not found" };
   if (job.state !== STATES.FAILED_PARTIAL) {
-    return { success: false, error: "Only partially failed jobs can be rolled back" };
+    return {
+      success: false,
+      error: "Only partially failed jobs can be rolled back",
+    };
   }
 
-  const campaignId = job.googleCampaignId || job.steps.find(s => s.campaignId)?.campaignId;
+  const campaignId =
+    job.googleCampaignId || job.steps.find((s) => s.campaignId)?.campaignId;
   if (!campaignId) {
-    await updateJob(jobId, STATES.ROLLBACK, { note: "No campaign to rollback" });
+    await updateJob(jobId, STATES.ROLLBACK, {
+      note: "No campaign to rollback",
+    });
     return { success: true, message: "Nothing to rollback" };
   }
 
   try {
     const customer = await getCustomer();
     // Pause the partial campaign
-    await withRetry(() =>
-      customer.campaigns.update([{
-        resource_name: campaignId,
-        status: "PAUSED",
-      }]),
-      { label: "Rollback", maxRetries: 2 }
+    await withRetry(
+      () =>
+        customer.campaigns.update([
+          {
+            resource_name: campaignId,
+            status: "PAUSED",
+          },
+        ]),
+      { label: "Rollback", maxRetries: 2 },
     );
 
-    await updateJob(jobId, STATES.ROLLBACK, { campaignId, note: "Campaign paused" });
-    return { success: true, message: `Campaign ${campaignId} paused and rolled back` };
+    await updateJob(jobId, STATES.ROLLBACK, {
+      campaignId,
+      note: "Campaign paused",
+    });
+    return {
+      success: true,
+      message: `Campaign ${campaignId} paused and rolled back`,
+    };
   } catch (err) {
-    return { success: false, error: `Rollback failed: ${err.message}. Manual cleanup needed.` };
+    return {
+      success: false,
+      error: `Rollback failed: ${err.message}. Manual cleanup needed.`,
+    };
   }
 }
 
@@ -442,7 +534,8 @@ export async function rollbackJob(jobId) {
 export async function cancelJob(jobId) {
   const job = await getJob(jobId);
   if (!job) return { success: false, error: "Job not found" };
-  if (TERMINAL.has(job.state)) return { success: false, error: `Job is ${job.state}` };
+  if (TERMINAL.has(job.state))
+    return { success: false, error: `Job is ${job.state}` };
 
   await updateJob(jobId, STATES.CANCELLED);
   return { success: true, message: "Job cancelled" };
@@ -470,7 +563,7 @@ export async function getShopJobs(shop, limit = 10) {
       orderBy: { createdAt: "desc" },
       take: limit,
     });
-    return jobs.map(j => ({
+    return jobs.map((j) => ({
       jobId: j.id,
       state: j.state,
       attempts: j.attempts,

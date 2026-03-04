@@ -1,16 +1,15 @@
 /**
  * prompts.server.js
- * 
+ *
  * All AI prompts in one place.
  * Change prompts here without touching business logic.
- * 
+ *
  * Usage:
  *   import { PROMPTS } from "./prompts.server.js";
  *   const prompt = PROMPTS.analyzeBatch(products);
  */
 
 export const PROMPTS = {
-
   /**
    * Analyze a batch of products for Google Ads potential.
    * Used by: ai.server.js → analyzeBatch()

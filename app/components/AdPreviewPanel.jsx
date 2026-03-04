@@ -1,8 +1,21 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 
 import { ScoreRing } from "./SmallComponents.jsx";
 
-const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCampaigns, canPublish, onLaunch, onViewProduct, shop }) {
+const AdPreviewPanel = React.memo(function AdPreviewPanel({
+  topProduct,
+  mockCampaigns,
+  canPublish,
+  onLaunch,
+  onViewProduct,
+  shop,
+}) {
   const [tab, setTab] = useState("search"); // search | shopping | mobile
   const [typing, setTyping] = useState(false);
   const [typedQuery, setTypedQuery] = useState("");
@@ -10,12 +23,20 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
 
   const isActive = mockCampaigns > 0 && canPublish;
   const ai = topProduct?.aiAnalysis || topProduct?.ai || {};
-  const headlines = (ai.headlines || []).map(h => typeof h === "string" ? h : h?.text || h).filter(Boolean);
-  const descriptions = (ai.descriptions || []).map(d => typeof d === "string" ? d : d?.text || d).filter(Boolean);
-  const keywords = (ai.keywords || []).map(k => typeof k === "string" ? k : k?.text || k).filter(Boolean);
+  const headlines = (ai.headlines || [])
+    .map((h) => (typeof h === "string" ? h : h?.text || h))
+    .filter(Boolean);
+  const descriptions = (ai.descriptions || [])
+    .map((d) => (typeof d === "string" ? d : d?.text || d))
+    .filter(Boolean);
+  const keywords = (ai.keywords || [])
+    .map((k) => (typeof k === "string" ? k : k?.text || k))
+    .filter(Boolean);
   const score = ai.ad_score || 0;
   const productTitle = topProduct?.title || "Your Top Product";
-  const productPrice = topProduct?.price ? `$${Number(topProduct.price).toFixed(2)}` : "$49.99";
+  const productPrice = topProduct?.price
+    ? `$${Number(topProduct.price).toFixed(2)}`
+    : "$49.99";
   const productImage = topProduct?.image || null;
   const storeDomain = shop || "your-store.myshopify.com";
 
@@ -29,7 +50,12 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
     const iv = setInterval(() => {
       i++;
       setTypedQuery(searchQuery.slice(0, i));
-      if (i >= searchQuery.length) { clearInterval(iv); setTyping(false); setShowDropdown(true); setTimeout(() => setShowDropdown(false), 2000); }
+      if (i >= searchQuery.length) {
+        clearInterval(iv);
+        setTyping(false);
+        setShowDropdown(true);
+        setTimeout(() => setShowDropdown(false), 2000);
+      }
     }, 60);
     return () => clearInterval(iv);
   }, [topProduct?.id]);
@@ -37,52 +63,93 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
   const h1 = headlines[0] || productTitle;
   const h2 = headlines[1] || "Free Shipping On Orders $50+";
   const h3 = headlines[2] || "Shop Now & Save";
-  const d1 = descriptions[0] || `Discover ${productTitle}. Premium quality, unbeatable prices. Order today.`;
+  const d1 =
+    descriptions[0] ||
+    `Discover ${productTitle}. Premium quality, unbeatable prices. Order today.`;
 
-  const adStrengthLabel = score >= 80 ? "Excellent" : score >= 65 ? "Good" : score >= 50 ? "Average" : "Poor";
-  const adStrengthColor = score >= 80 ? "#22c55e" : score >= 65 ? "#84cc16" : score >= 50 ? "#f59e0b" : "#ef4444";
+  const adStrengthLabel =
+    score >= 80
+      ? "Excellent"
+      : score >= 65
+        ? "Good"
+        : score >= 50
+          ? "Average"
+          : "Poor";
+  const adStrengthColor =
+    score >= 80
+      ? "#22c55e"
+      : score >= 65
+        ? "#84cc16"
+        : score >= 50
+          ? "#f59e0b"
+          : "#ef4444";
 
-  if (!topProduct) return (
-    <div className="adp-card adp-empty">
-      <div className="adp-empty-icon">📰</div>
-      <div className="adp-empty-title">Ad Preview</div>
-      <div className="adp-empty-desc">Analyze products to see your ad previews here</div>
-    </div>
-  );
+  if (!topProduct)
+    return (
+      <div className="adp-card adp-empty">
+        <div className="adp-empty-icon">📰</div>
+        <div className="adp-empty-title">Ad Preview</div>
+        <div className="adp-empty-desc">
+          Analyze products to see your ad previews here
+        </div>
+      </div>
+    );
 
   return (
     <div className="adp-card">
       {/* Header */}
       <div className="adp-header">
         <div className="adp-header-left">
-          <div className={`adp-status-dot ${isActive ? "adp-dot-active" : "adp-dot-preview"}`}/>
-          <span className="adp-title">{isActive ? "Live Ad" : "Recommended Ad"}</span>
-          {isActive
-            ? <span className="adp-badge adp-badge-live">● LIVE</span>
-            : <span className="adp-badge adp-badge-preview">PREVIEW</span>}
+          <div
+            className={`adp-status-dot ${isActive ? "adp-dot-active" : "adp-dot-preview"}`}
+          />
+          <span className="adp-title">
+            {isActive ? "Live Ad" : "Recommended Ad"}
+          </span>
+          {isActive ? (
+            <span className="adp-badge adp-badge-live">● LIVE</span>
+          ) : (
+            <span className="adp-badge adp-badge-preview">PREVIEW</span>
+          )}
         </div>
-        <div className="adp-score-pill" style={{ borderColor: `${adStrengthColor}44`, color: adStrengthColor }}>
-          <ScoreRing score={score} size={28}/>
+        <div
+          className="adp-score-pill"
+          style={{
+            borderColor: `${adStrengthColor}44`,
+            color: adStrengthColor,
+          }}
+        >
+          <ScoreRing score={score} size={28} />
           <span>{adStrengthLabel}</span>
         </div>
       </div>
 
       {/* Product context */}
       <div className="adp-product-row">
-        {productImage && <img src={productImage} alt="" className="adp-product-img"/>}
+        {productImage && (
+          <img src={productImage} alt="" className="adp-product-img" />
+        )}
         <div className="adp-product-info">
           <div className="adp-product-name">{productTitle}</div>
           <div className="adp-product-price">{productPrice}</div>
         </div>
-        {!isActive && (
-          <div className="adp-not-live-badge">Not running</div>
-        )}
+        {!isActive && <div className="adp-not-live-badge">Not running</div>}
       </div>
 
       {/* Tab switcher */}
       <div className="adp-tabs">
-        {[["search","🔍 Search"], ["shopping","🛍 Shopping"], ["mobile","📱 Mobile"]].map(([id, label]) => (
-          <button key={id} className={`adp-tab ${tab === id ? "adp-tab-active" : ""}`} onClick={() => setTab(id)}>{label}</button>
+        {[
+          ["search", "🔍 Search"],
+          ["shopping", "🛍 Shopping"],
+          ["mobile", "📱 Mobile"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            className={`adp-tab ${tab === id ? "adp-tab-active" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
@@ -91,16 +158,50 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
         <div className="adp-preview-wrap">
           {/* Fake google bar */}
           <div className="adp-google-bar">
-            <svg width="16" height="16" viewBox="0 0 24 24" style={{ flexShrink:0 }}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            <span className="adp-typed-text">{typedQuery}{typing ? <span className="adp-cursor">|</span> : ""}</span>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+            >
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+              />
+            </svg>
+            <span className="adp-typed-text">
+              {typedQuery}
+              {typing ? <span className="adp-cursor">|</span> : ""}
+            </span>
             <span className="adp-search-icon">🔍</span>
           </div>
 
           {/* Autocomplete dropdown */}
           {showDropdown && (
             <div className="adp-dropdown">
-              {[searchQuery, searchQuery + " online", searchQuery + " best price"].map((s, i) => (
-                <div key={i} className="adp-dropdown-item"><span style={{ color:"rgba(0,0,0,.4)", fontSize:12 }}>🔍</span> {s}</div>
+              {[
+                searchQuery,
+                searchQuery + " online",
+                searchQuery + " best price",
+              ].map((s, i) => (
+                <div key={i} className="adp-dropdown-item">
+                  <span style={{ color: "rgba(0,0,0,.4)", fontSize: 12 }}>
+                    🔍
+                  </span>{" "}
+                  {s}
+                </div>
               ))}
             </div>
           )}
@@ -110,26 +211,53 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
             <div className="adp-sponsored-tag">Sponsored</div>
             <div className="adp-result-url">
               <div className="adp-favicon">
-                {productImage
-                  ? <img src={productImage} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:2 }}/>
-                  : <span style={{ fontSize:10 }}>🛍</span>}
+                {productImage ? (
+                  <img
+                    src={productImage}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      borderRadius: 2,
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 10 }}>🛍</span>
+                )}
               </div>
               <div>
-                <div style={{ fontSize:12, color:"#202124" }}>{storeDomain}</div>
-                <div style={{ fontSize:11, color:"#4d5156" }}>www.{storeDomain} › shop</div>
+                <div style={{ fontSize: 12, color: "#202124" }}>
+                  {storeDomain}
+                </div>
+                <div style={{ fontSize: 11, color: "#4d5156" }}>
+                  www.{storeDomain} › shop
+                </div>
               </div>
             </div>
             <div className="adp-result-headline">
               <span className="adp-hl-part">{h1}</span>
-              {h2 && <><span className="adp-hl-sep"> | </span><span className="adp-hl-part">{h2}</span></>}
-              {h3 && <><span className="adp-hl-sep"> | </span><span className="adp-hl-part">{h3}</span></>}
+              {h2 && (
+                <>
+                  <span className="adp-hl-sep"> | </span>
+                  <span className="adp-hl-part">{h2}</span>
+                </>
+              )}
+              {h3 && (
+                <>
+                  <span className="adp-hl-sep"> | </span>
+                  <span className="adp-hl-part">{h3}</span>
+                </>
+              )}
             </div>
             <div className="adp-result-desc">{d1}</div>
             {/* Sitelinks */}
-            {(ai.sitelinks?.length > 0) && (
+            {ai.sitelinks?.length > 0 && (
               <div className="adp-sitelinks-row">
                 {ai.sitelinks.slice(0, 4).map((sl, i) => (
-                  <div key={i} className="adp-sitelink-chip">{sl.title || sl}</div>
+                  <div key={i} className="adp-sitelink-chip">
+                    {sl.title || sl}
+                  </div>
                 ))}
               </div>
             )}
@@ -145,22 +273,57 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
             {/* Our product — highlighted */}
             <div className="adp-shopping-card adp-shopping-ours">
               <div className="adp-shopping-our-badge">YOUR AD</div>
-              {productImage
-                ? <img src={productImage} alt="" className="adp-shopping-img"/>
-                : <div className="adp-shopping-noimg">🛍</div>}
+              {productImage ? (
+                <img src={productImage} alt="" className="adp-shopping-img" />
+              ) : (
+                <div className="adp-shopping-noimg">🛍</div>
+              )}
               <div className="adp-shopping-price">{productPrice}</div>
-              <div className="adp-shopping-name">{productTitle.length > 28 ? productTitle.slice(0, 28) + "…" : productTitle}</div>
-              <div className="adp-shopping-store">{storeDomain.split(".")[0]}</div>
-              <div className="adp-shopping-stars">★★★★★ <span style={{ color:"rgba(0,0,0,.5)", fontSize:9 }}>4.8</span></div>
+              <div className="adp-shopping-name">
+                {productTitle.length > 28
+                  ? productTitle.slice(0, 28) + "…"
+                  : productTitle}
+              </div>
+              <div className="adp-shopping-store">
+                {storeDomain.split(".")[0]}
+              </div>
+              <div className="adp-shopping-stars">
+                ★★★★★{" "}
+                <span style={{ color: "rgba(0,0,0,.5)", fontSize: 9 }}>
+                  4.8
+                </span>
+              </div>
             </div>
             {/* Fake competitors */}
             {["$47.99", "$52.00", "$39.95"].map((p, i) => (
               <div key={i} className="adp-shopping-card adp-shopping-comp">
-                <div className="adp-shopping-noimg" style={{ background:"#f8f8f8", fontSize:18 }}>{["🛏","🏠","⭐"][i]}</div>
-                <div className="adp-shopping-price" style={{ color:"#202124" }}>{p}</div>
-                <div className="adp-shopping-name" style={{ color:"#555" }}>Similar product {i + 1}</div>
-                <div className="adp-shopping-store" style={{ color:"#888" }}>competitor.com</div>
-                <div className="adp-shopping-stars" style={{ color:"#fbbc04" }}>★★★★☆ <span style={{ color:"rgba(0,0,0,.4)", fontSize:9 }}>4.{i + 2}</span></div>
+                <div
+                  className="adp-shopping-noimg"
+                  style={{ background: "#f8f8f8", fontSize: 18 }}
+                >
+                  {["🛏", "🏠", "⭐"][i]}
+                </div>
+                <div
+                  className="adp-shopping-price"
+                  style={{ color: "#202124" }}
+                >
+                  {p}
+                </div>
+                <div className="adp-shopping-name" style={{ color: "#555" }}>
+                  Similar product {i + 1}
+                </div>
+                <div className="adp-shopping-store" style={{ color: "#888" }}>
+                  competitor.com
+                </div>
+                <div
+                  className="adp-shopping-stars"
+                  style={{ color: "#fbbc04" }}
+                >
+                  ★★★★☆{" "}
+                  <span style={{ color: "rgba(0,0,0,.4)", fontSize: 9 }}>
+                    4.{i + 2}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -171,20 +334,59 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
       {tab === "mobile" && (
         <div className="adp-preview-wrap adp-mobile-wrap">
           <div className="adp-phone-frame">
-            <div className="adp-phone-notch"/>
+            <div className="adp-phone-notch" />
             <div className="adp-phone-screen">
               <div className="adp-phone-searchbar">
-                <span style={{ fontSize:9, color:"#999" }}>🔍 {searchQuery}</span>
+                <span style={{ fontSize: 9, color: "#999" }}>
+                  🔍 {searchQuery}
+                </span>
               </div>
               <div className="adp-phone-ad">
-                <div style={{ fontSize:8, color:"#000", fontWeight:700, marginBottom:2 }}>Sponsored</div>
-                <div style={{ fontSize:8, color:"#1558d6", fontWeight:600, lineHeight:1.3, marginBottom:2 }}>{h1} | {h2}</div>
-                <div style={{ fontSize:7, color:"#4d5156", lineHeight:1.3 }}>{d1.slice(0, 75)}...</div>
-                <div style={{ fontSize:7, color:"#1e6641", marginTop:3 }}>✓ Free Shipping &nbsp;&nbsp; ✓ 30-day returns</div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "#000",
+                    fontWeight: 700,
+                    marginBottom: 2,
+                  }}
+                >
+                  Sponsored
+                </div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "#1558d6",
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                    marginBottom: 2,
+                  }}
+                >
+                  {h1} | {h2}
+                </div>
+                <div style={{ fontSize: 7, color: "#4d5156", lineHeight: 1.3 }}>
+                  {d1.slice(0, 75)}...
+                </div>
+                <div style={{ fontSize: 7, color: "#1e6641", marginTop: 3 }}>
+                  ✓ Free Shipping &nbsp;&nbsp; ✓ 30-day returns
+                </div>
               </div>
-              <div style={{ padding:"6px 8px", borderBottom:"1px solid #eee" }}>
-                <div style={{ fontSize:8, color:"#999", marginBottom:4 }}>Organic results below your ad</div>
-                {[1,2,3].map(i => <div key={i} style={{ height:8, background:"#f5f5f5", borderRadius:2, marginBottom:4 }}/>)}
+              <div
+                style={{ padding: "6px 8px", borderBottom: "1px solid #eee" }}
+              >
+                <div style={{ fontSize: 8, color: "#999", marginBottom: 4 }}>
+                  Organic results below your ad
+                </div>
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      height: 8,
+                      background: "#f5f5f5",
+                      borderRadius: 2,
+                      marginBottom: 4,
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -196,15 +398,27 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
         {isActive ? (
           <>
             <div className="adp-live-stats">
-              <span>👁 {(mockCampaigns * 4200).toLocaleString()} impressions/mo</span>
+              <span>
+                👁 {(mockCampaigns * 4200).toLocaleString()} impressions/mo
+              </span>
               <span>👆 {(mockCampaigns * 180).toLocaleString()} clicks/mo</span>
             </div>
-            <button className="adp-btn-secondary" onClick={() => onViewProduct && onViewProduct(topProduct)}>Edit Ad →</button>
+            <button
+              className="adp-btn-secondary"
+              onClick={() => onViewProduct && onViewProduct(topProduct)}
+            >
+              Edit Ad →
+            </button>
           </>
         ) : (
           <>
-            <div className="adp-suggestion">💡 This ad is ready to launch — {keywords.length} keywords targeted</div>
-            <button className="adp-btn-launch" onClick={onLaunch}>{canPublish ? "🚀 Launch This Ad" : "🔒 Subscribe to Launch"}</button>
+            <div className="adp-suggestion">
+              💡 This ad is ready to launch — {keywords.length} keywords
+              targeted
+            </div>
+            <button className="adp-btn-launch" onClick={onLaunch}>
+              {canPublish ? "🚀 Launch This Ad" : "🔒 Subscribe to Launch"}
+            </button>
           </>
         )}
       </div>

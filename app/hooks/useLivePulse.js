@@ -1,9 +1,9 @@
 /**
  * useLivePulse.js
- * 
+ *
  * Separates demo mode (simulated data) from live mode (Google Ads API).
  * LivePulse component receives clean data — never knows which mode it's in.
- * 
+ *
  * Usage:
  *   const pulse = useLivePulse({ campaignId, mockCampaigns, avgScore });
  *   // pulse.mode → "live" | "demo"
@@ -12,8 +12,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const POLL_INTERVAL_LIVE = 30000;   // 30s for real API
-const POLL_INTERVAL_DEMO = 2800;    // 2.8s for demo animation
+const POLL_INTERVAL_LIVE = 30000; // 30s for real API
+const POLL_INTERVAL_DEMO = 2800; // 2.8s for demo animation
 
 /**
  * @param {object} opts
@@ -31,35 +31,40 @@ export function useLivePulse({ campaignId, mockCampaigns = 0, avgScore = 0 }) {
   const mountedRef = useRef(true);
 
   // ── Demo data generator ────────────────────────────────────────────
-  const buildDemoData = useCallback((prev) => {
-    const campaigns = mockCampaigns || 0;
-    const hourOfDay = new Date().getHours();
-    const trafficMult = (hourOfDay >= 10 && hourOfDay <= 20) ? 1.3 : 0.7;
+  const buildDemoData = useCallback(
+    (prev) => {
+      const campaigns = mockCampaigns || 0;
+      const hourOfDay = new Date().getHours();
+      const trafficMult = hourOfDay >= 10 && hourOfDay <= 20 ? 1.3 : 0.7;
 
-    const impressions = Math.round(
-      (prev?.impressions || campaigns * 4200) + Math.random() * 14 * trafficMult
-    );
-    const clicks = Math.round(
-      (prev?.clicks || campaigns * 180) + (Math.random() > 0.6 ? 1 : 0)
-    );
-    const cpc = 0.35 + Math.random() * 0.2;
-    const cost = parseFloat(
-      ((prev?.cost || campaigns * 79) + Math.random() * 0.44).toFixed(2)
-    );
+      const impressions = Math.round(
+        (prev?.impressions || campaigns * 4200) +
+          Math.random() * 14 * trafficMult,
+      );
+      const clicks = Math.round(
+        (prev?.clicks || campaigns * 180) + (Math.random() > 0.6 ? 1 : 0),
+      );
+      const cpc = 0.35 + Math.random() * 0.2;
+      const cost = parseFloat(
+        ((prev?.cost || campaigns * 79) + Math.random() * 0.44).toFixed(2),
+      );
 
-    return {
-      impressions,
-      clicks,
-      cost,
-      spend: cost,
-      cpc: parseFloat(cpc.toFixed(2)),
-      conversions: prev?.conversions || Math.round(campaigns * 3.2),
-      roas: parseFloat((1.8 + avgScore * 0.028).toFixed(2)),
-      ctr: impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : "0.00",
-      campaigns,
-      source: "demo",
-    };
-  }, [mockCampaigns, avgScore]);
+      return {
+        impressions,
+        clicks,
+        cost,
+        spend: cost,
+        cpc: parseFloat(cpc.toFixed(2)),
+        conversions: prev?.conversions || Math.round(campaigns * 3.2),
+        roas: parseFloat((1.8 + avgScore * 0.028).toFixed(2)),
+        ctr:
+          impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : "0.00",
+        campaigns,
+        source: "demo",
+      };
+    },
+    [mockCampaigns, avgScore],
+  );
 
   // ── Live data fetcher ──────────────────────────────────────────────
   const fetchLiveData = useCallback(async () => {
@@ -73,12 +78,14 @@ export function useLivePulse({ campaignId, mockCampaigns = 0, avgScore = 0 }) {
         return {
           ...json.data,
           spend: json.data.cost || json.data.spend || 0,
-          cpc: json.data.clicks > 0
-            ? parseFloat((json.data.cost / json.data.clicks).toFixed(2))
-            : 0,
-          ctr: json.data.impressions > 0
-            ? ((json.data.clicks / json.data.impressions) * 100).toFixed(2)
-            : "0.00",
+          cpc:
+            json.data.clicks > 0
+              ? parseFloat((json.data.cost / json.data.clicks).toFixed(2))
+              : 0,
+          ctr:
+            json.data.impressions > 0
+              ? ((json.data.clicks / json.data.impressions) * 100).toFixed(2)
+              : "0.00",
           source: "live",
         };
       }

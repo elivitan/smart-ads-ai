@@ -6,13 +6,15 @@ const client = new Anthropic({
 });
 
 export async function exploreKeywords(seedKeyword, location = "United States") {
-  const response = await withRetry(() => client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
-    max_tokens: 4000,
-    messages: [
-      {
-        role: "user",
-        content: `You are a keyword research expert for Google Ads. Analyze this seed keyword for the given location.
+  const response = await withRetry(
+    () =>
+      client.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4000,
+        messages: [
+          {
+            role: "user",
+            content: `You are a keyword research expert for Google Ads. Analyze this seed keyword for the given location.
 
 SEED KEYWORD: "${seedKeyword}"
 LOCATION: ${location}
@@ -74,10 +76,12 @@ Rules:
 - CPC estimates in USD
 - Competition: Low, Medium, or High
 - Source: Google, Bing, YouTube, or Amazon
-- Return ONLY valid JSON`
-      }
-    ]
-  }), { label: "Claude" });
+- Return ONLY valid JSON`,
+          },
+        ],
+      }),
+    { label: "Claude" },
+  );
 
   const text = response.content[0].text.trim();
   let cleaned = text;
@@ -88,13 +92,15 @@ Rules:
 }
 
 export async function scanWebsite(url) {
-  const response = await withRetry(() => client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
-    max_tokens: 4000,
-    messages: [
-      {
-        role: "user",
-        content: `You are an SEO and Google Ads keyword expert. Analyze this website URL and extract keyword opportunities.
+  const response = await withRetry(
+    () =>
+      client.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4000,
+        messages: [
+          {
+            role: "user",
+            content: `You are an SEO and Google Ads keyword expert. Analyze this website URL and extract keyword opportunities.
 
 WEBSITE URL: ${url}
 
@@ -146,10 +152,12 @@ Rules:
 - Provide 5-8 competitor gaps
 - Provide 3-5 content themes
 - All volumes and CPCs are realistic estimates
-- Return ONLY valid JSON`
-      }
-    ]
-  }), { label: "Claude" });
+- Return ONLY valid JSON`,
+          },
+        ],
+      }),
+    { label: "Claude" },
+  );
 
   const text = response.content[0].text.trim();
   let cleaned = text;
@@ -158,4 +166,3 @@ Rules:
   }
   return JSON.parse(cleaned);
 }
-

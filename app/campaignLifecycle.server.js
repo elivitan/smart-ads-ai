@@ -1,18 +1,18 @@
 /**
  * campaignLifecycle.server.js (v2)
- * 
+ *
  * Full campaign creation state machine.
  * States: QUEUED → VALIDATING → CREATING → CAMPAIGN_CREATED
  *         → UPLOADING_ASSETS → ASSETS_UPLOADED → LINKING_CONVERSIONS → ENABLED
  *         Any step can → FAILED / FAILED_PARTIAL → ROLLBACK or RETRY
- * 
+ *
  * Features:
  * - Idempotency protection (prevents duplicate launches)
  * - Payload validation before Google API call
  * - Partial failure detection + rollback
  * - Step-by-step tracking in DB
  * - Max 3 retries with resume from last step
- * 
+ *
  * Usage:
  *   import { launchCampaign, retryCampaign, rollbackCampaign, getCampaignStatus } from "./campaignLifecycle.server.js";
  */
@@ -67,7 +67,7 @@ function validatePayload(payload) {
   if (headlines.length < 3) {
     errors.push("At least 3 headlines required");
   }
-  const tooLong = headlines.filter(h => h.length > 30);
+  const tooLong = headlines.filter((h) => h.length > 30);
   if (tooLong.length > 0) {
     errors.push(`${tooLong.length} headline(s) exceed 30 chars`);
   }
@@ -82,7 +82,7 @@ function validatePayload(payload) {
 /**
  * Launch a campaign with full lifecycle tracking.
  * Each step is logged so we can retry from the failure point.
- * 
+ *
  * @param {string} shop - Shop domain
  * @param {object} payload - Campaign creation payload from Wizard
  * @returns {object} { success, launchId, campaignId, state, steps }
@@ -123,7 +123,10 @@ export async function launchCampaign(shop, payload) {
       },
     });
   } catch (err) {
-    console.warn("[SmartAds] CampaignJob table not available, proceeding without lifecycle tracking:", err.message);
+    console.warn(
+      "[SmartAds] CampaignJob table not available, proceeding without lifecycle tracking:",
+      err.message,
+    );
     launchRecord = null;
   }
 
@@ -132,12 +135,13 @@ export async function launchCampaign(shop, payload) {
     steps.push({ state, timestamp: new Date().toISOString(), ...meta });
     if (launchRecord) {
       try {
-      await prisma.campaignJob.update({
-  where: { id: launchId },
-  data: { state, stepsJson: JSON.stringify(steps) },
-});
+        await prisma.campaignJob.update({
+          where: { id: launchId },
+          data: { state, stepsJson: JSON.stringify(steps) },
         });
-      } catch { /* ignore if table missing */ }
+      } catch {
+        /* ignore if table missing */
+      }
     }
   }
 
@@ -146,7 +150,9 @@ export async function launchCampaign(shop, payload) {
     await updateState(CAMPAIGN_STATES.VALIDATING);
     const validation = validatePayload(payload);
     if (!validation.valid) {
-      await updateState(CAMPAIGN_STATES.FAILED, { error: `Validation failed: ${validation.errors.join(", ")}` });
+      await updateState(CAMPAIGN_STATES.FAILED, {
+        error: `Validation failed: ${validation.errors.join(", ")}`,
+      });
       return {
         success: false,
         launchId,
@@ -173,7 +179,9 @@ export async function launchCampaign(shop, payload) {
     });
 
     if (!result.success) {
-      await updateState(CAMPAIGN_STATES.FAILED, { error: result.error || "Campaign creation failed" });
+      await updateState(CAMPAIGN_STATES.FAILED, {
+        error: result.error || "Campaign creation failed",
+      });
       return {
         success: false,
         launchId,
@@ -185,7 +193,9 @@ export async function launchCampaign(shop, payload) {
     }
 
     // ── Step 3: CAMPAIGN_CREATED ─────────────────────────────────────
-    await updateState(CAMPAIGN_STATES.CAMPAIGN_CREATED, { campaignId: result.campaignId });
+    await updateState(CAMPAIGN_STATES.CAMPAIGN_CREATED, {
+      campaignId: result.campaignId,
+    });
 
     // ── Step 4: UPLOADING_ASSETS (for PMax campaigns) ────────────────
     if (payload.campaignType === "pmax") {
@@ -203,7 +213,9 @@ export async function launchCampaign(shop, payload) {
     }
 
     // ── Step 6: ENABLED ──────────────────────────────────────────────
-    await updateState(CAMPAIGN_STATES.ENABLED, { campaignId: result.campaignId });
+    await updateState(CAMPAIGN_STATES.ENABLED, {
+      campaignId: result.campaignId,
+    });
 
     return {
       success: true,
@@ -214,23 +226,24 @@ export async function launchCampaign(shop, payload) {
       steps,
       message: result.message,
     };
-
   } catch (err) {
-    const errorMsg = err?.errors?.[0]?.message || err?.message || "Campaign creation failed";
+    const errorMsg =
+      err?.errors?.[0]?.message || err?.message || "Campaign creation failed";
     const retryable = isRetryableError(err);
     const lastStep = steps[steps.length - 1]?.state || CAMPAIGN_STATES.QUEUED;
 
     // Determine if partial failure (some steps succeeded)
-    const isPartial = steps.some(s =>
-      s.state === CAMPAIGN_STATES.CAMPAIGN_CREATED ||
-      s.state === CAMPAIGN_STATES.ASSETS_UPLOADED
+    const isPartial = steps.some(
+      (s) =>
+        s.state === CAMPAIGN_STATES.CAMPAIGN_CREATED ||
+        s.state === CAMPAIGN_STATES.ASSETS_UPLOADED,
     );
 
     if (isPartial) {
       await updateState(CAMPAIGN_STATES.FAILED_PARTIAL, {
         error: errorMsg,
         lastSuccessStep: lastStep,
-        campaignId: steps.find(s => s.campaignId)?.campaignId || null,
+        campaignId: steps.find((s) => s.campaignId)?.campaignId || null,
       });
     } else {
       await updateState(CAMPAIGN_STATES.FAILED, { error: errorMsg });
@@ -239,7 +252,9 @@ export async function launchCampaign(shop, payload) {
     return {
       success: false,
       launchId,
-      state: isPartial ? CAMPAIGN_STATES.FAILED_PARTIAL : CAMPAIGN_STATES.FAILED,
+      state: isPartial
+        ? CAMPAIGN_STATES.FAILED_PARTIAL
+        : CAMPAIGN_STATES.FAILED,
       steps,
       error: errorMsg,
       retryable,
@@ -258,7 +273,7 @@ export async function retryCampaign(launchId) {
   try {
     record = await prisma.campaignJob.findUnique({ where: { id: launchId } });
   } catch {
-   return { success: false, error: "CampaignJob table not available" };
+    return { success: false, error: "CampaignJob table not available" };
   }
 
   if (!record) {
@@ -270,7 +285,10 @@ export async function retryCampaign(launchId) {
   }
 
   if (record.attempts >= 3) {
-    return { success: false, error: "Max retry attempts (3) reached. Please contact support." };
+    return {
+      success: false,
+      error: "Max retry attempts (3) reached. Please contact support.",
+    };
   }
 
   await prisma.campaignJob.update({
@@ -293,7 +311,7 @@ export async function rollbackCampaign(launchId) {
   try {
     record = await prisma.campaignJob.findUnique({ where: { id: launchId } });
   } catch {
-   return { success: false, error: "CampaignJob table not available" };
+    return { success: false, error: "CampaignJob table not available" };
   }
 
   if (!record) {
@@ -301,35 +319,50 @@ export async function rollbackCampaign(launchId) {
   }
 
   if (record.state !== CAMPAIGN_STATES.FAILED_PARTIAL) {
-    return { success: false, error: "Only partially failed campaigns can be rolled back" };
+    return {
+      success: false,
+      error: "Only partially failed campaigns can be rolled back",
+    };
   }
 
   const steps = JSON.parse(record.stepsJson || "[]");
-  const campaignId = steps.find(s => s.campaignId)?.campaignId;
+  const campaignId = steps.find((s) => s.campaignId)?.campaignId;
 
   if (!campaignId) {
     await prisma.campaignJob.update({
       where: { id: launchId },
       data: { state: CAMPAIGN_STATES.ROLLBACK },
     });
-    return { success: true, message: "No campaign was created. Marked as rolled back." };
+    return {
+      success: true,
+      message: "No campaign was created. Marked as rolled back.",
+    };
   }
 
   try {
     // Use internal import to avoid circular dependency
-    const { default: fetch } = await import("node-fetch").catch(() => ({ default: globalThis.fetch }));
+    const { default: fetch } = await import("node-fetch").catch(() => ({
+      default: globalThis.fetch,
+    }));
 
     // Attempt to pause the partially created campaign via Google Ads API
-    const res = await withRetry(async () => {
-      const response = await fetch(`${process.env.APP_URL || ""}/app/api/campaign-manage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "pause", campaignId }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) throw new Error(`Rollback request failed: ${response.status}`);
-      return await response.json();
-    }, { label: "Rollback", maxRetries: 2 });
+    const res = await withRetry(
+      async () => {
+        const response = await fetch(
+          `${process.env.APP_URL || ""}/app/api/campaign-manage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "pause", campaignId }),
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        if (!response.ok)
+          throw new Error(`Rollback request failed: ${response.status}`);
+        return await response.json();
+      },
+      { label: "Rollback", maxRetries: 2 },
+    );
 
     await prisma.campaignJob.update({
       where: { id: launchId },
@@ -357,7 +390,9 @@ export async function rollbackCampaign(launchId) {
  */
 export async function getCampaignStatus(launchId) {
   try {
-    const record = await prisma.campaignJob.findUnique({ where: { id: launchId } });
+    const record = await prisma.campaignJob.findUnique({
+      where: { id: launchId },
+    });
     if (!record) return null;
     return {
       launchId: record.id,

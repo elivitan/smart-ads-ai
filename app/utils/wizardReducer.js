@@ -1,9 +1,9 @@
 /**
  * wizardReducer.js
- * 
+ *
  * Replaces the giant useState({...30 fields}) in CampaignWizard.
  * State is split into 5 domain slices. Only the affected slice triggers re-render.
- * 
+ *
  * Usage:
  *   import { wizardReducer, INITIAL_STATE, updateField, prefillFromAI } from "./wizardReducer.js";
  *   const [state, dispatch] = useReducer(wizardReducer, INITIAL_STATE);
@@ -19,15 +19,21 @@ export const ACTIONS = {
 };
 
 export const updateField = (key, value) => ({
-  type: ACTIONS.UPDATE_FIELD, key, value,
+  type: ACTIONS.UPDATE_FIELD,
+  key,
+  value,
 });
 
 export const updateSlice = (slice, data) => ({
-  type: ACTIONS.UPDATE_SLICE, slice, data,
+  type: ACTIONS.UPDATE_SLICE,
+  slice,
+  data,
 });
 
 export const prefillFromAI = (product, aiData) => ({
-  type: ACTIONS.PREFILL_AI, product, aiData,
+  type: ACTIONS.PREFILL_AI,
+  product,
+  aiData,
 });
 
 export const resetWizard = () => ({ type: ACTIONS.RESET });
@@ -70,14 +76,28 @@ export const INITIAL_STATE = {
 
 // Field-to-slice mapping (for future per-slice optimization)
 const SLICE_MAP = {
-  goal: "core", campaignType: "core", campaignName: "core",
-  bidding: "bidding", biddingTarget: "bidding",
-  locations: "targeting", customLocation: "targeting", languages: "targeting",
-  businessName: "creative", logoUrl: "creative", finalUrl: "creative",
-  callouts: "creative", structuredSnippetHeader: "creative", structuredSnippetValues: "creative",
-  budgetType: "budget", budgetAmount: "budget", budgetDuration: "budget",
-  budgetEndDate: "budget", conversionType: "budget", conversionValueType: "budget",
-  conversionFixedValue: "budget", skipTracking: "budget",
+  goal: "core",
+  campaignType: "core",
+  campaignName: "core",
+  bidding: "bidding",
+  biddingTarget: "bidding",
+  locations: "targeting",
+  customLocation: "targeting",
+  languages: "targeting",
+  businessName: "creative",
+  logoUrl: "creative",
+  finalUrl: "creative",
+  callouts: "creative",
+  structuredSnippetHeader: "creative",
+  structuredSnippetValues: "creative",
+  budgetType: "budget",
+  budgetAmount: "budget",
+  budgetDuration: "budget",
+  budgetEndDate: "budget",
+  conversionType: "budget",
+  conversionValueType: "budget",
+  conversionFixedValue: "budget",
+  skipTracking: "budget",
 };
 
 // ── Reducer ──────────────────────────────────────────────────────────────
@@ -119,4 +139,3 @@ export function wizardReducer(state, action) {
 export function getSlice(fieldName) {
   return SLICE_MAP[fieldName] || "unknown";
 }
-

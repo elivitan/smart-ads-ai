@@ -27,7 +27,7 @@ export default async function handleRequest(
 
           responseHeaders.set("Content-Type", "text/html");
           resolve(
-            new Response(stream, {
+            json(stream, {
               headers: responseHeaders,
               status: responseStatusCode,
             }),

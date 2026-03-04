@@ -9,10 +9,38 @@ import prisma from "./db.server.js";
 
 // Plan limits configuration
 const PLAN_LIMITS = {
-  free:    { maxProducts: 3,  maxCampaigns: 0,  aiCreditsMonthly: 0,   scanCreditsMonthly: 0,   dailyApiCalls: 20,  canPublish: false },
-  starter: { maxProducts: 25, maxCampaigns: 5,  aiCreditsMonthly: 10,  scanCreditsMonthly: 50,  dailyApiCalls: 200, canPublish: true },
-  pro:     { maxProducts: 9999, maxCampaigns: 9999, aiCreditsMonthly: 200, scanCreditsMonthly: 9999, dailyApiCalls: 1000, canPublish: true },
-  premium: { maxProducts: 9999, maxCampaigns: 9999, aiCreditsMonthly: 1000, scanCreditsMonthly: 9999, dailyApiCalls: 5000, canPublish: true },
+  free: {
+    maxProducts: 3,
+    maxCampaigns: 0,
+    aiCreditsMonthly: 0,
+    scanCreditsMonthly: 0,
+    dailyApiCalls: 20,
+    canPublish: false,
+  },
+  starter: {
+    maxProducts: 25,
+    maxCampaigns: 5,
+    aiCreditsMonthly: 10,
+    scanCreditsMonthly: 50,
+    dailyApiCalls: 200,
+    canPublish: true,
+  },
+  pro: {
+    maxProducts: 9999,
+    maxCampaigns: 9999,
+    aiCreditsMonthly: 200,
+    scanCreditsMonthly: 9999,
+    dailyApiCalls: 1000,
+    canPublish: true,
+  },
+  premium: {
+    maxProducts: 9999,
+    maxCampaigns: 9999,
+    aiCreditsMonthly: 1000,
+    scanCreditsMonthly: 9999,
+    dailyApiCalls: 5000,
+    canPublish: true,
+  },
 };
 
 // ──────────────────────────────────────────────
@@ -67,7 +95,11 @@ export async function checkLicense(shop, action) {
   const limits = PLAN_LIMITS[sub.plan] || PLAN_LIMITS.free;
 
   // Check trial expiration
-  if (sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt < new Date()) {
+  if (
+    sub.status === "trial" &&
+    sub.trialEndsAt &&
+    sub.trialEndsAt < new Date()
+  ) {
     await prisma.shopSubscription.update({
       where: { shop },
       data: { status: "expired", plan: "free" },
@@ -78,7 +110,11 @@ export async function checkLicense(shop, action) {
 
   // Daily rate limit check
   if (sub.apiCallsToday >= limits.dailyApiCalls) {
-    return { allowed: false, reason: "Daily API limit reached. Try again tomorrow.", sub };
+    return {
+      allowed: false,
+      reason: "Daily API limit reached. Try again tomorrow.",
+      sub,
+    };
   }
 
   // Increment API call counter
@@ -99,28 +135,44 @@ export async function checkLicense(shop, action) {
       }
       // Free plan — check scan credits
       if (sub.scanCredits <= 0) {
-        return { allowed: false, reason: "No scan credits remaining. Buy credits or subscribe.", sub };
+        return {
+          allowed: false,
+          reason: "No scan credits remaining. Buy credits or subscribe.",
+          sub,
+        };
       }
       return { allowed: true, sub };
     }
 
     case "campaign": {
       if (!limits.canPublish) {
-        return { allowed: false, reason: "Subscribe to publish campaigns to Google Ads.", sub };
+        return {
+          allowed: false,
+          reason: "Subscribe to publish campaigns to Google Ads.",
+          sub,
+        };
       }
       return { allowed: true, sub };
     }
 
     case "ai-improve": {
       if (sub.aiCredits <= 0) {
-        return { allowed: false, reason: "No AI credits remaining. Buy more credits.", sub };
+        return {
+          allowed: false,
+          reason: "No AI credits remaining. Buy more credits.",
+          sub,
+        };
       }
       return { allowed: true, sub };
     }
 
     case "competitor-intel": {
       if (sub.plan === "free" && sub.scanCredits <= 0) {
-        return { allowed: false, reason: "Subscribe or buy credits for competitor intelligence.", sub };
+        return {
+          allowed: false,
+          reason: "Subscribe or buy credits for competitor intelligence.",
+          sub,
+        };
       }
       return { allowed: true, sub };
     }

@@ -9,31 +9,57 @@ export function calcROAS(revenue, spend) {
   return parseFloat((revenue / spend).toFixed(1));
 }
 
-export function calcBudgetProjections(dailyBudget, avgOrderValue, convRate, avgScore) {
+export function calcBudgetProjections(
+  dailyBudget,
+  avgOrderValue,
+  convRate,
+  avgScore,
+) {
   const cpc = Math.max(0.25, 1.2 - avgScore * 0.006);
   const dailyClicks = Math.round(dailyBudget / cpc);
-  const dailyOrders = dailyClicks * convRate / 100;
+  const dailyOrders = (dailyClicks * convRate) / 100;
   const dailyRevenue = dailyOrders * avgOrderValue;
   const dailyProfit = dailyRevenue - dailyBudget;
   const roas = dailyBudget > 0 ? (dailyRevenue / dailyBudget).toFixed(1) : "0";
-  const breakEvenDays = dailyProfit > 0 ? Math.ceil((dailyBudget * 30) / dailyProfit) : null;
-  return { cpc, dailyClicks, dailyOrders, dailyRevenue, dailyProfit, roas: parseFloat(roas), breakEvenDays };
+  const breakEvenDays =
+    dailyProfit > 0 ? Math.ceil((dailyBudget * 30) / dailyProfit) : null;
+  return {
+    cpc,
+    dailyClicks,
+    dailyOrders,
+    dailyRevenue,
+    dailyProfit,
+    roas: parseFloat(roas),
+    breakEvenDays,
+  };
 }
 
-export function calcHealthScore({ analyzedCount, totalProducts, avgScore, competitorCount, keywordGapCount }) {
+export function calcHealthScore({
+  analyzedCount,
+  totalProducts,
+  avgScore,
+  competitorCount,
+  keywordGapCount,
+}) {
   if (analyzedCount === 0) return 0;
   const coverage = totalProducts > 0 ? (analyzedCount / totalProducts) * 25 : 0;
   const scoreComp = avgScore * 0.4;
   const competitorComp = Math.min(competitorCount * 5, 20);
   const keywordComp = Math.min(keywordGapCount * 1.5, 15);
-  return Math.min(Math.round(coverage + scoreComp + competitorComp + keywordComp), 100);
+  return Math.min(
+    Math.round(coverage + scoreComp + competitorComp + keywordComp),
+    100,
+  );
 }
 
 export function getProductUrl(product, storeUrl) {
   if (!storeUrl) storeUrl = "https://your-store.myshopify.com";
   if (product?.handle) return `${storeUrl}/products/${product.handle}`;
   if (product?.title) {
-    const handle = product.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const handle = product.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
     return `${storeUrl}/products/${handle}`;
   }
   return storeUrl;

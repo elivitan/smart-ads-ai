@@ -1,6 +1,10 @@
-
 import { useState, useEffect, useReducer, useRef } from "react";
-import { wizardReducer, INITIAL_STATE, updateField, prefillFromAI } from "../utils/wizardReducer.js";
+import {
+  wizardReducer,
+  INITIAL_STATE,
+  updateField,
+  prefillFromAI,
+} from "../utils/wizardReducer.js";
 import { normalizeStrategy } from "../utils/normalizeStrategy.js";
 import LaunchProgress from "./LaunchProgress.jsx";
 
@@ -22,26 +26,116 @@ const STEPS = [
 ];
 
 const GOALS = [
-  { id: "sales", icon: "נ›’", title: "Get More Sales", desc: "People will buy products directly from your store", googleTerm: "Sales" },
-  { id: "leads", icon: "נ‘¥", title: "Get Leads & Signups", desc: "People will fill out forms or contact you", googleTerm: "Leads" },
-  { id: "traffic", icon: "נ", title: "More Store Visitors", desc: "Bring more people to browse your website", googleTerm: "Website Traffic" },
-  { id: "awareness", icon: "נ“£", title: "Get Your Brand Known", desc: "Show your brand to as many people as possible", googleTerm: "Awareness" },
+  {
+    id: "sales",
+    icon: "נ›’",
+    title: "Get More Sales",
+    desc: "People will buy products directly from your store",
+    googleTerm: "Sales",
+  },
+  {
+    id: "leads",
+    icon: "נ‘¥",
+    title: "Get Leads & Signups",
+    desc: "People will fill out forms or contact you",
+    googleTerm: "Leads",
+  },
+  {
+    id: "traffic",
+    icon: "נ",
+    title: "More Store Visitors",
+    desc: "Bring more people to browse your website",
+    googleTerm: "Website Traffic",
+  },
+  {
+    id: "awareness",
+    icon: "נ“£",
+    title: "Get Your Brand Known",
+    desc: "Show your brand to as many people as possible",
+    googleTerm: "Awareness",
+  },
 ];
 
 const CAMPAIGN_TYPES = [
-  { id: "pmax", icon: "ג¡", title: "Maximum Reach", subtitle: "Performance Max", desc: "AI shows your ads everywhere ג€” Google Search, YouTube, Gmail, Maps, and millions of websites. Best for most stores.", channels: ["Search", "YouTube", "Display", "Gmail", "Maps"], recommended: true },
-  { id: "search", icon: "נ”", title: "Search Only", subtitle: "Search Campaign", desc: "Text ads appear when people search for your products on Google. Best for specific products or small budgets.", channels: ["Google Search"] },
-  { id: "shopping", icon: "נ›ן¸", title: "Product Shopping Ads", subtitle: "Shopping Campaign", desc: "Show your product photos + prices directly in Google search results. Requires Google Merchant Center.", channels: ["Google Shopping"] },
-  { id: "display", icon: "נ–¼ן¸", title: "Banner Ads on Websites", subtitle: "Display Campaign", desc: "Visual banner ads shown across 3 million+ websites and apps.", channels: ["Websites", "Apps"] },
-  { id: "video", icon: "נ¬", title: "YouTube Video Ads", subtitle: "Video Campaign", desc: "Video ads that play before or during YouTube videos.", channels: ["YouTube"] },
+  {
+    id: "pmax",
+    icon: "ג¡",
+    title: "Maximum Reach",
+    subtitle: "Performance Max",
+    desc: "AI shows your ads everywhere ג€” Google Search, YouTube, Gmail, Maps, and millions of websites. Best for most stores.",
+    channels: ["Search", "YouTube", "Display", "Gmail", "Maps"],
+    recommended: true,
+  },
+  {
+    id: "search",
+    icon: "נ”",
+    title: "Search Only",
+    subtitle: "Search Campaign",
+    desc: "Text ads appear when people search for your products on Google. Best for specific products or small budgets.",
+    channels: ["Google Search"],
+  },
+  {
+    id: "shopping",
+    icon: "נ›ן¸",
+    title: "Product Shopping Ads",
+    subtitle: "Shopping Campaign",
+    desc: "Show your product photos + prices directly in Google search results. Requires Google Merchant Center.",
+    channels: ["Google Shopping"],
+  },
+  {
+    id: "display",
+    icon: "נ–¼ן¸",
+    title: "Banner Ads on Websites",
+    subtitle: "Display Campaign",
+    desc: "Visual banner ads shown across 3 million+ websites and apps.",
+    channels: ["Websites", "Apps"],
+  },
+  {
+    id: "video",
+    icon: "נ¬",
+    title: "YouTube Video Ads",
+    subtitle: "Video Campaign",
+    desc: "Video ads that play before or during YouTube videos.",
+    channels: ["YouTube"],
+  },
 ];
 
 const BIDDING_STRATEGIES = [
-  { id: "max_conversions", title: "Most Sales for My Budget", subtitle: "Maximize Conversions", desc: "Google's AI will try to get you the most purchases possible within your daily budget. Best for most stores.", recommended: true },
-  { id: "max_conv_value", title: "Highest Revenue", subtitle: "Maximize Conversion Value", desc: "Instead of counting sales, Google focuses on making you the most money. Great if your products have different prices." },
-  { id: "max_clicks", title: "Most Visitors", subtitle: "Maximize Clicks", desc: "Get as many people as possible to visit your store. Good for new stores that want traffic first." },
-  { id: "target_cpa", title: "Set a Cost Per Sale", subtitle: "Target CPA", desc: "You decide the maximum you're willing to pay for each sale. Example: 'I want each sale to cost me no more than $15'.", hasInput: true, inputLabel: "Max cost per sale ($)" },
-  { id: "target_roas", title: "Set a Return Target", subtitle: "Target ROAS", desc: "You set a target like '300%' meaning for every $1 spent on ads, you want $3 in sales.", hasInput: true, inputLabel: "Target return (%)" },
+  {
+    id: "max_conversions",
+    title: "Most Sales for My Budget",
+    subtitle: "Maximize Conversions",
+    desc: "Google's AI will try to get you the most purchases possible within your daily budget. Best for most stores.",
+    recommended: true,
+  },
+  {
+    id: "max_conv_value",
+    title: "Highest Revenue",
+    subtitle: "Maximize Conversion Value",
+    desc: "Instead of counting sales, Google focuses on making you the most money. Great if your products have different prices.",
+  },
+  {
+    id: "max_clicks",
+    title: "Most Visitors",
+    subtitle: "Maximize Clicks",
+    desc: "Get as many people as possible to visit your store. Good for new stores that want traffic first.",
+  },
+  {
+    id: "target_cpa",
+    title: "Set a Cost Per Sale",
+    subtitle: "Target CPA",
+    desc: "You decide the maximum you're willing to pay for each sale. Example: 'I want each sale to cost me no more than $15'.",
+    hasInput: true,
+    inputLabel: "Max cost per sale ($)",
+  },
+  {
+    id: "target_roas",
+    title: "Set a Return Target",
+    subtitle: "Target ROAS",
+    desc: "You set a target like '300%' meaning for every $1 spent on ads, you want $3 in sales.",
+    hasInput: true,
+    inputLabel: "Target return (%)",
+  },
 ];
 
 const LOCATIONS = [
@@ -73,7 +167,9 @@ export default function CampaignWizard({
   onLaunch,
 }) {
   // Enforce 30-char max on headlines from DB
-  const editHeadlines = (rawEditHeadlines || []).map(h => h.trim().slice(0, 30));
+  const editHeadlines = (rawEditHeadlines || []).map((h) =>
+    h.trim().slice(0, 30),
+  );
   const strategy = normalizeStrategy(aiStrategy);
   const [step, setStep] = useState(0);
   const [config, dispatch] = useReducer(wizardReducer, INITIAL_STATE);
@@ -92,15 +188,24 @@ export default function CampaignWizard({
 
   function validateStep() {
     switch (STEPS[step]?.id) {
-      case "goal": return !!config.goal;
-      case "type": return !!config.campaignType;
-      case "bidding": return !!config.bidding;
-      case "settings": return !!config.locations;
-      case "assets": return editHeadlines.length >= 3 && editDescriptions.length >= 1;
-      case "budget": return config.budgetAmount && parseFloat(config.budgetAmount) > 0;
-      case "tracking": return config.skipTracking || !!config.conversionType;
-      case "review": return true;
-      default: return true;
+      case "goal":
+        return !!config.goal;
+      case "type":
+        return !!config.campaignType;
+      case "bidding":
+        return !!config.bidding;
+      case "settings":
+        return !!config.locations;
+      case "assets":
+        return editHeadlines.length >= 3 && editDescriptions.length >= 1;
+      case "budget":
+        return config.budgetAmount && parseFloat(config.budgetAmount) > 0;
+      case "tracking":
+        return config.skipTracking || !!config.conversionType;
+      case "review":
+        return true;
+      default:
+        return true;
     }
   }
   const [launchState, setLaunchState] = useState("idle");
@@ -110,46 +215,76 @@ export default function CampaignWizard({
 
   async function handleLaunch() {
     if (launchState === "launching") return;
-    if (!idempotencyRef.current) idempotencyRef.current = `wiz_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    if (!idempotencyRef.current)
+      idempotencyRef.current = `wiz_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setLaunchState("launching");
     setLaunchError(null);
     setLaunchSteps([{ state: "QUEUED", ts: new Date().toISOString() }]);
     const payload = {
-      ...config, productTitle: product?.title, headlines: editHeadlines,
-      descriptions: editDescriptions, sitelinks: editSitelinks,
-      keywords: aiData?.keywords || [], negative_keywords: aiData?.negative_keywords || [],
-      imageUrls: product?.images?.map(i => i.src || i.url).filter(Boolean) || [],
-      videoUrls: config.videoUrls ? config.videoUrls.split(",").map(u => u.trim()).filter(Boolean) : [],
+      ...config,
+      productTitle: product?.title,
+      headlines: editHeadlines,
+      descriptions: editDescriptions,
+      sitelinks: editSitelinks,
+      keywords: aiData?.keywords || [],
+      negative_keywords: aiData?.negative_keywords || [],
+      imageUrls:
+        product?.images?.map((i) => i.src || i.url).filter(Boolean) || [],
+      videoUrls: config.videoUrls
+        ? config.videoUrls
+            .split(",")
+            .map((u) => u.trim())
+            .filter(Boolean)
+        : [],
       idempotencyKey: idempotencyRef.current,
     };
     try {
-      setLaunchSteps(s => [...s, { state: "CREATING", ts: new Date().toISOString() }]);
+      setLaunchSteps((s) => [
+        ...s,
+        { state: "CREATING", ts: new Date().toISOString() },
+      ]);
       const res = await fetch("/app/api/campaign", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload), signal: AbortSignal.timeout(60000),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(60000),
       });
       const data = await res.json();
       if (data.success) {
         setLaunchState("success");
-        setLaunchSteps(data.steps || [{ state: "ENABLED", ts: new Date().toISOString() }]);
+        setLaunchSteps(
+          data.steps || [{ state: "ENABLED", ts: new Date().toISOString() }],
+        );
         onLaunch(payload, data);
       } else {
         setLaunchState("failed");
         setLaunchError(data.error || "Campaign creation failed");
       }
-    } catch (err) { setLaunchState("failed"); setLaunchError(err.message); }
+    } catch (err) {
+      setLaunchState("failed");
+      setLaunchError(err.message);
+    }
   }
-  function handleRetryLaunch() { idempotencyRef.current = null; handleLaunch(); }
+  function handleRetryLaunch() {
+    idempotencyRef.current = null;
+    handleLaunch();
+  }
 
   return (
     <div className="wiz-overlay" onClick={onClose}>
-      <div className="wiz-container" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>ג•</button>
+      <div className="wiz-container" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>
+          ג•
+        </button>
 
         {/* Stepper */}
         <div className="wiz-stepper">
           {STEPS.map((s, i) => (
-            <div key={s.id} className={`wiz-step-item ${i === step ? 'wiz-step-active' : i < step ? 'wiz-step-done' : ''}`} onClick={() => i < step && setStep(i)}>
+            <div
+              key={s.id}
+              className={`wiz-step-item ${i === step ? "wiz-step-active" : i < step ? "wiz-step-done" : ""}`}
+              onClick={() => i < step && setStep(i)}
+            >
               <div className="wiz-step-num">{i < step ? "ג“" : i + 1}</div>
               <span className="wiz-step-label">{s.label}</span>
             </div>
@@ -158,31 +293,55 @@ export default function CampaignWizard({
 
         {/* Step Content */}
         <div className="wiz-content">
-
           {/* ג”€ג”€ג”€ג”€ STEP 1: GOAL ג”€ג”€ג”€ג”€ */}
           {currentStep.id === "goal" && (
             <div className="wiz-section">
               <h2 className="wiz-title">What do you want to achieve?</h2>
-              <p className="wiz-sub">This helps Google optimize your ads for the right outcome.</p>
+              <p className="wiz-sub">
+                This helps Google optimize your ads for the right outcome.
+              </p>
               {strategy && (
                 <div className="wiz-ai-rec">
                   <div className="wiz-ai-rec-badge">נ₪– AI Recommendation</div>
                   <div className="wiz-ai-rec-text">
-                    Based on your store analysis: <strong>{GOALS.find(g=>g.id===strategy.goal)?.title || strategy.goal}</strong>
-                    <span className="wiz-ai-rec-reason">{strategy.goalReason}</span>
+                    Based on your store analysis:{" "}
+                    <strong>
+                      {GOALS.find((g) => g.id === strategy.goal)?.title ||
+                        strategy.goal}
+                    </strong>
+                    <span className="wiz-ai-rec-reason">
+                      {strategy.goalReason}
+                    </span>
                   </div>
                   {config.goal !== strategy.goal && (
-                    <button className="wiz-ai-rec-btn" onClick={() => updateConfig("goal", strategy.goal)}>Apply Recommendation</button>
+                    <button
+                      className="wiz-ai-rec-btn"
+                      onClick={() => updateConfig("goal", strategy.goal)}
+                    >
+                      Apply Recommendation
+                    </button>
                   )}
                 </div>
               )}
               <div className="wiz-cards-grid">
-                {GOALS.map(g => (
-                  <div key={g.id} className={`wiz-card ${config.goal === g.id ? 'wiz-card-sel' : ''} ${strategy?.goal === g.id ? 'wiz-card-rec' : ''}`} onClick={() => updateConfig("goal", g.id)}>
-                    {strategy?.goal === g.id && <div className="wiz-rec-badge">נ₪– Recommended for you</div>}
+                {GOALS.map((g) => (
+                  <div
+                    key={g.id}
+                    className={`wiz-card ${config.goal === g.id ? "wiz-card-sel" : ""} ${strategy?.goal === g.id ? "wiz-card-rec" : ""}`}
+                    onClick={() => updateConfig("goal", g.id)}
+                  >
+                    {strategy?.goal === g.id && (
+                      <div className="wiz-rec-badge">
+                        נ₪– Recommended for you
+                      </div>
+                    )}
                     <span className="wiz-card-icon">{g.icon}</span>
                     <h3 className="wiz-card-title">{g.title}</h3>
-                    {g.googleTerm && <span className="wiz-card-subtitle">Google calls this: "{g.googleTerm}"</span>}
+                    {g.googleTerm && (
+                      <span className="wiz-card-subtitle">
+                        Google calls this: "{g.googleTerm}"
+                      </span>
+                    )}
                     <p className="wiz-card-desc">{g.desc}</p>
                   </div>
                 ))}
@@ -191,8 +350,14 @@ export default function CampaignWizard({
                 <div className="wiz-info-box">
                   <strong>Recommended conversion goals for Sales:</strong>
                   <div className="wiz-conv-goals">
-                    <div className="wiz-conv-goal"><span className="wiz-conv-icon">נ›’</span> Purchases (website)</div>
-                    <div className="wiz-conv-goal"><span className="wiz-conv-icon">נ“§</span> Other (account default)</div>
+                    <div className="wiz-conv-goal">
+                      <span className="wiz-conv-icon">נ›’</span> Purchases
+                      (website)
+                    </div>
+                    <div className="wiz-conv-goal">
+                      <span className="wiz-conv-icon">נ“§</span> Other (account
+                      default)
+                    </div>
                   </div>
                 </div>
               )}
@@ -203,28 +368,60 @@ export default function CampaignWizard({
           {currentStep.id === "type" && (
             <div className="wiz-section">
               <h2 className="wiz-title">Where should your ads appear?</h2>
-              <p className="wiz-sub">Choose where people will see your ads on Google.</p>
+              <p className="wiz-sub">
+                Choose where people will see your ads on Google.
+              </p>
               {strategy && (
                 <div className="wiz-ai-rec">
                   <div className="wiz-ai-rec-badge">נ₪– AI Recommendation</div>
                   <div className="wiz-ai-rec-text">
-                    Best for your store: <strong>{CAMPAIGN_TYPES.find(t=>t.id===strategy.campaignType)?.title || strategy.campaignType}</strong>
-                    <span className="wiz-ai-rec-reason">{strategy.campaignTypeReason}</span>
+                    Best for your store:{" "}
+                    <strong>
+                      {CAMPAIGN_TYPES.find(
+                        (t) => t.id === strategy.campaignType,
+                      )?.title || strategy.campaignType}
+                    </strong>
+                    <span className="wiz-ai-rec-reason">
+                      {strategy.campaignTypeReason}
+                    </span>
                   </div>
                   {config.campaignType !== strategy.campaignType && (
-                    <button className="wiz-ai-rec-btn" onClick={() => updateConfig("campaignType", strategy.campaignType)}>Apply Recommendation</button>
+                    <button
+                      className="wiz-ai-rec-btn"
+                      onClick={() =>
+                        updateConfig("campaignType", strategy.campaignType)
+                      }
+                    >
+                      Apply Recommendation
+                    </button>
                   )}
                 </div>
               )}
               <div className="wiz-cards-grid wiz-cards-wide">
-                {CAMPAIGN_TYPES.map(t => (
-                  <div key={t.id} className={`wiz-card ${config.campaignType === t.id ? 'wiz-card-sel' : ''} ${(strategy?.campaignType === t.id) ? 'wiz-card-rec' : ''}`} onClick={() => updateConfig("campaignType", t.id)}>
-                    {(strategy?.campaignType === t.id) && <div className="wiz-rec-badge">נ₪– Recommended for you</div>}
+                {CAMPAIGN_TYPES.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`wiz-card ${config.campaignType === t.id ? "wiz-card-sel" : ""} ${strategy?.campaignType === t.id ? "wiz-card-rec" : ""}`}
+                    onClick={() => updateConfig("campaignType", t.id)}
+                  >
+                    {strategy?.campaignType === t.id && (
+                      <div className="wiz-rec-badge">
+                        נ₪– Recommended for you
+                      </div>
+                    )}
                     <span className="wiz-card-icon">{t.icon}</span>
                     <h3 className="wiz-card-title">{t.title}</h3>
-                    {t.subtitle && <span className="wiz-card-subtitle">{t.subtitle}</span>}
+                    {t.subtitle && (
+                      <span className="wiz-card-subtitle">{t.subtitle}</span>
+                    )}
                     <p className="wiz-card-desc">{t.desc}</p>
-                    <div className="wiz-channels">{t.channels.map(c => <span key={c} className="wiz-channel">{c}</span>)}</div>
+                    <div className="wiz-channels">
+                      {t.channels.map((c) => (
+                        <span key={c} className="wiz-channel">
+                          {c}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -234,31 +431,68 @@ export default function CampaignWizard({
           {/* ג”€ג”€ג”€ג”€ STEP 3: BIDDING ג”€ג”€ג”€ג”€ */}
           {currentStep.id === "bidding" && (
             <div className="wiz-section">
-              <h2 className="wiz-title">How should Google spend your budget?</h2>
-              <p className="wiz-sub">This tells Google what to optimize for when showing your ads.</p>
+              <h2 className="wiz-title">
+                How should Google spend your budget?
+              </h2>
+              <p className="wiz-sub">
+                This tells Google what to optimize for when showing your ads.
+              </p>
               {strategy && (
                 <div className="wiz-ai-rec">
                   <div className="wiz-ai-rec-badge">נ₪– AI Recommendation</div>
                   <div className="wiz-ai-rec-text">
-                    Best for your store: <strong>{BIDDING_STRATEGIES.find(b=>b.id===strategy.bidding)?.title || strategy.bidding}</strong>
-                    <span className="wiz-ai-rec-reason">{strategy.biddingReason}</span>
+                    Best for your store:{" "}
+                    <strong>
+                      {BIDDING_STRATEGIES.find((b) => b.id === strategy.bidding)
+                        ?.title || strategy.bidding}
+                    </strong>
+                    <span className="wiz-ai-rec-reason">
+                      {strategy.biddingReason}
+                    </span>
                   </div>
                   {config.bidding !== strategy.bidding && (
-                    <button className="wiz-ai-rec-btn" onClick={() => updateConfig("bidding", strategy.bidding)}>Apply Recommendation</button>
+                    <button
+                      className="wiz-ai-rec-btn"
+                      onClick={() => updateConfig("bidding", strategy.bidding)}
+                    >
+                      Apply Recommendation
+                    </button>
                   )}
                 </div>
               )}
               <div className="wiz-bidding-list">
-                {BIDDING_STRATEGIES.map(b => (
-                  <div key={b.id} className={`wiz-bid-item ${config.bidding === b.id ? 'wiz-bid-sel' : ''}`} onClick={() => updateConfig("bidding", b.id)}>
-                    <div className="wiz-bid-radio">{config.bidding === b.id ? "ג—‰" : "ג—‹"}</div>
+                {BIDDING_STRATEGIES.map((b) => (
+                  <div
+                    key={b.id}
+                    className={`wiz-bid-item ${config.bidding === b.id ? "wiz-bid-sel" : ""}`}
+                    onClick={() => updateConfig("bidding", b.id)}
+                  >
+                    <div className="wiz-bid-radio">
+                      {config.bidding === b.id ? "ג—‰" : "ג—‹"}
+                    </div>
                     <div className="wiz-bid-info">
-                      <div className="wiz-bid-title">{b.title}{strategy?.bidding === b.id && <span className="wiz-bid-rec">נ₪– Recommended</span>}{b.subtitle && <span className="wiz-bid-sub">{b.subtitle}</span>}</div>
+                      <div className="wiz-bid-title">
+                        {b.title}
+                        {strategy?.bidding === b.id && (
+                          <span className="wiz-bid-rec">נ₪– Recommended</span>
+                        )}
+                        {b.subtitle && (
+                          <span className="wiz-bid-sub">{b.subtitle}</span>
+                        )}
+                      </div>
                       <div className="wiz-bid-desc">{b.desc}</div>
                       {b.hasInput && config.bidding === b.id && (
                         <div className="wiz-bid-input-wrap">
                           <label>{b.inputLabel}</label>
-                          <input type="number" value={config.biddingTarget} onChange={e => updateConfig("biddingTarget", e.target.value)} placeholder="0.00" className="wiz-input-sm"/>
+                          <input
+                            type="number"
+                            value={config.biddingTarget}
+                            onChange={(e) =>
+                              updateConfig("biddingTarget", e.target.value)
+                            }
+                            placeholder="0.00"
+                            className="wiz-input-sm"
+                          />
                         </div>
                       )}
                     </div>
@@ -267,7 +501,10 @@ export default function CampaignWizard({
               </div>
               <div className="wiz-info-box">
                 <strong>Customer Acquisition</strong>
-                <p>Bid for new customers with matching bidding adjustments to help you acquire new customers.</p>
+                <p>
+                  Bid for new customers with matching bidding adjustments to
+                  help you acquire new customers.
+                </p>
               </div>
             </div>
           )}
@@ -276,64 +513,186 @@ export default function CampaignWizard({
           {currentStep.id === "settings" && (
             <div className="wiz-section">
               <h2 className="wiz-title">Who should see your ads?</h2>
-              <p className="wiz-sub">Choose where your ads will show and what languages your customers speak.</p>
+              <p className="wiz-sub">
+                Choose where your ads will show and what languages your
+                customers speak.
+              </p>
 
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Campaign Name</label>
-                <p className="wiz-form-hint">A name for you to identify this campaign ג€” customers won't see it.</p>
-                <input className="wiz-input" value={config.campaignName} onChange={e => updateConfig("campaignName", e.target.value)} placeholder="My Campaign"/>
+                <p className="wiz-form-hint">
+                  A name for you to identify this campaign ג€” customers won't
+                  see it.
+                </p>
+                <input
+                  className="wiz-input"
+                  value={config.campaignName}
+                  onChange={(e) => updateConfig("campaignName", e.target.value)}
+                  placeholder="My Campaign"
+                />
               </div>
 
               <div className="wiz-form-group">
-                <label className="wiz-form-label">נ“ Where should your ads appear?</label>
-                <p className="wiz-form-hint">Choose which countries/regions will see your ads. Pick the areas where your customers are located or where you can ship to.</p>
+                <label className="wiz-form-label">
+                  נ“ Where should your ads appear?
+                </label>
+                <p className="wiz-form-hint">
+                  Choose which countries/regions will see your ads. Pick the
+                  areas where your customers are located or where you can ship
+                  to.
+                </p>
                 {strategy && (
                   <div className="wiz-ai-rec wiz-ai-rec-sm">
-                    <span className="wiz-ai-rec-badge">נ₪– AI Recommendation</span>
-                    <span className="wiz-ai-rec-text">
-                      <strong>{LOCATIONS.find(l=>l.id===strategy.locations?.[0])?.label || strategy.locations?.join(", ") || "Based on your store"}</strong>
-                      <span className="wiz-ai-rec-reason">{strategy.locationsReason}</span>
+                    <span className="wiz-ai-rec-badge">
+                      נ₪– AI Recommendation
                     </span>
-                    {strategy.locations?.[0] && config.locations !== strategy.locations[0] && (
-                      <button className="wiz-ai-rec-btn" onClick={() => updateConfig("locations", strategy.locations[0])}>Apply</button>
-                    )}
+                    <span className="wiz-ai-rec-text">
+                      <strong>
+                        {LOCATIONS.find((l) => l.id === strategy.locations?.[0])
+                          ?.label ||
+                          strategy.locations?.join(", ") ||
+                          "Based on your store"}
+                      </strong>
+                      <span className="wiz-ai-rec-reason">
+                        {strategy.locationsReason}
+                      </span>
+                    </span>
+                    {strategy.locations?.[0] &&
+                      config.locations !== strategy.locations[0] && (
+                        <button
+                          className="wiz-ai-rec-btn"
+                          onClick={() =>
+                            updateConfig("locations", strategy.locations[0])
+                          }
+                        >
+                          Apply
+                        </button>
+                      )}
                   </div>
                 )}
                 <div className="wiz-loc-list">
-                  {LOCATIONS.map(loc => (
-                    <label key={loc.id} className={`wiz-loc-item ${config.locations === loc.id ? 'wiz-loc-sel' : ''}`}>
-                      <input type="radio" name="location" checked={config.locations === loc.id} onChange={() => updateConfig("locations", loc.id)}/>
+                  {LOCATIONS.map((loc) => (
+                    <label
+                      key={loc.id}
+                      className={`wiz-loc-item ${config.locations === loc.id ? "wiz-loc-sel" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="location"
+                        checked={config.locations === loc.id}
+                        onChange={() => updateConfig("locations", loc.id)}
+                      />
                       <span className="wiz-loc-icon">{loc.icon}</span>
                       <span className="wiz-loc-label">{loc.label}</span>
-                      {strategy?.locations?.[0] === loc.id && <span className="wiz-loc-rec">נ₪– Recommended</span>}
+                      {strategy?.locations?.[0] === loc.id && (
+                        <span className="wiz-loc-rec">נ₪– Recommended</span>
+                      )}
                     </label>
                   ))}
                 </div>
                 {config.locations === "custom" && (
                   <div className="wiz-custom-loc">
-                    <input className="wiz-input" value={config.customLocation} onChange={e => updateConfig("customLocation", e.target.value)} placeholder="Type a country, state, city, or zip code..."/>
-                    <p className="wiz-form-hint" style={{marginTop:6}}>נ’¡ Examples: "New York", "California", "London", "90210", "Germany"</p>
+                    <input
+                      className="wiz-input"
+                      value={config.customLocation}
+                      onChange={(e) =>
+                        updateConfig("customLocation", e.target.value)
+                      }
+                      placeholder="Type a country, state, city, or zip code..."
+                    />
+                    <p className="wiz-form-hint" style={{ marginTop: 6 }}>
+                      נ’¡ Examples: "New York", "California", "London", "90210",
+                      "Germany"
+                    </p>
                   </div>
                 )}
               </div>
 
               <div className="wiz-form-group">
-                <label className="wiz-form-label">נ—£ן¸ What languages do your customers speak?</label>
-                <p className="wiz-form-hint">Google will show your ads to people who use these languages. Make sure your ads are written in the languages you select.</p>
+                <label className="wiz-form-label">
+                  נ—£ן¸ What languages do your customers speak?
+                </label>
+                <p className="wiz-form-hint">
+                  Google will show your ads to people who use these languages.
+                  Make sure your ads are written in the languages you select.
+                </p>
                 {strategy && strategy.languages && (
                   <div className="wiz-ai-rec wiz-ai-rec-sm">
-                    <span className="wiz-ai-rec-badge">נ₪– AI Recommendation</span>
-                    <span className="wiz-ai-rec-text">
-                      <strong>{strategy.languages.map(l => ({en:"English",he:"Hebrew",es:"Spanish",fr:"French",de:"German",ar:"Arabic",ru:"Russian",zh:"Chinese",ja:"Japanese",pt:"Portuguese"}[l] || l)).join(", ")}</strong>
+                    <span className="wiz-ai-rec-badge">
+                      נ₪– AI Recommendation
                     </span>
-                    <button className="wiz-ai-rec-btn" onClick={() => updateConfig("languages", [...strategy.languages])}>Apply</button>
+                    <span className="wiz-ai-rec-text">
+                      <strong>
+                        {strategy.languages
+                          .map(
+                            (l) =>
+                              ({
+                                en: "English",
+                                he: "Hebrew",
+                                es: "Spanish",
+                                fr: "French",
+                                de: "German",
+                                ar: "Arabic",
+                                ru: "Russian",
+                                zh: "Chinese",
+                                ja: "Japanese",
+                                pt: "Portuguese",
+                              })[l] || l,
+                          )
+                          .join(", ")}
+                      </strong>
+                    </span>
+                    <button
+                      className="wiz-ai-rec-btn"
+                      onClick={() =>
+                        updateConfig("languages", [...strategy.languages])
+                      }
+                    >
+                      Apply
+                    </button>
                   </div>
                 )}
                 <div className="wiz-tag-list">
                   {config.languages.map((lang, i) => (
-                    <span key={i} className="wiz-tag">{({en:"English",he:"Hebrew",es:"Spanish",fr:"French",de:"German",ar:"Arabic",ru:"Russian",zh:"Chinese",ja:"Japanese",pt:"Portuguese"}[lang]) || lang} <button onClick={() => updateConfig("languages", config.languages.filter((_, j) => j !== i))}>ג•</button></span>
+                    <span key={i} className="wiz-tag">
+                      {{
+                        en: "English",
+                        he: "Hebrew",
+                        es: "Spanish",
+                        fr: "French",
+                        de: "German",
+                        ar: "Arabic",
+                        ru: "Russian",
+                        zh: "Chinese",
+                        ja: "Japanese",
+                        pt: "Portuguese",
+                      }[lang] || lang}{" "}
+                      <button
+                        onClick={() =>
+                          updateConfig(
+                            "languages",
+                            config.languages.filter((_, j) => j !== i),
+                          )
+                        }
+                      >
+                        ג•
+                      </button>
+                    </span>
                   ))}
-                  <select className="wiz-select-sm" onChange={e => { if (e.target.value && !config.languages.includes(e.target.value)) updateConfig("languages", [...config.languages, e.target.value]); e.target.value = ""; }}>
+                  <select
+                    className="wiz-select-sm"
+                    onChange={(e) => {
+                      if (
+                        e.target.value &&
+                        !config.languages.includes(e.target.value)
+                      )
+                        updateConfig("languages", [
+                          ...config.languages,
+                          e.target.value,
+                        ]);
+                      e.target.value = "";
+                    }}
+                  >
                     <option value="">+ Add language</option>
                     <option value="en">English</option>
                     <option value="he">Hebrew</option>
@@ -362,22 +721,68 @@ export default function CampaignWizard({
           {currentStep.id === "assets" && (
             <div className="wiz-section">
               <h2 className="wiz-title">Your Ad Content</h2>
-              <p className="wiz-sub" style={{marginBottom:8}}>This is what people will see in your ads. The more content you add, the better Google can optimize.</p>
+              <p className="wiz-sub" style={{ marginBottom: 8 }}>
+                This is what people will see in your ads. The more content you
+                add, the better Google can optimize.
+              </p>
 
               {/* Ad Strength */}
               <div className="wiz-adstrength">
                 <span className="wiz-adstrength-label">Ad Strength</span>
                 <div className="wiz-adstrength-bar">
-                  <div className="wiz-adstrength-fill" style={{ width: `${Math.min(100, (editHeadlines.length / 15 * 50) + (editDescriptions.length / 4 * 30) + (editSitelinks.filter(s => s.title).length > 0 ? 20 : 0))}%`, background: editHeadlines.length >= 10 ? '#22c55e' : editHeadlines.length >= 5 ? '#f59e0b' : '#ef4444' }}/>
+                  <div
+                    className="wiz-adstrength-fill"
+                    style={{
+                      width: `${Math.min(100, (editHeadlines.length / 15) * 50 + (editDescriptions.length / 4) * 30 + (editSitelinks.filter((s) => s.title).length > 0 ? 20 : 0))}%`,
+                      background:
+                        editHeadlines.length >= 10
+                          ? "#22c55e"
+                          : editHeadlines.length >= 5
+                            ? "#f59e0b"
+                            : "#ef4444",
+                    }}
+                  />
                 </div>
-                <span className="wiz-adstrength-txt" style={{ color: editHeadlines.length >= 10 ? '#22c55e' : editHeadlines.length >= 5 ? '#f59e0b' : '#ef4444' }}>
-                  {editHeadlines.length >= 10 ? 'Excellent' : editHeadlines.length >= 5 ? 'Good' : 'Poor'}
+                <span
+                  className="wiz-adstrength-txt"
+                  style={{
+                    color:
+                      editHeadlines.length >= 10
+                        ? "#22c55e"
+                        : editHeadlines.length >= 5
+                          ? "#f59e0b"
+                          : "#ef4444",
+                  }}
+                >
+                  {editHeadlines.length >= 10
+                    ? "Excellent"
+                    : editHeadlines.length >= 5
+                      ? "Good"
+                      : "Poor"}
                 </span>
                 <div className="wiz-adstrength-checklist">
-                  <span className={editHeadlines.length > 0 ? 'wiz-check-ok' : ''}>Headlines</span>
-                  <span className={editDescriptions.length > 0 ? 'wiz-check-ok' : ''}>Descriptions</span>
-                  <span className={config.businessName ? 'wiz-check-ok' : ''}>Business</span>
-                  <span className={editSitelinks.some(s => s.title) ? 'wiz-check-ok' : ''}>Sitelinks</span>
+                  <span
+                    className={editHeadlines.length > 0 ? "wiz-check-ok" : ""}
+                  >
+                    Headlines
+                  </span>
+                  <span
+                    className={
+                      editDescriptions.length > 0 ? "wiz-check-ok" : ""
+                    }
+                  >
+                    Descriptions
+                  </span>
+                  <span className={config.businessName ? "wiz-check-ok" : ""}>
+                    Business
+                  </span>
+                  <span
+                    className={
+                      editSitelinks.some((s) => s.title) ? "wiz-check-ok" : ""
+                    }
+                  >
+                    Sitelinks
+                  </span>
                 </div>
               </div>
 
@@ -386,12 +791,26 @@ export default function CampaignWizard({
                 <label className="wiz-form-label">Branding Guidelines</label>
                 <div className="wiz-form-row">
                   <div className="wiz-form-col">
-                    <label className="wiz-form-sublabel">Business Name (required)</label>
-                    <input className="wiz-input" value={config.businessName} onChange={e => updateConfig("businessName", e.target.value)} placeholder="Your business name" maxLength={25}/>
-                    <span className="wiz-char-count">{config.businessName.length}/25</span>
+                    <label className="wiz-form-sublabel">
+                      Business Name (required)
+                    </label>
+                    <input
+                      className="wiz-input"
+                      value={config.businessName}
+                      onChange={(e) =>
+                        updateConfig("businessName", e.target.value)
+                      }
+                      placeholder="Your business name"
+                      maxLength={25}
+                    />
+                    <span className="wiz-char-count">
+                      {config.businessName.length}/25
+                    </span>
                   </div>
                   <div className="wiz-form-col">
-                    <label className="wiz-form-sublabel">Logo (3-5 images recommended)</label>
+                    <label className="wiz-form-sublabel">
+                      Logo (3-5 images recommended)
+                    </label>
                     <div className="wiz-upload-zone">
                       <span>נ“· Upload logos</span>
                       <p>Square 1:1 (1200x1200) + Landscape 4:1 (1200x300)</p>
@@ -403,47 +822,108 @@ export default function CampaignWizard({
               {/* Final URL */}
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Final URL</label>
-                <input className="wiz-input" value={config.finalUrl} onChange={e => updateConfig("finalUrl", e.target.value)} placeholder="https://yourstore.com"/>
+                <input
+                  className="wiz-input"
+                  value={config.finalUrl}
+                  onChange={(e) => updateConfig("finalUrl", e.target.value)}
+                  placeholder="https://yourstore.com"
+                />
               </div>
 
               {/* Headlines */}
               <div className="wiz-form-group">
-                <label className="wiz-form-label">Headlines ({editHeadlines.length}/15)</label>
-                <p className="wiz-form-hint">Max 30 characters each. Google recommends 15 for best results.</p>
+                <label className="wiz-form-label">
+                  Headlines ({editHeadlines.length}/15)
+                </label>
+                <p className="wiz-form-hint">
+                  Max 30 characters each. Google recommends 15 for best results.
+                </p>
                 <div className="wiz-asset-list">
                   {editHeadlines.map((h, i) => (
                     <div key={i} className="wiz-asset-row">
                       <span className="wiz-asset-num">{i + 1}</span>
-                      <input className="wiz-input" value={h} maxLength={30} onChange={e => { const n = [...editHeadlines]; n[i] = e.target.value; setEditHeadlines(n); }} placeholder={`Headline ${i + 1}`}/>
-                      <span className={`wiz-char-count ${h.length > 30 ? 'wiz-over' : ''}`}>{h.length}/30</span>
-                      <button className="wiz-btn-ai" onClick={() => handleAiImprove("h", i)} disabled={improvingIdx !== null} title="AI Improve">
-                        {improvingIdx === `h-${i}` ? 'ג³' : 'ג¨'}
+                      <input
+                        className="wiz-input"
+                        value={h}
+                        maxLength={30}
+                        onChange={(e) => {
+                          const n = [...editHeadlines];
+                          n[i] = e.target.value;
+                          setEditHeadlines(n);
+                        }}
+                        placeholder={`Headline ${i + 1}`}
+                      />
+                      <span
+                        className={`wiz-char-count ${h.length > 30 ? "wiz-over" : ""}`}
+                      >
+                        {h.length}/30
+                      </span>
+                      <button
+                        className="wiz-btn-ai"
+                        onClick={() => handleAiImprove("h", i)}
+                        disabled={improvingIdx !== null}
+                        title="AI Improve"
+                      >
+                        {improvingIdx === `h-${i}` ? "ג³" : "ג¨"}
                       </button>
                     </div>
                   ))}
                   {editHeadlines.length < 15 && (
-                    <button className="wiz-btn-add" onClick={() => setEditHeadlines([...editHeadlines, ""])}>+ Add headline</button>
+                    <button
+                      className="wiz-btn-add"
+                      onClick={() => setEditHeadlines([...editHeadlines, ""])}
+                    >
+                      + Add headline
+                    </button>
                   )}
                 </div>
               </div>
 
               {/* Descriptions */}
               <div className="wiz-form-group">
-                <label className="wiz-form-label">Descriptions ({editDescriptions.length}/4)</label>
+                <label className="wiz-form-label">
+                  Descriptions ({editDescriptions.length}/4)
+                </label>
                 <p className="wiz-form-hint">Max 90 characters each.</p>
                 <div className="wiz-asset-list">
                   {editDescriptions.map((d, i) => (
                     <div key={i} className="wiz-asset-row">
                       <span className="wiz-asset-num">{i + 1}</span>
-                      <textarea className="wiz-input wiz-textarea" value={d} maxLength={90} rows={2} onChange={e => { const n = [...editDescriptions]; n[i] = e.target.value; setEditDescriptions(n); }} placeholder={`Description ${i + 1}`}/>
-                      <span className={`wiz-char-count ${d.length > 90 ? 'wiz-over' : ''}`}>{d.length}/90</span>
-                      <button className="wiz-btn-ai" onClick={() => handleAiImprove("d", i)} disabled={improvingIdx !== null}>
-                        {improvingIdx === `d-${i}` ? 'ג³' : 'ג¨'}
+                      <textarea
+                        className="wiz-input wiz-textarea"
+                        value={d}
+                        maxLength={90}
+                        rows={2}
+                        onChange={(e) => {
+                          const n = [...editDescriptions];
+                          n[i] = e.target.value;
+                          setEditDescriptions(n);
+                        }}
+                        placeholder={`Description ${i + 1}`}
+                      />
+                      <span
+                        className={`wiz-char-count ${d.length > 90 ? "wiz-over" : ""}`}
+                      >
+                        {d.length}/90
+                      </span>
+                      <button
+                        className="wiz-btn-ai"
+                        onClick={() => handleAiImprove("d", i)}
+                        disabled={improvingIdx !== null}
+                      >
+                        {improvingIdx === `d-${i}` ? "ג³" : "ג¨"}
                       </button>
                     </div>
                   ))}
                   {editDescriptions.length < 4 && (
-                    <button className="wiz-btn-add" onClick={() => setEditDescriptions([...editDescriptions, ""])}>+ Add description</button>
+                    <button
+                      className="wiz-btn-add"
+                      onClick={() =>
+                        setEditDescriptions([...editDescriptions, ""])
+                      }
+                    >
+                      + Add description
+                    </button>
                   )}
                 </div>
               </div>
@@ -451,11 +931,14 @@ export default function CampaignWizard({
               {/* Images */}
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Images</label>
-                <p className="wiz-form-hint">At least 1 square (1:1) + 1 landscape (1.91:1). Recommended: 4+ unique images.</p>
+                <p className="wiz-form-hint">
+                  At least 1 square (1:1) + 1 landscape (1.91:1). Recommended:
+                  4+ unique images.
+                </p>
                 <div className="wiz-upload-grid">
                   {product?.image && (
                     <div className="wiz-upload-thumb">
-                      <img src={product.image} alt=""/>
+                      <img src={product.image} alt="" />
                       <span className="wiz-thumb-label">From Shopify</span>
                     </div>
                   )}
@@ -470,18 +953,41 @@ export default function CampaignWizard({
               {/* Videos */}
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Videos (optional)</label>
-                <p className="wiz-form-hint">YouTube video URLs. Min 10 seconds. Google may auto-generate if none provided.</p>
-                <input className="wiz-input" placeholder="https://youtube.com/watch?v=..." value={config.videoUrls || ""} onChange={e => updateConfig("videoUrls", e.target.value)} />
+                <p className="wiz-form-hint">
+                  YouTube video URLs. Min 10 seconds. Google may auto-generate
+                  if none provided.
+                </p>
+                <input
+                  className="wiz-input"
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={config.videoUrls || ""}
+                  onChange={(e) => updateConfig("videoUrls", e.target.value)}
+                />
               </div>
 
               {/* Callouts */}
               <div className="wiz-form-group">
-                <label className="wiz-form-label">Callouts ({config.callouts.filter(c => c).length}/4)</label>
-                <p className="wiz-form-hint">Short highlights like "Free Shipping", "24/7 Support". Max 25 chars each.</p>
+                <label className="wiz-form-label">
+                  Callouts ({config.callouts.filter((c) => c).length}/4)
+                </label>
+                <p className="wiz-form-hint">
+                  Short highlights like "Free Shipping", "24/7 Support". Max 25
+                  chars each.
+                </p>
                 <div className="wiz-asset-list">
                   {config.callouts.map((c, i) => (
                     <div key={i} className="wiz-asset-row">
-                      <input className="wiz-input" value={c} maxLength={25} onChange={e => { const n = [...config.callouts]; n[i] = e.target.value; updateConfig("callouts", n); }} placeholder={`Callout ${i + 1}`}/>
+                      <input
+                        className="wiz-input"
+                        value={c}
+                        maxLength={25}
+                        onChange={(e) => {
+                          const n = [...config.callouts];
+                          n[i] = e.target.value;
+                          updateConfig("callouts", n);
+                        }}
+                        placeholder={`Callout ${i + 1}`}
+                      />
                       <span className="wiz-char-count">{c.length}/25</span>
                     </div>
                   ))}
@@ -491,9 +997,17 @@ export default function CampaignWizard({
               {/* Structured Snippets */}
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Structured Snippets</label>
-                <p className="wiz-form-hint">Categorized list of products/services.</p>
+                <p className="wiz-form-hint">
+                  Categorized list of products/services.
+                </p>
                 <div className="wiz-snippet-wrap">
-                  <select className="wiz-select" value={config.structuredSnippetHeader} onChange={e => updateConfig("structuredSnippetHeader", e.target.value)}>
+                  <select
+                    className="wiz-select"
+                    value={config.structuredSnippetHeader}
+                    onChange={(e) =>
+                      updateConfig("structuredSnippetHeader", e.target.value)
+                    }
+                  >
                     <option value="Types">Types</option>
                     <option value="Brands">Brands</option>
                     <option value="Styles">Styles</option>
@@ -504,10 +1018,31 @@ export default function CampaignWizard({
                   </select>
                   <div className="wiz-asset-list">
                     {config.structuredSnippetValues.map((v, i) => (
-                      <input key={i} className="wiz-input" value={v} maxLength={25} onChange={e => { const n = [...config.structuredSnippetValues]; n[i] = e.target.value; updateConfig("structuredSnippetValues", n); }} placeholder={`Value ${i + 1}`}/>
+                      <input
+                        key={i}
+                        className="wiz-input"
+                        value={v}
+                        maxLength={25}
+                        onChange={(e) => {
+                          const n = [...config.structuredSnippetValues];
+                          n[i] = e.target.value;
+                          updateConfig("structuredSnippetValues", n);
+                        }}
+                        placeholder={`Value ${i + 1}`}
+                      />
                     ))}
                     {config.structuredSnippetValues.length < 10 && (
-                      <button className="wiz-btn-add" onClick={() => updateConfig("structuredSnippetValues", [...config.structuredSnippetValues, ""])}>+ Add value</button>
+                      <button
+                        className="wiz-btn-add"
+                        onClick={() =>
+                          updateConfig("structuredSnippetValues", [
+                            ...config.structuredSnippetValues,
+                            "",
+                          ])
+                        }
+                      >
+                        + Add value
+                      </button>
                     )}
                   </div>
                 </div>
@@ -515,18 +1050,70 @@ export default function CampaignWizard({
 
               {/* Sitelinks */}
               <div className="wiz-form-group">
-                <label className="wiz-form-label">Sitelinks ({editSitelinks.length}/6)</label>
+                <label className="wiz-form-label">
+                  Sitelinks ({editSitelinks.length}/6)
+                </label>
                 <div className="wiz-sitelinks-grid">
                   {editSitelinks.map((sl, i) => (
                     <div key={i} className="wiz-sl-card">
-                      <div className="wiz-sl-head"><span>Sitelink {i + 1}</span><button onClick={() => { const n = [...editSitelinks]; n.splice(i, 1); setEditSitelinks(n); }}>ג•</button></div>
-                      <input className="wiz-input" value={sl.title} maxLength={25} onChange={e => { const n = [...editSitelinks]; n[i] = { ...n[i], title: e.target.value }; setEditSitelinks(n); }} placeholder="Title (25 chars)"/>
-                      <input className="wiz-input" value={sl.description} maxLength={35} onChange={e => { const n = [...editSitelinks]; n[i] = { ...n[i], description: e.target.value }; setEditSitelinks(n); }} placeholder="Description (35 chars)"/>
-                      <input className="wiz-input" value={sl.url} onChange={e => { const n = [...editSitelinks]; n[i] = { ...n[i], url: e.target.value }; setEditSitelinks(n); }} placeholder="/page-url"/>
+                      <div className="wiz-sl-head">
+                        <span>Sitelink {i + 1}</span>
+                        <button
+                          onClick={() => {
+                            const n = [...editSitelinks];
+                            n.splice(i, 1);
+                            setEditSitelinks(n);
+                          }}
+                        >
+                          ג•
+                        </button>
+                      </div>
+                      <input
+                        className="wiz-input"
+                        value={sl.title}
+                        maxLength={25}
+                        onChange={(e) => {
+                          const n = [...editSitelinks];
+                          n[i] = { ...n[i], title: e.target.value };
+                          setEditSitelinks(n);
+                        }}
+                        placeholder="Title (25 chars)"
+                      />
+                      <input
+                        className="wiz-input"
+                        value={sl.description}
+                        maxLength={35}
+                        onChange={(e) => {
+                          const n = [...editSitelinks];
+                          n[i] = { ...n[i], description: e.target.value };
+                          setEditSitelinks(n);
+                        }}
+                        placeholder="Description (35 chars)"
+                      />
+                      <input
+                        className="wiz-input"
+                        value={sl.url}
+                        onChange={(e) => {
+                          const n = [...editSitelinks];
+                          n[i] = { ...n[i], url: e.target.value };
+                          setEditSitelinks(n);
+                        }}
+                        placeholder="/page-url"
+                      />
                     </div>
                   ))}
                   {editSitelinks.length < 6 && (
-                    <button className="wiz-btn-add" onClick={() => setEditSitelinks([...editSitelinks, { title: "", description: "", url: "/" }])}>+ Add sitelink</button>
+                    <button
+                      className="wiz-btn-add"
+                      onClick={() =>
+                        setEditSitelinks([
+                          ...editSitelinks,
+                          { title: "", description: "", url: "/" },
+                        ])
+                      }
+                    >
+                      + Add sitelink
+                    </button>
                   )}
                 </div>
               </div>
@@ -537,14 +1124,19 @@ export default function CampaignWizard({
           {currentStep.id === "budget" && (
             <div className="wiz-section">
               <h2 className="wiz-title">How much do you want to spend?</h2>
-              <p className="wiz-sub">Set your daily advertising budget. You can change this anytime.</p>
+              <p className="wiz-sub">
+                Set your daily advertising budget. You can change this anytime.
+              </p>
 
               {strategy && (
                 <div className="wiz-ai-rec">
                   <div className="wiz-ai-rec-badge">נ₪– AI Recommendation</div>
                   <div className="wiz-ai-rec-text">
-                    <strong>${strategy.budget.recommended}/day</strong> is recommended for your store
-                    <span className="wiz-ai-rec-reason">{strategy.budget.reason}</span>
+                    <strong>${strategy.budget.recommended}/day</strong> is
+                    recommended for your store
+                    <span className="wiz-ai-rec-reason">
+                      {strategy.budget.reason}
+                    </span>
                   </div>
                 </div>
               )}
@@ -552,93 +1144,255 @@ export default function CampaignWizard({
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Budget type</label>
                 <div className="wiz-radio-list">
-                  <label className="wiz-radio-item"><input type="radio" name="budgetType" checked={config.budgetType === "daily"} onChange={() => updateConfig("budgetType", "daily")}/><span>Daily budget ג€” spend up to this amount each day</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="budgetType" checked={config.budgetType === "total"} onChange={() => updateConfig("budgetType", "total")}/><span>Total budget ג€” spend this total amount over the campaign</span></label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="budgetType"
+                      checked={config.budgetType === "daily"}
+                      onChange={() => updateConfig("budgetType", "daily")}
+                    />
+                    <span>
+                      Daily budget ג€” spend up to this amount each day
+                    </span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="budgetType"
+                      checked={config.budgetType === "total"}
+                      onChange={() => updateConfig("budgetType", "total")}
+                    />
+                    <span>
+                      Total budget ג€” spend this total amount over the campaign
+                    </span>
+                  </label>
                 </div>
               </div>
 
               <div className="wiz-budget-tiers">
                 {strategy ? (
                   <>
-                    <div className={`wiz-budget-card ${config.budgetAmount === String(strategy.budget.min) ? 'wiz-budget-sel' : ''}`}
-                      onClick={() => updateConfig("budgetAmount", String(strategy.budget.min))}>
-                      <div className="wiz-budget-tier-label">נ± Start Small</div>
-                      <div className="wiz-budget-val">${strategy.budget.min}</div>
-                      <div className="wiz-budget-type">{config.budgetType === "daily" ? "per day" : "total"}</div>
+                    <div
+                      className={`wiz-budget-card ${config.budgetAmount === String(strategy.budget.min) ? "wiz-budget-sel" : ""}`}
+                      onClick={() =>
+                        updateConfig(
+                          "budgetAmount",
+                          String(strategy.budget.min),
+                        )
+                      }
+                    >
+                      <div className="wiz-budget-tier-label">
+                        נ± Start Small
+                      </div>
+                      <div className="wiz-budget-val">
+                        ${strategy.budget.min}
+                      </div>
+                      <div className="wiz-budget-type">
+                        {config.budgetType === "daily" ? "per day" : "total"}
+                      </div>
                       <div className="wiz-budget-est">
-                        <div>~{Math.round((strategy.projections.clicks || 100) * 0.5)} clicks/mo</div>
+                        <div>
+                          ~
+                          {Math.round(
+                            (strategy.projections.clicks || 100) * 0.5,
+                          )}{" "}
+                          clicks/mo
+                        </div>
                         <div>Good for testing</div>
                       </div>
                     </div>
-                    <div className={`wiz-budget-card wiz-budget-popular ${config.budgetAmount === String(strategy.budget.recommended) ? 'wiz-budget-sel' : ''}`}
-                      onClick={() => updateConfig("budgetAmount", String(strategy.budget.recommended))}>
+                    <div
+                      className={`wiz-budget-card wiz-budget-popular ${config.budgetAmount === String(strategy.budget.recommended) ? "wiz-budget-sel" : ""}`}
+                      onClick={() =>
+                        updateConfig(
+                          "budgetAmount",
+                          String(strategy.budget.recommended),
+                        )
+                      }
+                    >
                       <div className="wiz-budget-rec">נ₪– Recommended</div>
-                      <div className="wiz-budget-val">${strategy.budget.recommended}</div>
-                      <div className="wiz-budget-type">{config.budgetType === "daily" ? "per day" : "total"}</div>
+                      <div className="wiz-budget-val">
+                        ${strategy.budget.recommended}
+                      </div>
+                      <div className="wiz-budget-type">
+                        {config.budgetType === "daily" ? "per day" : "total"}
+                      </div>
                       <div className="wiz-budget-est">
-                        <div>~{strategy.projections.clicks || 100} clicks/mo</div>
-                        <div>~{strategy.projections.conversions || 5} sales/mo</div>
-                        <div>Est. return: {strategy.projections.roas || 3}x</div>
+                        <div>
+                          ~{strategy.projections.clicks || 100} clicks/mo
+                        </div>
+                        <div>
+                          ~{strategy.projections.conversions || 5} sales/mo
+                        </div>
+                        <div>
+                          Est. return: {strategy.projections.roas || 3}x
+                        </div>
                       </div>
                     </div>
-                    <div className={`wiz-budget-card ${config.budgetAmount === String(strategy.budget.aggressive) ? 'wiz-budget-sel' : ''}`}
-                      onClick={() => updateConfig("budgetAmount", String(strategy.budget.aggressive))}>
+                    <div
+                      className={`wiz-budget-card ${config.budgetAmount === String(strategy.budget.aggressive) ? "wiz-budget-sel" : ""}`}
+                      onClick={() =>
+                        updateConfig(
+                          "budgetAmount",
+                          String(strategy.budget.aggressive),
+                        )
+                      }
+                    >
                       <div className="wiz-budget-tier-label">נ€ Grow Fast</div>
-                      <div className="wiz-budget-val">${strategy.budget.aggressive}</div>
-                      <div className="wiz-budget-type">{config.budgetType === "daily" ? "per day" : "total"}</div>
+                      <div className="wiz-budget-val">
+                        ${strategy.budget.aggressive}
+                      </div>
+                      <div className="wiz-budget-type">
+                        {config.budgetType === "daily" ? "per day" : "total"}
+                      </div>
                       <div className="wiz-budget-est">
-                        <div>~{Math.round((strategy.projections.clicks || 100) * 2)} clicks/mo</div>
+                        <div>
+                          ~
+                          {Math.round((strategy.projections.clicks || 100) * 2)}{" "}
+                          clicks/mo
+                        </div>
                         <div>Maximum growth</div>
                       </div>
                     </div>
                   </>
                 ) : aiData?.estimated_metrics?.monthly_cost_estimate ? (
-                  <div className={`wiz-budget-card ${config.budgetAmount === String(Math.round(aiData.estimated_metrics.monthly_cost_estimate / 30)) ? 'wiz-budget-sel' : ''}`}
-                    onClick={() => updateConfig("budgetAmount", String(Math.round(aiData.estimated_metrics.monthly_cost_estimate / 30)))}>
+                  <div
+                    className={`wiz-budget-card ${config.budgetAmount === String(Math.round(aiData.estimated_metrics.monthly_cost_estimate / 30)) ? "wiz-budget-sel" : ""}`}
+                    onClick={() =>
+                      updateConfig(
+                        "budgetAmount",
+                        String(
+                          Math.round(
+                            aiData.estimated_metrics.monthly_cost_estimate / 30,
+                          ),
+                        ),
+                      )
+                    }
+                  >
                     <div className="wiz-budget-rec">Recommended</div>
-                    <div className="wiz-budget-val">${Math.round(aiData.estimated_metrics.monthly_cost_estimate / 30)}</div>
-                    <div className="wiz-budget-type">{config.budgetType === "daily" ? "per day" : "total"}</div>
+                    <div className="wiz-budget-val">
+                      $
+                      {Math.round(
+                        aiData.estimated_metrics.monthly_cost_estimate / 30,
+                      )}
+                    </div>
+                    <div className="wiz-budget-type">
+                      {config.budgetType === "daily" ? "per day" : "total"}
+                    </div>
                   </div>
                 ) : null}
                 <div className="wiz-budget-card">
-                  <div className="wiz-budget-custom-label">גן¸ Enter your own amount</div>
+                  <div className="wiz-budget-custom-label">
+                    גן¸ Enter your own amount
+                  </div>
                   <div className="wiz-budget-input-wrap">
                     <span className="wiz-budget-currency">$</span>
-                    <input type="number" className="wiz-budget-input" value={config.budgetAmount} onChange={e => updateConfig("budgetAmount", e.target.value)} placeholder="0"/>
+                    <input
+                      type="number"
+                      className="wiz-budget-input"
+                      value={config.budgetAmount}
+                      onChange={(e) =>
+                        updateConfig("budgetAmount", e.target.value)
+                      }
+                      placeholder="0"
+                    />
                   </div>
-                  <div className="wiz-budget-type">{config.budgetType === "daily" ? "per day" : "total"}</div>
+                  <div className="wiz-budget-type">
+                    {config.budgetType === "daily" ? "per day" : "total"}
+                  </div>
                 </div>
               </div>
 
               {config.budgetAmount && parseFloat(config.budgetAmount) > 0 && (
                 <div className="wiz-budget-summary">
-                  <div className="wiz-budget-row"><span>נ“… Weekly cost estimate</span><strong>${(parseFloat(config.budgetAmount) * (config.budgetType === "daily" ? 7 : 1)).toFixed(2)}</strong></div>
-                  <div className="wiz-budget-row"><span>נ“† Monthly cost estimate</span><strong>${(parseFloat(config.budgetAmount) * (config.budgetType === "daily" ? 30.4 : 1)).toFixed(2)}</strong></div>
+                  <div className="wiz-budget-row">
+                    <span>נ“… Weekly cost estimate</span>
+                    <strong>
+                      $
+                      {(
+                        parseFloat(config.budgetAmount) *
+                        (config.budgetType === "daily" ? 7 : 1)
+                      ).toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className="wiz-budget-row">
+                    <span>נ“† Monthly cost estimate</span>
+                    <strong>
+                      $
+                      {(
+                        parseFloat(config.budgetAmount) *
+                        (config.budgetType === "daily" ? 30.4 : 1)
+                      ).toFixed(2)}
+                    </strong>
+                  </div>
                   {strategy?.projections?.roas && (
-                    <div className="wiz-budget-row"><span>נ’° Estimated return</span><strong>${(parseFloat(config.budgetAmount) * (config.budgetType === "daily" ? 30.4 : 1) * strategy.projections.roas).toFixed(2)}</strong></div>
+                    <div className="wiz-budget-row">
+                      <span>נ’° Estimated return</span>
+                      <strong>
+                        $
+                        {(
+                          parseFloat(config.budgetAmount) *
+                          (config.budgetType === "daily" ? 30.4 : 1) *
+                          strategy.projections.roas
+                        ).toFixed(2)}
+                      </strong>
+                    </div>
                   )}
                 </div>
               )}
 
               <div className="wiz-form-group">
-                <label className="wiz-form-label">How long should this campaign run?</label>
+                <label className="wiz-form-label">
+                  How long should this campaign run?
+                </label>
                 <div className="wiz-radio-list">
-                  <label className="wiz-radio-item"><input type="radio" name="duration" checked={config.budgetDuration === "ongoing"} onChange={() => updateConfig("budgetDuration", "ongoing")}/><span>Keep running until I stop it</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="duration" checked={config.budgetDuration === "end_date"} onChange={() => updateConfig("budgetDuration", "end_date")}/><span>Stop on a specific date</span></label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="duration"
+                      checked={config.budgetDuration === "ongoing"}
+                      onChange={() => updateConfig("budgetDuration", "ongoing")}
+                    />
+                    <span>Keep running until I stop it</span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="duration"
+                      checked={config.budgetDuration === "end_date"}
+                      onChange={() =>
+                        updateConfig("budgetDuration", "end_date")
+                      }
+                    />
+                    <span>Stop on a specific date</span>
+                  </label>
                 </div>
                 {config.budgetDuration === "end_date" && (
-                  <input type="date" className="wiz-input" value={config.budgetEndDate} onChange={e => updateConfig("budgetEndDate", e.target.value)}/>
+                  <input
+                    type="date"
+                    className="wiz-input"
+                    value={config.budgetEndDate}
+                    onChange={(e) =>
+                      updateConfig("budgetEndDate", e.target.value)
+                    }
+                  />
                 )}
               </div>
 
               <div className="wiz-info-box wiz-info-warn">
-                <strong>נ’¡ Good to know:</strong> Your monthly charge won't exceed your daily budget ֳ— days in the month. Some days Google may spend a bit more, other days less ג€” but it evens out.
+                <strong>נ’¡ Good to know:</strong> Your monthly charge won't
+                exceed your daily budget ֳ— days in the month. Some days Google
+                may spend a bit more, other days less ג€” but it evens out.
               </div>
 
               {strategy?.warnings?.length > 0 && (
                 <div className="wiz-info-box wiz-info-warn">
                   <strong>ג ן¸ Things to keep in mind:</strong>
-                  {strategy.warnings.map((w, i) => <p key={i} style={{margin:"4px 0"}}>{w}</p>)}
+                  {strategy.warnings.map((w, i) => (
+                    <p key={i} style={{ margin: "4px 0" }}>
+                      {w}
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
@@ -648,53 +1402,153 @@ export default function CampaignWizard({
           {currentStep.id === "tracking" && (
             <div className="wiz-section">
               <h2 className="wiz-title">Track your sales from ads</h2>
-              <p className="wiz-sub">This lets you see exactly how many sales your ads are generating, so you know what's working.</p>
+              <p className="wiz-sub">
+                This lets you see exactly how many sales your ads are
+                generating, so you know what's working.
+              </p>
 
               <div className="wiz-tracking-status">
                 <div className="wiz-tracking-icon">נ“ˆ</div>
                 <div className="wiz-tracking-info">
                   <h4>Google Conversion Tag</h4>
-                  <p>We'll set up a conversion action in Google Ads and provide you with a tracking snippet to install on your Shopify store.</p>
+                  <p>
+                    We'll set up a conversion action in Google Ads and provide
+                    you with a tracking snippet to install on your Shopify
+                    store.
+                  </p>
                 </div>
               </div>
 
               <div className="wiz-form-group">
-                <label className="wiz-form-label">What do you want to track?</label>
+                <label className="wiz-form-label">
+                  What do you want to track?
+                </label>
                 <div className="wiz-radio-list">
-                  <label className="wiz-radio-item"><input type="radio" name="convType" checked={config.conversionType === "purchase"} onChange={() => updateConfig("conversionType", "purchase")}/><span>נ›’ Purchases (recommended for e-commerce)</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="convType" checked={config.conversionType === "add_to_cart"} onChange={() => updateConfig("conversionType", "add_to_cart")}/><span>נ›ן¸ Add to Cart</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="convType" checked={config.conversionType === "lead"} onChange={() => updateConfig("conversionType", "lead")}/><span>נ“‹ Lead / Sign-up</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="convType" checked={config.conversionType === "page_view"} onChange={() => updateConfig("conversionType", "page_view")}/><span>נ‘ן¸ Page View</span></label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convType"
+                      checked={config.conversionType === "purchase"}
+                      onChange={() =>
+                        updateConfig("conversionType", "purchase")
+                      }
+                    />
+                    <span>נ›’ Purchases (recommended for e-commerce)</span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convType"
+                      checked={config.conversionType === "add_to_cart"}
+                      onChange={() =>
+                        updateConfig("conversionType", "add_to_cart")
+                      }
+                    />
+                    <span>נ›ן¸ Add to Cart</span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convType"
+                      checked={config.conversionType === "lead"}
+                      onChange={() => updateConfig("conversionType", "lead")}
+                    />
+                    <span>נ“‹ Lead / Sign-up</span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convType"
+                      checked={config.conversionType === "page_view"}
+                      onChange={() =>
+                        updateConfig("conversionType", "page_view")
+                      }
+                    />
+                    <span>נ‘ן¸ Page View</span>
+                  </label>
                 </div>
               </div>
 
               <div className="wiz-form-group">
                 <label className="wiz-form-label">Conversion Value</label>
-                <p className="wiz-form-hint">How should we count the value of each conversion?</p>
+                <p className="wiz-form-hint">
+                  How should we count the value of each conversion?
+                </p>
                 <div className="wiz-radio-list">
-                  <label className="wiz-radio-item"><input type="radio" name="convValue" checked={config.conversionValueType === "dynamic"} onChange={() => updateConfig("conversionValueType", "dynamic")}/><span>Use dynamic values from Shopify (actual order amount)</span></label>
-                  <label className="wiz-radio-item"><input type="radio" name="convValue" checked={config.conversionValueType === "fixed"} onChange={() => updateConfig("conversionValueType", "fixed")}/><span>Use a fixed value per conversion</span></label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convValue"
+                      checked={config.conversionValueType === "dynamic"}
+                      onChange={() =>
+                        updateConfig("conversionValueType", "dynamic")
+                      }
+                    />
+                    <span>
+                      Use dynamic values from Shopify (actual order amount)
+                    </span>
+                  </label>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="radio"
+                      name="convValue"
+                      checked={config.conversionValueType === "fixed"}
+                      onChange={() =>
+                        updateConfig("conversionValueType", "fixed")
+                      }
+                    />
+                    <span>Use a fixed value per conversion</span>
+                  </label>
                 </div>
                 {config.conversionValueType === "fixed" && (
                   <div className="wiz-bid-input-wrap">
                     <label>Default value ($)</label>
-                    <input type="number" className="wiz-input-sm" value={config.conversionFixedValue || ""} onChange={e => updateConfig("conversionFixedValue", e.target.value)} placeholder="0.00"/>
+                    <input
+                      type="number"
+                      className="wiz-input-sm"
+                      value={config.conversionFixedValue || ""}
+                      onChange={(e) =>
+                        updateConfig("conversionFixedValue", e.target.value)
+                      }
+                      placeholder="0.00"
+                    />
                   </div>
                 )}
               </div>
 
               <div className="wiz-info-box">
                 <strong>נ“‹ What happens after launch:</strong>
-                <p>1. We'll create a conversion action in your Google Ads account</p>
-                <p>2. You'll receive a tracking snippet to add to Shopify (Settings ג†’ Checkout ג†’ Additional scripts)</p>
-                <p>3. Google will start tracking conversions within 24-48 hours</p>
+                <p>
+                  1. We'll create a conversion action in your Google Ads account
+                </p>
+                <p>
+                  2. You'll receive a tracking snippet to add to Shopify
+                  (Settings ג†’ Checkout ג†’ Additional scripts)
+                </p>
+                <p>
+                  3. Google will start tracking conversions within 24-48 hours
+                </p>
                 <p>4. You can verify the setup in the Campaign Dashboard</p>
               </div>
 
               <div className="wiz-info-box wiz-info-warn">
-                <strong>נ’¡ Tip:</strong> If you already have Google Tag Manager installed, you can skip this step and configure tracking there instead.
-                <div style={{marginTop:8}}>
-                  <label className="wiz-radio-item"><input type="checkbox" checked={config.skipTracking} onChange={e => updateConfig("skipTracking", e.target.checked)}/><span>I already have conversion tracking set up ג€” skip this step</span></label>
+                <strong>נ’¡ Tip:</strong> If you already have Google Tag Manager
+                installed, you can skip this step and configure tracking there
+                instead.
+                <div style={{ marginTop: 8 }}>
+                  <label className="wiz-radio-item">
+                    <input
+                      type="checkbox"
+                      checked={config.skipTracking}
+                      onChange={(e) =>
+                        updateConfig("skipTracking", e.target.checked)
+                      }
+                    />
+                    <span>
+                      I already have conversion tracking set up ג€” skip this
+                      step
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -704,16 +1558,48 @@ export default function CampaignWizard({
           {currentStep.id === "review" && (
             <div className="wiz-section">
               <h2 className="wiz-title">Review & Launch</h2>
-              <p className="wiz-sub">Here's a summary of your campaign. Review everything before launching.</p>
+              <p className="wiz-sub">
+                Here's a summary of your campaign. Review everything before
+                launching.
+              </p>
               {launchState !== "idle" && (
-                <LaunchProgress launch={{ state: launchState, steps: launchSteps, error: launchError, currentStep: launchSteps[launchSteps.length-1]?.state, progress: launchState === "success" ? 100 : launchState === "failed" ? 0 : 50, campaignId: null, isLoading: launchState === "launching", isFailed: launchState === "failed", isPartial: false, isSuccess: launchState === "success", retry: handleRetryLaunch, reset: () => { setLaunchState("idle"); setLaunchError(null); setLaunchSteps([]); }, stepInfo: {} }} />
+                <LaunchProgress
+                  launch={{
+                    state: launchState,
+                    steps: launchSteps,
+                    error: launchError,
+                    currentStep: launchSteps[launchSteps.length - 1]?.state,
+                    progress:
+                      launchState === "success"
+                        ? 100
+                        : launchState === "failed"
+                          ? 0
+                          : 50,
+                    campaignId: null,
+                    isLoading: launchState === "launching",
+                    isFailed: launchState === "failed",
+                    isPartial: false,
+                    isSuccess: launchState === "success",
+                    retry: handleRetryLaunch,
+                    reset: () => {
+                      setLaunchState("idle");
+                      setLaunchError(null);
+                      setLaunchSteps([]);
+                    },
+                    stepInfo: {},
+                  }}
+                />
               )}
 
               {strategy?.confidence && (
                 <div className="wiz-ai-rec">
-                  <div className="wiz-ai-rec-badge">נ₪– AI Confidence: {strategy.confidence}%</div>
+                  <div className="wiz-ai-rec-badge">
+                    נ₪– AI Confidence: {strategy.confidence}%
+                  </div>
                   <div className="wiz-ai-rec-text">
-                    <span className="wiz-ai-rec-reason">{strategy.confidenceReason}</span>
+                    <span className="wiz-ai-rec-reason">
+                      {strategy.confidenceReason}
+                    </span>
                   </div>
                 </div>
               )}
@@ -721,51 +1607,138 @@ export default function CampaignWizard({
               {strategy?.quickWins?.length > 0 && (
                 <div className="wiz-info-box">
                   <strong>נ¯ Quick wins to boost performance:</strong>
-                  {strategy.quickWins.map((w, i) => <p key={i} style={{margin:"4px 0"}}>ג€¢ {w}</p>)}
+                  {strategy.quickWins.map((w, i) => (
+                    <p key={i} style={{ margin: "4px 0" }}>
+                      ג€¢ {w}
+                    </p>
+                  ))}
                 </div>
               )}
 
               <div className="wiz-review-grid">
                 <div className="wiz-review-card">
                   <h4>נ¯ Goal</h4>
-                  <p>{GOALS.find(g => g.id === config.goal)?.title || config.goal}</p>
-                  <p className="wiz-review-detail">{GOALS.find(g => g.id === config.goal)?.googleTerm && `Google calls this: "${GOALS.find(g => g.id === config.goal)?.googleTerm}"`}</p>
+                  <p>
+                    {GOALS.find((g) => g.id === config.goal)?.title ||
+                      config.goal}
+                  </p>
+                  <p className="wiz-review-detail">
+                    {GOALS.find((g) => g.id === config.goal)?.googleTerm &&
+                      `Google calls this: "${GOALS.find((g) => g.id === config.goal)?.googleTerm}"`}
+                  </p>
                 </div>
                 <div className="wiz-review-card">
                   <h4>נ“¢ Where</h4>
-                  <p>{CAMPAIGN_TYPES.find(t => t.id === config.campaignType)?.title || config.campaignType}</p>
-                  <p className="wiz-review-detail">{CAMPAIGN_TYPES.find(t => t.id === config.campaignType)?.subtitle}</p>
+                  <p>
+                    {CAMPAIGN_TYPES.find((t) => t.id === config.campaignType)
+                      ?.title || config.campaignType}
+                  </p>
+                  <p className="wiz-review-detail">
+                    {
+                      CAMPAIGN_TYPES.find((t) => t.id === config.campaignType)
+                        ?.subtitle
+                    }
+                  </p>
                 </div>
                 <div className="wiz-review-card">
                   <h4>נ’° Strategy</h4>
-                  <p>{BIDDING_STRATEGIES.find(b => b.id === config.bidding)?.title || config.bidding}</p>
-                  <p className="wiz-review-detail">{BIDDING_STRATEGIES.find(b => b.id === config.bidding)?.subtitle}</p>
-                  {config.biddingTarget && <p className="wiz-review-detail">Target: ${config.biddingTarget}</p>}
+                  <p>
+                    {BIDDING_STRATEGIES.find((b) => b.id === config.bidding)
+                      ?.title || config.bidding}
+                  </p>
+                  <p className="wiz-review-detail">
+                    {
+                      BIDDING_STRATEGIES.find((b) => b.id === config.bidding)
+                        ?.subtitle
+                    }
+                  </p>
+                  {config.biddingTarget && (
+                    <p className="wiz-review-detail">
+                      Target: ${config.biddingTarget}
+                    </p>
+                  )}
                 </div>
                 <div className="wiz-review-card">
                   <h4>נ“ Budget</h4>
-                  <p>${config.budgetAmount} {config.budgetType === "daily" ? "/day" : " total"}</p>
-                  <p className="wiz-review-detail">{config.budgetDuration === "ongoing" ? "Runs until you stop it" : `Until ${config.budgetEndDate}`}</p>
-                  <p className="wiz-review-detail">~${(parseFloat(config.budgetAmount||0) * 30.4).toFixed(0)}/month</p>
+                  <p>
+                    ${config.budgetAmount}{" "}
+                    {config.budgetType === "daily" ? "/day" : " total"}
+                  </p>
+                  <p className="wiz-review-detail">
+                    {config.budgetDuration === "ongoing"
+                      ? "Runs until you stop it"
+                      : `Until ${config.budgetEndDate}`}
+                  </p>
+                  <p className="wiz-review-detail">
+                    ~${(parseFloat(config.budgetAmount || 0) * 30.4).toFixed(0)}
+                    /month
+                  </p>
                 </div>
                 <div className="wiz-review-card">
                   <h4>נ“ Location</h4>
-                  <p>{LOCATIONS.find(l => l.id === config.locations)?.label?.split("ג€”")[0] || config.locations}</p>
+                  <p>
+                    {LOCATIONS.find(
+                      (l) => l.id === config.locations,
+                    )?.label?.split("ג€”")[0] || config.locations}
+                  </p>
                 </div>
                 <div className="wiz-review-card">
                   <h4>נ—£ן¸ Languages</h4>
-                  <p>{config.languages.map(l => ({en:"English",he:"Hebrew",es:"Spanish",fr:"French",de:"German",ar:"Arabic",ru:"Russian",zh:"Chinese",ja:"Japanese",pt:"Portuguese"}[l]) || l).join(", ")}</p>
+                  <p>
+                    {config.languages
+                      .map(
+                        (l) =>
+                          ({
+                            en: "English",
+                            he: "Hebrew",
+                            es: "Spanish",
+                            fr: "French",
+                            de: "German",
+                            ar: "Arabic",
+                            ru: "Russian",
+                            zh: "Chinese",
+                            ja: "Japanese",
+                            pt: "Portuguese",
+                          })[l] || l,
+                      )
+                      .join(", ")}
+                  </p>
                 </div>
               </div>
 
               <div className="wiz-review-section">
                 <h4>Assets Summary</h4>
                 <div className="wiz-review-assets">
-                  <div className="wiz-review-asset"><span className="wiz-review-count">{editHeadlines.length}</span> Headlines</div>
-                  <div className="wiz-review-asset"><span className="wiz-review-count">{editDescriptions.length}</span> Descriptions</div>
-                  <div className="wiz-review-asset"><span className="wiz-review-count">{editSitelinks.filter(s => s.title).length}</span> Sitelinks</div>
-                  <div className="wiz-review-asset"><span className="wiz-review-count">{config.callouts.filter(c => c).length}</span> Callouts</div>
-                  <div className="wiz-review-asset"><span className="wiz-review-count">{(aiData?.keywords || []).length}</span> Keywords</div>
+                  <div className="wiz-review-asset">
+                    <span className="wiz-review-count">
+                      {editHeadlines.length}
+                    </span>{" "}
+                    Headlines
+                  </div>
+                  <div className="wiz-review-asset">
+                    <span className="wiz-review-count">
+                      {editDescriptions.length}
+                    </span>{" "}
+                    Descriptions
+                  </div>
+                  <div className="wiz-review-asset">
+                    <span className="wiz-review-count">
+                      {editSitelinks.filter((s) => s.title).length}
+                    </span>{" "}
+                    Sitelinks
+                  </div>
+                  <div className="wiz-review-asset">
+                    <span className="wiz-review-count">
+                      {config.callouts.filter((c) => c).length}
+                    </span>{" "}
+                    Callouts
+                  </div>
+                  <div className="wiz-review-asset">
+                    <span className="wiz-review-count">
+                      {(aiData?.keywords || []).length}
+                    </span>{" "}
+                    Keywords
+                  </div>
                 </div>
               </div>
 
@@ -774,25 +1747,42 @@ export default function CampaignWizard({
                 <h4>Ad Preview</h4>
                 <div className="wiz-ad-preview">
                   <div className="wiz-ad-sponsor">Sponsored</div>
-                  <div className="wiz-ad-url">{config.finalUrl || "yourstore.com"}</div>
-                  <div className="wiz-ad-headline">{editHeadlines[0] || "Headline 1"} | {editHeadlines[1] || "Headline 2"} | {editHeadlines[2] || "Headline 3"}</div>
-                  <div className="wiz-ad-desc">{editDescriptions[0] || "Your ad description will appear here."}</div>
-                  {editSitelinks.filter(s => s.title).length > 0 && (
+                  <div className="wiz-ad-url">
+                    {config.finalUrl || "yourstore.com"}
+                  </div>
+                  <div className="wiz-ad-headline">
+                    {editHeadlines[0] || "Headline 1"} |{" "}
+                    {editHeadlines[1] || "Headline 2"} |{" "}
+                    {editHeadlines[2] || "Headline 3"}
+                  </div>
+                  <div className="wiz-ad-desc">
+                    {editDescriptions[0] ||
+                      "Your ad description will appear here."}
+                  </div>
+                  {editSitelinks.filter((s) => s.title).length > 0 && (
                     <div className="wiz-ad-sitelinks">
-                      {editSitelinks.filter(s => s.title).map((sl, i) => (
-                        <span key={i} className="wiz-ad-sl">{sl.title}</span>
-                      ))}
+                      {editSitelinks
+                        .filter((s) => s.title)
+                        .map((sl, i) => (
+                          <span key={i} className="wiz-ad-sl">
+                            {sl.title}
+                          </span>
+                        ))}
                     </div>
                   )}
-                  {config.callouts.filter(c => c).length > 0 && (
-                    <div className="wiz-ad-callouts">{config.callouts.filter(c => c).join(" ֲ· ")}</div>
+                  {config.callouts.filter((c) => c).length > 0 && (
+                    <div className="wiz-ad-callouts">
+                      {config.callouts.filter((c) => c).join(" ֲ· ")}
+                    </div>
                   )}
                 </div>
               </div>
 
               <div className="wiz-info-box">
                 <strong>Campaign will be created in PAUSED state.</strong>
-                <p>You can review everything in Google Ads before activating.</p>
+                <p>
+                  You can review everything in Google Ads before activating.
+                </p>
               </div>
             </div>
           )}
@@ -800,14 +1790,38 @@ export default function CampaignWizard({
 
         {/* Footer */}
         <div className="wiz-footer">
-          {step > 0 && <button className="wiz-btn-back" onClick={() => { if (launchState !== "idle") { setLaunchState("idle"); setLaunchError(null); setLaunchSteps([]); } setStep(s => s - 1); }}>ג† Back</button>}
+          {step > 0 && (
+            <button
+              className="wiz-btn-back"
+              onClick={() => {
+                if (launchState !== "idle") {
+                  setLaunchState("idle");
+                  setLaunchError(null);
+                  setLaunchSteps([]);
+                }
+                setStep((s) => s - 1);
+              }}
+            >
+              ג† Back
+            </button>
+          )}
           <div className="wiz-footer-right">
             {step < STEPS.length - 1 ? (
-              <button className="wiz-btn-next" disabled={!canNext} onClick={() => setStep(s => s + 1)}>
+              <button
+                className="wiz-btn-next"
+                disabled={!canNext}
+                onClick={() => setStep((s) => s + 1)}
+              >
                 Next ג†’
               </button>
             ) : (
-              <button className="wiz-btn-launch" onClick={handleLaunch} disabled={launchState === "launching" || launchState === "success"}>
+              <button
+                className="wiz-btn-launch"
+                onClick={handleLaunch}
+                disabled={
+                  launchState === "launching" || launchState === "success"
+                }
+              >
                 נ€ Publish Campaign
               </button>
             )}
@@ -992,19 +2006,3 @@ export const WIZARD_CSS = `
 .wiz-budget-tier-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:6px}
 
 `;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -26,7 +26,10 @@ const RETRY_DEFAULTS = {
  *   const result = await withRetry(() => client.messages.create({...}), { label: "Claude" });
  */
 export async function withRetry(fn, opts = {}) {
-  const { maxRetries, baseDelayMs, maxDelayMs, retryableStatuses } = { ...RETRY_DEFAULTS, ...opts };
+  const { maxRetries, baseDelayMs, maxDelayMs, retryableStatuses } = {
+    ...RETRY_DEFAULTS,
+    ...opts,
+  };
   const label = opts.label || "API";
 
   let lastError;
@@ -55,11 +58,11 @@ export async function withRetry(fn, opts = {}) {
       // Exponential backoff with jitter
       const delay = Math.min(
         baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 500,
-        maxDelayMs
+        maxDelayMs,
       );
 
       console.warn(
-        `[SmartAds] ${label} attempt ${attempt}/${maxRetries} failed (${status || message.slice(0, 50)}). Retrying in ${Math.round(delay)}ms...`
+        `[SmartAds] ${label} attempt ${attempt}/${maxRetries} failed (${status || message.slice(0, 50)}). Retrying in ${Math.round(delay)}ms...`,
       );
 
       await new Promise((r) => setTimeout(r, delay));

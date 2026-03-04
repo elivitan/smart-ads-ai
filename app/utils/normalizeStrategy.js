@@ -1,9 +1,9 @@
 /**
  * normalizeStrategy.js
- * 
+ *
  * Decoupling layer between AI raw output and UI components.
  * The Wizard never touches AI internals directly — only this DTO.
- * 
+ *
  * If AI format changes, fix HERE only. Wizard stays untouched.
  */
 
@@ -49,12 +49,16 @@ export function normalizeStrategy(raw) {
 
     // ── Campaign Type ──
     campaignType: s.campaign_type || s.campaignType || "pmax",
-    campaignTypeLabel: CAMPAIGN_TYPE_LABELS[s.campaign_type] || s.campaign_type || "Performance Max",
+    campaignTypeLabel:
+      CAMPAIGN_TYPE_LABELS[s.campaign_type] ||
+      s.campaign_type ||
+      "Performance Max",
     campaignTypeReason: s.campaign_type_reason || s.campaignTypeReason || "",
 
     // ── Bidding ──
     bidding: s.bidding || s.bidding_strategy || "max_conversions",
-    biddingLabel: BIDDING_LABELS[s.bidding] || s.bidding || "Maximize Conversions",
+    biddingLabel:
+      BIDDING_LABELS[s.bidding] || s.bidding || "Maximize Conversions",
     biddingReason: s.bidding_reason || s.biddingReason || "",
     biddingTarget: s.bidding_target || s.target_value || null,
 
