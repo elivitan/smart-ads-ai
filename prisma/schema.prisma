@@ -63,6 +63,7 @@ model AiAnalysis {
   adScore         Int       @default(0)
   adStrength      String    @default("AVERAGE")
   headlines       String    @default("[]")   // JSON array
+  longHeadlines    String?   @default("[]")  // JSON array - long headlines for PMax
   descriptions    String    @default("[]")   // JSON array
   keywords        String    @default("[]")   // JSON array of {text, match_type}
   negativeKeywords String   @default("[]")   // JSON array

@@ -87,7 +87,7 @@ async function createSearchCampaign(customer, {
 
 // ── Performance Max Campaign ─────────────────────────────────────────────
 async function createPMaxCampaign(customer, {
-  productTitle, headlines, descriptions, finalUrl, budgetResourceName, imageUrls, videoUrls,
+  productTitle, headlines, descriptions, finalUrl, budgetResourceName, imageUrls, videoUrls, longHeadlines,
 }) {
   // PMax campaign
   const campaign = {

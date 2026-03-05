@@ -55,7 +55,7 @@ async function analyzeBatchBasic(products) {
 PRODUCTS:
 ${productList}
 
-Rules: headlines max 30 chars, descriptions max 90 chars. ad_score measures ad-readiness (60-95 range, never below 60).
+Rules: EXACTLY 15 headlines max 30 chars each. EXACTLY 3 long_headlines max 90 chars. EXACTLY 4 descriptions max 90 chars. ad_score measures ad-readiness (60-95 range, never below 60).
 
 Return:
 {
@@ -64,7 +64,8 @@ Return:
       "title": "exact product title",
       "ad_score": 82,
       "ad_strength": "GOOD",
-      "headlines": ["h1","h2","h3","h4","h5","h6","h7","h8","h9","h10"],
+      "headlines": ["h1","h2","h3","h4","h5","h6","h7","h8","h9","h10","h11","h12","h13","h14","h15"],
+      "long_headlines": ["long headline 1 max 90 chars","long headline 2","long headline 3"],
       "descriptions": ["description 1 max 90 chars","desc 2","desc 3","desc 4"],
       "keywords": [
         {"text":"keyword","match_type":"BROAD"},

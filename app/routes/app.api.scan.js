@@ -42,6 +42,8 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
           adScore: aiProduct.ad_score || 0,
           adStrength: aiProduct.ad_strength || "AVERAGE",
           headlines: JSON.stringify(aiProduct.headlines || []),
+          longHeadlines: JSON.stringify(aiProduct.long_headlines || []),
+          longHeadlines: JSON.stringify(aiProduct.long_headlines || []),
           descriptions: JSON.stringify(aiProduct.descriptions || []),
           keywords: JSON.stringify(aiProduct.keywords || []),
           negativeKeywords: JSON.stringify(aiProduct.negative_keywords || []),

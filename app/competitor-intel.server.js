@@ -187,14 +187,14 @@ GOOGLE RANKING: ${storeStatus}
 COMPETITORS FOUND:${competitorContext}${adsContext}
 
 Return ONLY valid JSON (no markdown, no extra text):
-{"title":"${product.title}","ad_score":78,"ad_strength":"GOOD","headlines":["h1 max 30 chars","h2","h3","h4","h5","h6","h7","h8","h9","h10","h11","h12","h13","h14","h15"],"descriptions":["desc1 max 90 chars","desc2","desc3","desc4"],"keywords":[{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"},{"text":"kw","match_type":"EXACT"},{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"},{"text":"kw","match_type":"EXACT"},{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"}],"path1":"Shop","path2":"Buy","negative_keywords":["free","diy","cheap","used","repair"],"recommended_bid":1.50,"target_demographics":"Adults 25-50","sitelinks":[{"title":"max 25 chars","description":"max 35 chars","url":"/page"},{"title":"t2","description":"d2","url":"/p2"},{"title":"t3","description":"d3","url":"/p3"},{"title":"t4","description":"d4","url":"/p4"}],"competitor_intel":{"store_ranking":{"found":${ranking.found},"position":${ranking.position || "null"},"status":"${ranking.status}","query":"${searchQuery}"},"strategy":"aggressive or defensive or dominant","strategy_reason":"brief reason","top_competitors":[{"domain":"site.com","position":1,"strength":"what makes them strong","price_range":"$X-$Y"}],"keyword_gaps":["keyword you should target"],"competitive_advantages":["your advantage"],"threats":["competitive threat"],"ad_landscape":"competitive or moderate or low","opportunity_score":75,"competitor_ads":${adsJson}}}
+{"title":"${product.title}","ad_score":78,"ad_strength":"GOOD","headlines":["h1 max 30 chars","h2","h3","h4","h5","h6","h7","h8","h9","h10","h11","h12","h13","h14","h15"],"long_headlines":["long h1 max 90 chars","long h2","long h3"],"descriptions":["desc1 max 90 chars","desc2","desc3","desc4"],"keywords":[{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"},{"text":"kw","match_type":"EXACT"},{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"},{"text":"kw","match_type":"EXACT"},{"text":"kw","match_type":"BROAD"},{"text":"kw","match_type":"PHRASE"}],"path1":"Shop","path2":"Buy","negative_keywords":["free","diy","cheap","used","repair"],"recommended_bid":1.50,"target_demographics":"Adults 25-50","sitelinks":[{"title":"max 25 chars","description":"max 35 chars","url":"/page"},{"title":"t2","description":"d2","url":"/p2"},{"title":"t3","description":"d3","url":"/p3"},{"title":"t4","description":"d4","url":"/p4"}],"competitor_intel":{"store_ranking":{"found":${ranking.found},"position":${ranking.position || "null"},"status":"${ranking.status}","query":"${searchQuery}"},"strategy":"aggressive or defensive or dominant","strategy_reason":"brief reason","top_competitors":[{"domain":"site.com","position":1,"strength":"what makes them strong","price_range":"$X-$Y"}],"keyword_gaps":["keyword you should target"],"competitive_advantages":["your advantage"],"threats":["competitive threat"],"ad_landscape":"competitive or moderate or low","opportunity_score":75,"competitor_ads":${adsJson}}}
 
 RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 chars each. Sitelinks EXACTLY 4, title max 25, description max 35. ad_score 60-95 range never below 60.`;
 
   const response = await withRetry(
     () =>
       client.messages.create({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-3-5-haiku-latest",
         max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
       }),
@@ -203,6 +203,7 @@ RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 cha
   const result = extractJSON(response.content[0].text);
   if (result.headlines)
     result.headlines = result.headlines.map((h) => h.slice(0, 30));
+  if (result.long_headlines) result.long_headlines = result.long_headlines.map(h => h.slice(0, 90));
   if (result.descriptions)
     result.descriptions = result.descriptions.map((d) => d.slice(0, 90));
   if (result.sitelinks)
