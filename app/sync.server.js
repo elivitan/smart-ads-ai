@@ -115,7 +115,6 @@ export async function fullSync(admin, shop) {
         where: { id: product.id },
         create: { ...product, shop, syncedAt: new Date() },
         update: { ...product, syncedAt: new Date() },
-        include: { aiAnalysis: { select: { productHash: true } } },
       });
 
       if (!existingIds.has(product.id)) {

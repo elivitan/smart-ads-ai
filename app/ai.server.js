@@ -45,7 +45,7 @@ async function analyzeBatchBasic(products) {
   const response = await withRetry(
     () =>
       client.messages.create({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-3-5-haiku-latest",
         max_tokens: 4000,
         messages: [
           {
@@ -139,7 +139,7 @@ export async function selectBestProducts(products, maxProducts = 20) {
   const response = await withRetry(
     () =>
       client.messages.create({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-3-5-haiku-latest",
         max_tokens: 1000,
         messages: [
           {
@@ -180,7 +180,7 @@ export async function decideCampaignStrategy(products, storeInfo = {}) {
   const response = await withRetry(
     () =>
       client.messages.create({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-3-5-haiku-latest",
         max_tokens: 1000,
         messages: [
           {

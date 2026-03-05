@@ -225,7 +225,7 @@ function buildBiddingConfig(bidding, campaignType) {
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────
-export async function createCampaignexport async function createCampaign({
+export async function createCampaign({
   productTitle,
   headlines,
   descriptions,

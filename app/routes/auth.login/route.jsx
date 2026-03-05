@@ -5,7 +5,7 @@ import { Form, useActionData, useLoaderData } from "react-router";
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
 export const loader = async ({ request }) => {
-  const { authenticate } = await import("../shopify.server");
+  const { authenticate } = await import("../../shopify.server");
   const errors = loginErrorMessage(await login(request));
   return { errors };
 };
