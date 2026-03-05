@@ -351,11 +351,23 @@ export default function Index() {
       let successCount = 0;
       for (let i = 0; i < fetchedProducts.length; i++) {
         const prod = fetchedProducts[i], ai = allAiProducts.find(ap => ap.title===prod.title)||allAiProducts[i]||{};
+        // Strategy-based campaign params from competitor intel
+        const cStrategy = (ai.competitor_intel?.strategy || "aggressive").toLowerCase();
+        const cPosition = ai.competitor_intel?.store_ranking?.position || null;
+        let autoBudget = "50", autoCampaignType = "search", autoBidding = "max_conversions";
+        if (cStrategy.includes("defensive") || (cPosition && cPosition <= 5)) {
+          autoBudget = "30"; autoCampaignType = "search"; autoBidding = "max_conversions";
+        } else if (cStrategy.includes("moderate") || (cPosition && cPosition <= 20)) {
+          autoBudget = "50"; autoCampaignType = "search"; autoBidding = "max_conversions";
+        } else {
+          autoBudget = "70"; autoCampaignType = "pmax"; autoBidding = "max_clicks";
+        }
         try {
           const form = new FormData();
           form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(ai.headlines||[]));
           form.append("descriptions", JSON.stringify(ai.descriptions||[])); form.append("keywords", JSON.stringify(ai.keywords||[]));
-          form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
+          form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", autoBudget);
+          form.append("campaignType", autoCampaignType); form.append("bidding", autoBidding);
           const res = await fetch("/app/api/campaign", { method:"POST", body:form });
           const data = await res.json(); if (data.success) successCount++;
         } catch(e) { console.error("Campaign launch failed:", e); }
@@ -371,11 +383,23 @@ export default function Index() {
     const toProcess = analyzedDbProducts.length > 0 ? analyzedDbProducts : allDbProducts.slice(0, 5);
     for (const prod of toProcess) {
       const ai = prod.aiAnalysis||{};
+      // Strategy-based campaign params from competitor intel
+      const cStrategy = (ai.competitor_intel?.strategy || "aggressive").toLowerCase();
+      const cPosition = ai.competitor_intel?.store_ranking?.position || null;
+      let autoBudget = "50", autoCampaignType = "search", autoBidding = "max_conversions";
+      if (cStrategy.includes("defensive") || (cPosition && cPosition <= 5)) {
+        autoBudget = "30"; autoCampaignType = "search"; autoBidding = "max_conversions";
+      } else if (cStrategy.includes("moderate") || (cPosition && cPosition <= 20)) {
+        autoBudget = "50"; autoCampaignType = "search"; autoBidding = "max_conversions";
+      } else {
+        autoBudget = "70"; autoCampaignType = "pmax"; autoBidding = "max_clicks";
+      }
       try {
         const form = new FormData();
         form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(ai.headlines||[]));
         form.append("descriptions", JSON.stringify(ai.descriptions||[])); form.append("keywords", JSON.stringify(ai.keywords||[]));
-        form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
+        form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", autoBudget);
+        form.append("campaignType", autoCampaignType); form.append("bidding", autoBidding);
         const res = await fetch("/app/api/campaign", { method:"POST", body:form });
         const data = await res.json(); if (data.success) successCount++;
       } catch(e) { console.error("Auto campaign failed:", e); }
@@ -829,7 +853,7 @@ export default function Index() {
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(99,102,241,.1)",color:"#a5b4fc"}}>👆</div><div><div className="status-card-label">Est. Clicks</div><div className="status-card-val">{(mockCampaigns*180).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:`rgba(${threatColor==="#22c55e"?"34,197,94":threatColor==="#f59e0b"?"245,158,11":"239,68,68"},.1)`,color:threatColor}}>🕵️</div><div><div className="status-card-label">Competitor Threat</div><div className="status-card-val" style={{color:threatColor}}>{competitorThreat}</div></div><div className="status-card-trend" style={{color:threatColor}}>{rankingData.bestPosition ? `Best: #${rankingData.bestPosition}` : "Scan to check"}</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:rankingData.bestPosition && rankingData.bestPosition<=10?"rgba(34,197,94,.1)":rankingData.bestPosition?"rgba(245,158,11,.1)":"rgba(255,255,255,.05)",color:rankingData.bestPosition && rankingData.bestPosition<=10?"#22c55e":rankingData.bestPosition?"#fbbf24":"rgba(255,255,255,.3)"}}>📍</div><div><div className="status-card-label">Google Ranking</div><div className="status-card-val">{rankingData.bestPosition ? `#${rankingData.bestPosition}` : "—"}</div></div><div className="status-card-trend">{rankingData.bestPosition ? `Avg #${rankingData.avgPosition} across ${rankingData.products} products` : "Run scan to check"}</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:rankingData.bestPosition && rankingData.bestPosition<=10?"rgba(34,197,94,.1)":rankingData.bestPosition?"rgba(245,158,11,.1)":"rgba(255,255,255,.05)",color:rankingData.bestPosition && rankingData.bestPosition<=10?"#22c55e":rankingData.bestPosition?"#fbbf24":"rgba(255,255,255,.3)"}}>📍</div><div><div className="status-card-label">Google Ranking</div><div className="status-card-val">{rankingData.bestPosition ? `#${rankingData.bestPosition}` : "—"}</div></div><div className="status-card-trend">{rankingData.bestPosition ? `Avg #${rankingData.avgPosition} across ${rankingData.products} products` : "Run scan to check"}</div></div>
+
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(245,158,11,.1)",color:"#fbbf24"}}>💰</div><div><div className="status-card-label">Est. ROAS</div><div className="status-card-val">{mockRoas}x</div></div><div className="status-card-trend up">based on scores</div></div>
             {/* Total Spend Card */}
             {campaignId && (

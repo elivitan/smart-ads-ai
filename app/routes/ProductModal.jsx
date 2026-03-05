@@ -36,10 +36,7 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
           {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
           {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
         </div>}
-        {(recBid || targetDemo) && <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
-          {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
-          {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
-        </div>}
+
         <div className="rsa-preview">
           <div className="rsa-preview-label">📱 Live Google Ad Preview</div>
           <div className="rsa-preview-ad">
@@ -72,16 +69,7 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
               </div>
             ))}</div>
           </div>}
-          {longHeadlines.length>0 && <div className="rsa-section">
-            <div className="rsa-section-head"><h3>Long Headlines ({longHeadlines.length}/5)</h3><span className="rsa-hint">Max 90 chars · Performance Max</span></div>
-            <div className="rsa-items">{longHeadlines.map((lh,li)=>(
-              <div key={li} className="rsa-item rsa-item-desc">
-                <span className="rsa-item-num">{li+1}</span>
-                <div className="rsa-item-input" style={{background:"rgba(99,102,241,.05)",padding:"8px 10px",borderRadius:8,fontSize:13,color:"rgba(255,255,255,.8)",minHeight:36,display:"flex",alignItems:"center"}}>{lh}</div>
-                <span className={"rsa-item-len "+(lh.length>90?"rsa-over":"")}>{lh.length}/90</span>
-              </div>
-            ))}</div>
-          </div>}
+
           <div className="rsa-section">
             <div className="rsa-section-head"><h3>📝 Descriptions ({editDescriptions.length}/4)</h3><span className="rsa-hint">Max 90 chars each</span></div>
             <div className="rsa-items">{editDescriptions.map((d,i)=>(
@@ -102,13 +90,7 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
           {cIntel && (
             <div className="rsa-section ci-section">
               <h3>🕵️ Competitor Intelligence</h3>
-              {cIntel.store_ranking && (
-                <div className="ci-ranking">
-                  <div className="ci-ranking-icon">{cIntel.store_ranking.status==="page_1"?"🟢":cIntel.store_ranking.status==="page_2"?"🟡":"🔴"}</div>
-                  <div className="ci-ranking-info"><strong>Your Google Position</strong><span>{cIntel.store_ranking.position?`#${cIntel.store_ranking.position} for "${cIntel.store_ranking.query}"` :`Not found in top 10 for "${cIntel.store_ranking.query}"`}</span></div>
-                  <div className={`ci-strategy-badge ci-strat-${(cIntel.strategy||"aggressive").split("_")[0]}`}>{(cIntel.strategy||"aggressive").replace(/_/g," ").toUpperCase()}</div>
-                </div>
-              )}
+
               {cIntel.strategy_reason && <p className="ci-reason">{cIntel.strategy_reason}</p>}
               {cIntel.top_competitors?.length>0 && <div className="ci-competitors"><strong>Top Competitors:</strong><div className="ci-comp-list">{cIntel.top_competitors.map((c,i)=><div key={i} className="ci-comp-card"><div className="ci-comp-rank">#{c.position||i+1}</div><div className="ci-comp-info"><a href={`https://${c.domain}`} target="_blank" rel="noopener noreferrer" className="ci-comp-domain ci-comp-link">{c.domain}</a><span className="ci-comp-strength">{c.strength||"unknown"}</span></div>{c.price_range&&<span className="ci-comp-price">{c.price_range}</span>}</div>)}</div></div>}
               {cIntel.keyword_gaps?.length>0 && <div className="ci-gaps"><strong>💡 Keyword Opportunities:</strong><div className="rsa-kw-grid" style={{marginTop:6}}>{cIntel.keyword_gaps.map((k,i)=><div key={i} className="rsa-kw kw-gap">+{k}</div>)}</div></div>}
