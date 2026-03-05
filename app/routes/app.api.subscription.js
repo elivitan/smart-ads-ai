@@ -19,7 +19,13 @@ import { updatePlan, getSubscriptionInfo } from "../license.server.js";
 const VALID_PLANS = ["free", "starter", "pro", "premium"];
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  let session;
+  try {
+    ({ session } = await authenticate.admin(request));
+  } catch (authErr) {
+    console.error("[SmartAds] Auth failed:", authErr.message);
+    return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
+  }
   const shop = session.shop;
 
   try {

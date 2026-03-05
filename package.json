@@ -21,7 +21,9 @@
     "verify": "eslint app --ext .js,.jsx",
     "validate": "node validate-hooks.cjs",
     "safety": "node safety-check.cjs",
-    "save": "git add -A && git commit -m"
+    "save": "git add -A && git commit -m",
+    "check-env": "node check-env.cjs",
+    "preflight": "node safety-check.cjs && node validate-hooks.cjs && node check-env.cjs"
   },
   "type": "module",
   "engines": {

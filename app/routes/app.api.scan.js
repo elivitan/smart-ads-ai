@@ -79,7 +79,13 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
 }
 
 export const action = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+  let admin, session;
+  try {
+    ({ admin, session } = await authenticate.admin(request));
+  } catch (authErr) {
+    console.error("[SmartAds] Auth failed:", authErr.message);
+    return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
+  }
   const shop = session.shop;
   const formData = await request.formData();
   const step = formData.get("step");

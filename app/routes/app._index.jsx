@@ -28,6 +28,7 @@ function getPlanFromCookie(request) {
 function StyleTag() { return <style dangerouslySetInnerHTML={{__html: CSS}}/> ; }
 
 export const loader = async ({ request }) => {
+  try {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const syncStatus = await getSyncStatus(shop);
@@ -57,6 +58,18 @@ export const loader = async ({ request }) => {
     needsInitialSync,
     subscription: subscriptionInfo || { plan: serverPlan, scanCredits: 0, aiCredits: 0, canPublish: isPaidServer },
   };
+  } catch (loaderErr) {
+    console.error("[SmartAds] Loader error:", loaderErr.message);
+    return {
+      products: [],
+      syncStatus: { totalProducts: 0 },
+      shop: "",
+      planFromCookie: "free",
+      isPaidServer: false,
+      needsInitialSync: true,
+      subscription: { plan: "free", scanCredits: 0, aiCredits: 0, canPublish: false },
+    };
+  }
 };
 
 const FREE_SCAN_LIMIT = 3;
@@ -1168,6 +1181,38 @@ export default function Index() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ── ERROR BOUNDARY — catches React crashes and shows recovery UI ──
+export function ErrorBoundary() {
+  return (
+    <div style={{
+      minHeight:"100vh",background:"#0a0a1a",color:"#fff",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      fontFamily:"Plus Jakarta Sans,system-ui,sans-serif"
+    }}>
+      <div style={{textAlign:"center",maxWidth:480,padding:"40px 20px"}}>
+        <div style={{fontSize:64,marginBottom:20}}>⚠️</div>
+        <h1 style={{fontSize:24,fontWeight:800,marginBottom:12}}>Something went wrong</h1>
+        <p style={{fontSize:15,color:"rgba(255,255,255,.6)",marginBottom:24}}>
+          The dashboard encountered an error. Your data is safe.
+        </p>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+          <button onClick={() => window.location.reload()} style={{
+            background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",
+            border:"none",padding:"12px 24px",borderRadius:10,fontSize:14,
+            fontWeight:700,cursor:"pointer"
+          }}>Reload Dashboard</button>
+          <button onClick={() => { try { sessionStorage.clear(); } catch(e) {} window.location.reload(); }} style={{
+            background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.8)",
+            border:"1px solid rgba(255,255,255,.15)",padding:"12px 24px",
+            borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer"
+          }}>Clear Cache and Reload</button>
+        </div>
+      </div>
     </div>
   );
 }

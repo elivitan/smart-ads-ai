@@ -2,7 +2,7 @@ import { authenticate } from "../shopify.server";
 import { exploreKeywords, scanWebsite } from "../keyword-research.server";
 
 export const action = async ({ request }) => {
-  await authenticate.admin(request);
+  try { await authenticate.admin(request); } catch (authErr) { console.error("[SmartAds] Auth failed:", authErr.message); return Response.json({ success: false, error: "Authentication failed" }, { status: 401 }); }
   const formData = await request.formData();
   const actionType = formData.get("actionType");
 

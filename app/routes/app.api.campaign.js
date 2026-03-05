@@ -8,7 +8,13 @@ import { checkLicense } from "../license.server.js";
 import { checkGoogleAdsLimit } from "../rateLimit.server.js";
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  let session;
+  try {
+    ({ session } = await authenticate.admin(request));
+  } catch (authErr) {
+    console.error("[SmartAds] Auth failed:", authErr.message);
+    return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
+  }
   const shop = session.shop;
 
   // ✅ LICENSE CHECK — must have paid plan
