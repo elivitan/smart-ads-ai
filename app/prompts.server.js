@@ -96,6 +96,8 @@ Respond ONLY with valid JSON.`,
 Product: "${product.title}" - $${product.price}
 ${product.description ? `Description: ${product.description.slice(0, 200)}` : ""}
 
+Store Google position: Use this to adjust strategy — top 10 = defensive bidding, 11-30 = moderate, 30+ = aggressive with long-tail keywords.
+
 Competitor landscape:
 ${competitors.map((c, i) => `${i + 1}. ${c.domain}: "${c.title}" ${c.snippet ? `- ${c.snippet.slice(0, 100)}` : ""}`).join("\n")}
 

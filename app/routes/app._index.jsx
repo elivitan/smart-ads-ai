@@ -654,7 +654,19 @@ export default function Index() {
     const mockRoas = analyzedCount>0 ? (1.8+avgScore*0.028).toFixed(1) : "0";
     const competitorThreat = avgScore>=70?"Low":avgScore>=50?"Moderate":"High";
     const threatColor = {Low:"#22c55e",Moderate:"#f59e0b",High:"#ef4444"}[competitorThreat];
-    const googleRankStatus = avgScore>=70?"page_1":avgScore>=50?"page_2":"page_3";
+    // Google Ranking — aggregated from real SerpAPI data
+    const rankingData = (() => {
+      const rankings = analyzedDbProducts
+        .map(p => p.aiAnalysis?.competitor_intel?.store_ranking)
+        .filter(r => r && r.found && r.position);
+      if (rankings.length === 0) return { avgPosition: null, bestPosition: null, products: 0, status: "unknown" };
+      const positions = rankings.map(r => r.position);
+      const best = Math.min(...positions);
+      const avg = Math.round(positions.reduce((a,b) => a+b, 0) / positions.length);
+      const status = best <= 3 ? "top_3" : best <= 10 ? "page_1" : best <= 20 ? "page_2" : best <= 30 ? "page_3" : "deep";
+      return { avgPosition: avg, bestPosition: best, products: rankings.length, status, page: Math.ceil(best / 10) };
+    })();
+    const googleRankStatus = rankingData.status;
 
     // Competitor aggregation — sorted by count
     const competitorCount = topCompetitors.length;
@@ -815,7 +827,9 @@ export default function Index() {
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>📈</div><div><div className="status-card-label">Campaigns Active</div><div className="status-card-val">{mockCampaigns} running</div></div><div className="status-card-trend">{canPublish?`+${Math.round(mockCampaigns*0.2)} this week`:"Subscribe to launch"}</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(6,182,212,.1)",color:"#06b6d4"}}>👁</div><div><div className="status-card-label">Impressions</div><div className="status-card-val">{(mockCampaigns*4200).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(99,102,241,.1)",color:"#a5b4fc"}}>👆</div><div><div className="status-card-label">Est. Clicks</div><div className="status-card-val">{(mockCampaigns*180).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:`rgba(${threatColor==="#22c55e"?"34,197,94":threatColor==="#f59e0b"?"245,158,11":"239,68,68"},.1)`,color:threatColor}}>🕵️</div><div><div className="status-card-label">Competitor Threat</div><div className="status-card-val" style={{color:threatColor}}>{competitorThreat}</div></div><div className="status-card-trend" style={{color:threatColor}}>{googleRankStatus==="page_1"?"Page 1":googleRankStatus==="page_2"?"Page 2":"Page 3+"} rank</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:`rgba(${threatColor==="#22c55e"?"34,197,94":threatColor==="#f59e0b"?"245,158,11":"239,68,68"},.1)`,color:threatColor}}>🕵️</div><div><div className="status-card-label">Competitor Threat</div><div className="status-card-val" style={{color:threatColor}}>{competitorThreat}</div></div><div className="status-card-trend" style={{color:threatColor}}>{rankingData.bestPosition ? `Best: #${rankingData.bestPosition}` : "Scan to check"}</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:rankingData.bestPosition && rankingData.bestPosition<=10?"rgba(34,197,94,.1)":rankingData.bestPosition?"rgba(245,158,11,.1)":"rgba(255,255,255,.05)",color:rankingData.bestPosition && rankingData.bestPosition<=10?"#22c55e":rankingData.bestPosition?"#fbbf24":"rgba(255,255,255,.3)"}}>📍</div><div><div className="status-card-label">Google Ranking</div><div className="status-card-val">{rankingData.bestPosition ? `#${rankingData.bestPosition}` : "—"}</div></div><div className="status-card-trend">{rankingData.bestPosition ? `Avg #${rankingData.avgPosition} across ${rankingData.products} products` : "Run scan to check"}</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:rankingData.bestPosition && rankingData.bestPosition<=10?"rgba(34,197,94,.1)":rankingData.bestPosition?"rgba(245,158,11,.1)":"rgba(255,255,255,.05)",color:rankingData.bestPosition && rankingData.bestPosition<=10?"#22c55e":rankingData.bestPosition?"#fbbf24":"rgba(255,255,255,.3)"}}>📍</div><div><div className="status-card-label">Google Ranking</div><div className="status-card-val">{rankingData.bestPosition ? `#${rankingData.bestPosition}` : "—"}</div></div><div className="status-card-trend">{rankingData.bestPosition ? `Avg #${rankingData.avgPosition} across ${rankingData.products} products` : "Run scan to check"}</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(245,158,11,.1)",color:"#fbbf24"}}>💰</div><div><div className="status-card-label">Est. ROAS</div><div className="status-card-val">{mockRoas}x</div></div><div className="status-card-trend up">based on scores</div></div>
             {/* Total Spend Card */}
             {campaignId && (

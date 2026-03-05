@@ -36,6 +36,10 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
           {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
           {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
         </div>}
+        {(recBid || targetDemo) && <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
+          {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
+          {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
+        </div>}
         <div className="rsa-preview">
           <div className="rsa-preview-label">📱 Live Google Ad Preview</div>
           <div className="rsa-preview-ad">
@@ -58,6 +62,16 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
               </div>
             ))}</div>
           </div>
+          {longHeadlines.length>0 && <div className="rsa-section">
+            <div className="rsa-section-head"><h3>Long Headlines ({longHeadlines.length}/5)</h3><span className="rsa-hint">Max 90 chars · Performance Max</span></div>
+            <div className="rsa-items">{longHeadlines.map((lh,li)=>(
+              <div key={li} className="rsa-item rsa-item-desc">
+                <span className="rsa-item-num">{li+1}</span>
+                <div className="rsa-item-input" style={{background:"rgba(99,102,241,.05)",padding:"8px 10px",borderRadius:8,fontSize:13,color:"rgba(255,255,255,.8)",minHeight:36,display:"flex",alignItems:"center"}}>{lh}</div>
+                <span className={"rsa-item-len "+(lh.length>90?"rsa-over":"")}>{lh.length}/90</span>
+              </div>
+            ))}</div>
+          </div>}
           {longHeadlines.length>0 && <div className="rsa-section">
             <div className="rsa-section-head"><h3>Long Headlines ({longHeadlines.length}/5)</h3><span className="rsa-hint">Max 90 chars · Performance Max</span></div>
             <div className="rsa-items">{longHeadlines.map((lh,li)=>(
