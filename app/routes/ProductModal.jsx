@@ -8,6 +8,9 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
   const keywords = (ai.keywords||[]).map(k=>typeof k==="string"?{text:k,match_type:"BROAD"}:k);
   const sitelinks = ai.sitelinks||[], cIntel = ai.competitor_intel||null;
   const path1 = ai.path1||"Shop", path2 = ai.path2||"", negKw = ai.negative_keywords||[];
+  const longHeadlines = (ai.long_headlines||ai.longHeadlines||[]).map(h => typeof h==="string"?h:(h?.text||"")).filter(Boolean);
+  const recBid = ai.recommended_bid||null;
+  const targetDemo = ai.target_demographics||null;
   const score = ai.ad_score||0;
   const adStrength = editHeadlines.length>=8&&editDescriptions.length>=4?"Excellent":editHeadlines.length>=5?"Good":editHeadlines.length>=3?"Average":"Poor";
   const strengthColor = {Excellent:"#22c55e",Good:"#84cc16",Average:"#f59e0b",Poor:"#ef4444"}[adStrength];
@@ -27,8 +30,12 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
         <div className="rsa-strength">
           <div className="rsa-strength-bar"><div className="rsa-strength-fill" style={{width:strengthPct+"%",background:strengthColor}}/></div>
           <span className="rsa-strength-txt" style={{color:strengthColor}}>{adStrength}</span>
-          <span className="rsa-strength-info">{editHeadlines.length}/15 headlines · {editDescriptions.length}/4 descriptions</span>
+          <span className="rsa-strength-info">{editHeadlines.length}/15 headlines · {editDescriptions.length}/4 descriptions{longHeadlines.length>0?` · ${longHeadlines.length}/5 long headlines`:""}</span>
         </div>
+        {(recBid || targetDemo) && <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
+          {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
+          {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
+        </div>}
         <div className="rsa-preview">
           <div className="rsa-preview-label">📱 Live Google Ad Preview</div>
           <div className="rsa-preview-ad">
@@ -51,6 +58,16 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
               </div>
             ))}</div>
           </div>
+          {longHeadlines.length>0 && <div className="rsa-section">
+            <div className="rsa-section-head"><h3>Long Headlines ({longHeadlines.length}/5)</h3><span className="rsa-hint">Max 90 chars · Performance Max</span></div>
+            <div className="rsa-items">{longHeadlines.map((lh,li)=>(
+              <div key={li} className="rsa-item rsa-item-desc">
+                <span className="rsa-item-num">{li+1}</span>
+                <div className="rsa-item-input" style={{background:"rgba(99,102,241,.05)",padding:"8px 10px",borderRadius:8,fontSize:13,color:"rgba(255,255,255,.8)",minHeight:36,display:"flex",alignItems:"center"}}>{lh}</div>
+                <span className={"rsa-item-len "+(lh.length>90?"rsa-over":"")}>{lh.length}/90</span>
+              </div>
+            ))}</div>
+          </div>}
           <div className="rsa-section">
             <div className="rsa-section-head"><h3>📝 Descriptions ({editDescriptions.length}/4)</h3><span className="rsa-hint">Max 90 chars each</span></div>
             <div className="rsa-items">{editDescriptions.map((d,i)=>(
