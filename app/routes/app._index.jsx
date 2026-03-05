@@ -389,8 +389,8 @@ export default function Index() {
     setSelProduct(product); setCampaignStatus(null);
     const isDb = !!product.hasAiAnalysis;
     const ai = isDb ? (product.aiAnalysis||{}) : (aiResults?.products?.find(ap => ap.title===product.title)||{});
-    setEditHeadlines((ai.headlines||[]).map(h => typeof h==="string"?h:h.text||h));
-    setEditDescriptions((ai.descriptions||[]).map(d => typeof d==="string"?d:d.text||d));
+    setEditHeadlines((ai.headlines||[]).map(h => (typeof h==="string"?h:h.text||h).slice(0,30)));
+    setEditDescriptions((ai.descriptions||[]).map(d => (typeof d==="string"?d:d.text||d).slice(0,90)));
   }
 
   // ── Fetch real spend from Google Ads API ──
@@ -500,8 +500,8 @@ export default function Index() {
       const res = await fetch("/app/api/ai-improve", { method:"POST", body:form, signal:improveAbort.signal });
       const data = await res.json();
       if (data.success && data.improved) {
-        if (type==="h") { const n=[...editHeadlines]; n[index]=data.improved; setEditHeadlines(n); }
-        else { const n=[...editDescriptions]; n[index]=data.improved; setEditDescriptions(n); }
+        if (type==="h") { const n=[...editHeadlines]; n[index]=data.improved.slice(0,30); setEditHeadlines(n); }
+        else { const n=[...editDescriptions]; n[index]=data.improved.slice(0,90); setEditDescriptions(n); }
         setAiCredits(aiCredits - 1);
       }
     } catch(e) { console.error("AI improve failed:", e); }

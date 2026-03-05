@@ -44,7 +44,7 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
             <div className="rsa-items">{editHeadlines.map((h,i)=>(
               <div key={i} className="rsa-item">
                 <span className="rsa-item-num">{i+1}</span>
-                <input className="rsa-item-input" value={h} maxLength={30} onChange={e=>{const n=[...editHeadlines];n[i]=e.target.value;setEditHeadlines(n);}}/>
+                <input className="rsa-item-input" value={h} maxLength={30} onChange={e=>{const n=[...editHeadlines];n[i]=e.target.value.slice(0,30);setEditHeadlines(n);}}/>
                 <span className={`rsa-item-len ${h.length>30?"rsa-over":""}`}>{h.length}/30</span>
                 {isPaid && <button className={`btn-ai-improve ${improvingIdx===`h-${i}`?"improving":""}`} onClick={()=>handleAiImprove("h",i)} disabled={improvingIdx!==null}>{improvingIdx===`h-${i}`?"⏳":"✨"}</button>}
                 {i<3 && <span className="rsa-pin">📌 H{i+1}</span>}
@@ -56,7 +56,7 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
             <div className="rsa-items">{editDescriptions.map((d,i)=>(
               <div key={i} className="rsa-item rsa-item-desc">
                 <span className="rsa-item-num">{i+1}</span>
-                <textarea className="rsa-item-input rsa-item-textarea" value={d} maxLength={90} rows={2} onChange={e=>{const n=[...editDescriptions];n[i]=e.target.value;setEditDescriptions(n);}}/>
+                <textarea className="rsa-item-input rsa-item-textarea" value={d} maxLength={90} rows={2} onChange={e=>{const n=[...editDescriptions];n[i]=e.target.value.slice(0,90);setEditDescriptions(n);}}/>
                 <span className={`rsa-item-len ${d.length>90?"rsa-over":""}`}>{d.length}/90</span>
                 {isPaid && <button className={`btn-ai-improve ${improvingIdx===`d-${i}`?"improving":""}`} onClick={()=>handleAiImprove("d",i)} disabled={improvingIdx!==null}>{improvingIdx===`d-${i}`?"⏳":"✨"}</button>}
               </div>
