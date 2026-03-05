@@ -12,6 +12,7 @@ import { CompetitorModal, CompetitorGapFinder } from "./CompetitorComponents.jsx
 import { StoreHealthScore, LivePulse, TopMissedOpportunity, BudgetSimulator } from "./DashboardWidgets.jsx";
 import { LandingBudgetTeaser, LandingMissingBlock } from "./LandingComponents.jsx";
 import { ProductModal } from "./ProductModal.jsx";
+import { MarketAlert } from "./MarketAlert.jsx";
 
 // Cookie helper — read plan from request cookie
 function getPlanFromCookie(request) {
@@ -234,6 +235,23 @@ export default function Index() {
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;
 
+  // Market Intelligence — cached signal for auto campaign budget adjustments
+  const [marketIntel, setMarketIntel] = useState(null);
+  useEffect(() => {
+    async function fetchMarketSignal() {
+      try {
+        const form = new FormData();
+        form.append("mode", "quick");
+        form.append("regions", "US");
+        const res = await fetch("/app/api/market-intel", { method: "POST", body: form });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success) setMarketIntel(data.intel);
+      } catch {}
+    }
+    fetchMarketSignal();
+  }, []);
+
   // ⚠️ ALL HOOKS MUST BE CALLED HERE — before any early returns
   // Pre-compute values for the Google Ads hook
   const _analyzedCount = analyzedDbProducts.length;
@@ -393,6 +411,14 @@ export default function Index() {
         autoBudget = "50"; autoCampaignType = "search"; autoBidding = "max_conversions";
       } else {
         autoBudget = "70"; autoCampaignType = "pmax"; autoBidding = "max_clicks";
+      }
+      // Apply market intelligence budget multiplier
+      if (marketIntel?.budget_multiplier) {
+        autoBudget = String(Math.round(Number(autoBudget) * marketIntel.budget_multiplier));
+      }
+      // If market signal is red, force pause strategy
+      if (marketIntel?.signal === "red") {
+        autoBudget = "10"; autoCampaignType = "search"; autoBidding = "max_conversions";
       }
       try {
         const form = new FormData();
@@ -870,6 +896,9 @@ export default function Index() {
             )}
           </div>
 
+
+          {/* MARKET INTELLIGENCE */}
+          <MarketAlert shopDomain={shopDomain}/>
 
           {/* COMPETITOR PANEL */}
           {topCompetitors.length>0 && (

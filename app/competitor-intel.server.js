@@ -194,7 +194,7 @@ RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 cha
   const response = await withRetry(
     () =>
       client.messages.create({
-        model: "claude-3-5-haiku-latest",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
       }),
