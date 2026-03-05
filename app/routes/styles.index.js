@@ -350,7 +350,7 @@ body{-webkit-overflow-scrolling:touch}
 .budget-sim-input-row{display:flex;flex-direction:column;gap:6px}
 .budget-sim-input-label{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.7)}
 .budget-sim-input-val{font-weight:800;color:#a5b4fc}
-.budget-sim-slider{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:rgba(99,102,241,.2);border-radius:4px;outline:none;cursor:pointer;position:relative;z-index:50;pointer-events:all;margin:8px 0}
+.budget-sim-slider{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:rgba(99,102,241,.2);border-radius:4px;outline:none;cursor:pointer;position:relative;z-index:9999;pointer-events:all;margin:8px 0;touch-action:none;-webkit-user-select:none;user-select:none}.budget-sim-slider:active{cursor:grabbing}.budget-sim-input-row{position:relative;z-index:9999;touch-action:none}
 .budget-sim-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;box-shadow:0 0 8px rgba(99,102,241,.5);margin-top:-7px}.budget-sim-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;box-shadow:0 0 8px rgba(99,102,241,.5);border:none}.budget-sim-slider::-moz-range-track{height:8px;background:rgba(99,102,241,.2);border-radius:4px}
 .budget-sim-range-labels{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.3)}
 .budget-sim-results{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
