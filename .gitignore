@@ -8,3 +8,12 @@ build/
 *.cjs
 *.bak_*
 .vscode/
+
+*.broken*
+*.pre-deploy*
+fix*.cjs
+deploy-fix/
+api-restore/
+routes-restore/
+routes/
+.hooks-count

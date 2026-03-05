@@ -18,11 +18,14 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "verify": "eslint app --ext .js,.jsx"
+    "verify": "eslint app --ext .js,.jsx",
+    "validate": "node validate-hooks.cjs",
+    "safety": "node safety-check.cjs",
+    "save": "git add -A && git commit -m"
   },
   "type": "module",
   "engines": {
-    "node": ">=20.19 <22 || >=22.12"
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -72,7 +75,9 @@
     "@shopify/plugin-cloudflare"
   ],
   "overrides": {
-    "p-map": "^4.0.0"
+    "p-map": "^4.0.0",
+    "react-router": "7.13.1"
   },
-  "author": "אלי"
+  "author": "אלי",
+  "config": {}
 }
