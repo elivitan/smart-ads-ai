@@ -13,6 +13,7 @@ import { StoreHealthScore, LivePulse, TopMissedOpportunity, BudgetSimulator } fr
 import { LandingBudgetTeaser, LandingMissingBlock } from "./LandingComponents.jsx";
 import { ProductModal } from "./ProductModal.jsx";
 import { MarketAlert } from "./MarketAlert.jsx";
+import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 
 // Cookie helper — read plan from request cookie
 function getPlanFromCookie(request) {
@@ -899,6 +900,9 @@ export default function Index() {
 
           {/* MARKET INTELLIGENCE */}
           <MarketAlert shopDomain={shopDomain}/>
+
+          {/* STORE PERFORMANCE ANALYTICS */}
+          <StoreAnalyticsWidget/>
 
           {/* COMPETITOR PANEL */}
           {topCompetitors.length>0 && (

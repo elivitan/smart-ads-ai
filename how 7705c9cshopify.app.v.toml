@@ -1,26 +1,35 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
 client_id = "d8246e06f88d2ac902b3945d0f6e1e51"
 name = "v"
 application_url = "https://example.com"
 embedded = true
+
 [webhooks]
 api_version = "2025-10"
+
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
+
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
+
   [[webhooks.subscriptions]]
   topics = [ "products/delete" ]
   uri = "/webhooks/products-delete"
+
   [[webhooks.subscriptions]]
   topics = [ "products/update", "products/create" ]
   uri = "/webhooks/products"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_orders"
+scopes = "read_products,write_products"
+
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
+
 [build]
 automatically_update_urls_on_dev = true
