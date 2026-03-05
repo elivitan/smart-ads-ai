@@ -979,7 +979,7 @@ export default function Index() {
         {/* MANUAL PICKER */}
         {showManualPicker && (
           <div className="modal-overlay" onClick={()=>setShowManualPicker(false)}>
-            <div className="modal modal-wide" onClick={e=>e.stopPropagation()} style={{maxWidth:680}}>
+            <div className="modal modal-wide" onClick={e=>e.stopPropagation()} style={{maxWidth:900,width:"95vw"}}>
               <button className="modal-close" onClick={()=>setShowManualPicker(false)}>✕</button>
               <h2 style={{fontSize:20,fontWeight:800,marginBottom:6}}>🎯 Manual Campaign</h2>
               <p style={{fontSize:13,color:"rgba(255,255,255,.5)",marginBottom:20}}>Select products. AI will create optimized campaigns for each one.</p>
