@@ -366,7 +366,6 @@ export async function getShopProducts(
             ad_score: p.aiAnalysis.adScore,
             ad_strength: p.aiAnalysis.adStrength,
             headlines: JSON.parse(p.aiAnalysis.headlines),
-            long_headlines: JSON.parse(p.aiAnalysis.longHeadlines || "[]"),
             descriptions: JSON.parse(p.aiAnalysis.descriptions),
             keywords: JSON.parse(p.aiAnalysis.keywords),
             negative_keywords: JSON.parse(p.aiAnalysis.negativeKeywords),

@@ -1,0 +1,1 @@
+INSERT INTO "_prisma_migrations" (id, checksum, migration_name, finished_at, applied_steps_count) VALUES ('baseline-001', 'baseline', '20260305000000_init', NOW(), 1) ON CONFLICT DO NOTHING;

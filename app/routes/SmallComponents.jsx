@@ -63,7 +63,7 @@ const Speedometer = React.memo(function Speedometer({ value, max, label, color =
 // For new paid subscribers — auto-starts scan in background
 // ══════════════════════════════════════════════
 
-const TIPS = ["💡 Ads with 10+ headlines get up to 15% more clicks","💡 Specific keywords like 'buy red sneakers size 10' convert 3x better","💡 Starting with $10/day is enough to get real data in a week","💡 Paused campaigns cost nothing — review before going live","💡 Negative keywords can cut wasted spend by up to 30%"];;
+const TIPS = ["💡 Ads with 10+ headlines get up to 15% more clicks","💡 Specific keywords like 'buy red sneakers size 10' convert 3x better","💡 Starting with $10/day is enough to get real data in a week","💡 Paused campaigns cost nothing — review before going live","💡 Negative keywords can cut wasted spend by up to 30%"];
 
 const TipRotator = React.memo(function TipRotator() {
   const [idx, setIdx] = useState(0), [visible, setVisible] = useState(true);
@@ -86,7 +86,7 @@ const TICKER = [
   { name:"🇬🇧 First-time advertiser", action:"got their first Google Ads sale within 48 hours", time:"3 min ago", emoji:"🎯" },
   { name:"🇦🇺 Store with 340 products", action:"full AI scan completed in 58 seconds", time:"7 min ago", emoji:"⚡" },
   { name:"🇩🇪 DTC skincare brand", action:"went from 1.1x to 4.6x ROAS in 3 weeks", time:"19 min ago", emoji:"📈" },
-];;
+];
 
 function SuccessTicker() {
   const [idx, setIdx] = useState(0), [visible, setVisible] = useState(true);

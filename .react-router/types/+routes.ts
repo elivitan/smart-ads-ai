@@ -106,6 +106,9 @@ type Pages = {
   "/app/api/scan": {
     params: {};
   };
+  "/app/api/scan/js": {
+    params: {};
+  };
   "/app/api/sync": {
     params: {};
   };
@@ -123,7 +126,7 @@ type Pages = {
 type RouteFiles = {
   "root.jsx": {
     id: "root";
-    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/CollectingDataScreen" | "/CompetitorComponents" | "/LandingComponents" | "/webhooks/products" | "/DashboardWidgets" | "/SmallComponents" | "/AdPreviewPanel" | "/StoreAnalytics" | "/ProductModal" | "/styles/index" | "/api/analyze" | "/api/credits" | "/MarketAlert" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/CollectingDataScreen" | "/CompetitorComponents" | "/LandingComponents" | "/webhooks/products" | "/DashboardWidgets" | "/SmallComponents" | "/AdPreviewPanel" | "/StoreAnalytics" | "/ProductModal" | "/styles/index" | "/api/analyze" | "/api/credits" | "/MarketAlert" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/campaigns" | "/app/api/scan" | "/app/api/scan/js" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/webhooks.app.scopes_update.jsx": {
     id: "routes/webhooks.app.scopes_update";
@@ -203,7 +206,7 @@ type RouteFiles = {
   };
   "routes/app.jsx": {
     id: "routes/app";
-    page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/campaigns" | "/app/api/scan" | "/app/api/scan/js" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/app.api.campaign-manage.js": {
     id: "routes/app.api.campaign-manage";
@@ -247,7 +250,11 @@ type RouteFiles = {
   };
   "routes/app.api.scan.js": {
     id: "routes/app.api.scan";
-    page: "/app/api/scan";
+    page: "/app/api/scan" | "/app/api/scan/js";
+  };
+  "routes/app.api.scan.js.pre-pg-backup": {
+    id: "routes/app.api.scan.js";
+    page: "/app/api/scan/js";
   };
   "routes/app.api.sync.js": {
     id: "routes/app.api.sync";
@@ -304,6 +311,7 @@ type RouteModules = {
   "routes/app.additional": typeof import("./app/routes/app.additional.jsx");
   "routes/app.campaigns": typeof import("./app/routes/app.campaigns.jsx");
   "routes/app.api.scan": typeof import("./app/routes/app.api.scan.js");
+  "routes/app.api.scan.js": typeof import("./app/routes/app.api.scan.js.pre-pg-backup");
   "routes/app.api.sync": typeof import("./app/routes/app.api.sync.js");
   "routes/app.keywords": typeof import("./app/routes/app.keywords.jsx");
   "routes/app.settings": typeof import("./app/routes/app.settings.jsx");

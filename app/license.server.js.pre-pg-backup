@@ -244,6 +244,7 @@ export async function updatePlan(shop, plan, options = {}) {
     maxProducts: limits.maxProducts,
     maxCampaigns: limits.maxCampaigns,
     aiCredits: limits.aiCreditsMonthly,
+    updatedAt: new Date(),
   };
 
   if (options.trial && options.trialDays) {
