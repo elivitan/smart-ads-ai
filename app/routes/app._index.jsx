@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useRevalidator } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
 import { getSubscriptionInfo } from "../license.server.js";
 import { OnboardModal, BuyCreditsModal } from "../components/Modals.jsx";
 import { CSS } from "./styles.index.js";
-import { Counter, ScoreRing, Speedometer, TipRotator, Confetti, SuccessTicker, ModalScrollLock } from "./SmallComponents.jsx";
+import { Counter, ScoreRing, Speedometer, TipRotator, Confetti, SuccessTicker } from "./SmallComponents.jsx";
 import { CollectingDataScreen } from "./CollectingDataScreen.jsx";
 import { AdPreviewPanel } from "./AdPreviewPanel.jsx";
 import { CompetitorModal, CompetitorGapFinder } from "./CompetitorComponents.jsx";
@@ -39,6 +39,10 @@ export const loader = async ({ request }) => {
   const dbProducts = await getShopProducts(shop);
   const planFromCookie = getPlanFromCookie(request);
 
+  // Check for ?preview=landing param
+  const url = new URL(request.url);
+  const previewLanding = url.searchParams.get("preview") === "landing";
+
   // Load subscription from DB — source of truth for plan/credits
   let subscriptionInfo = null;
   try {
@@ -58,6 +62,7 @@ export const loader = async ({ request }) => {
     planFromCookie: serverPlan,
     isPaidServer,
     needsInitialSync,
+    previewLanding,
     subscription: subscriptionInfo || { plan: serverPlan, scanCredits: 0, aiCredits: 0, canPublish: isPaidServer },
   };
   } catch (loaderErr) {
@@ -69,6 +74,7 @@ export const loader = async ({ request }) => {
       planFromCookie: "free",
       isPaidServer: false,
       needsInitialSync: true,
+      previewLanding: false,
       subscription: { plan: "free", scanCredits: 0, aiCredits: 0, canPublish: false },
     };
   }
@@ -76,54 +82,27 @@ export const loader = async ({ request }) => {
 
 const FREE_SCAN_LIMIT = 3;
 
-// Hook: live Google Ads data
-function useGoogleAdsData(mockCampaigns, avgScore) {
-  const [liveData, setLiveData] = useState(null);
+// Hook: live Google Ads data — will connect when Developer Token is approved
+// Until then, returns nulls so dashboard shows honest "no data yet" state
+function useGoogleAdsData() {
   const [isRealData, setIsRealData] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const prevRef = useRef(null);
 
-  function buildMockData(prev) {
-    const campaigns = mockCampaigns || 0;
-    const hourOfDay = new Date().getHours();
-    const trafficMult = (hourOfDay >= 10 && hourOfDay <= 20) ? 1.3 : 0.7;
-    return {
-      impressions: Math.round((prev?.impressions || campaigns * 4200) + Math.random() * 14 * trafficMult),
-      clicks: Math.round((prev?.clicks || campaigns * 180) + (Math.random() > 0.6 ? 1 : 0)),
-      cost: parseFloat(((prev?.cost || campaigns * 79) + Math.random() * 0.44).toFixed(2)),
-      conversions: prev?.conversions || Math.round(campaigns * 3.2),
-      roas: parseFloat((1.8 + avgScore * 0.028).toFixed(2)),
-      campaigns,
-      source: "mock",
-    };
-  }
+  // TODO: When Google Ads Developer Token is approved, add real API polling here
+  // async function tryRealAPI() { ... }
 
-  async function tryRealAPI(prev) {
-    // Real API disabled until Google Ads token is approved
-    // Will auto-enable when /app/api/google-ads/metrics route is created
-    return null;
-  }
-
-  useEffect(() => {
-    let mounted = true;
-    async function tick() {
-      if (document.visibilityState === "hidden") return; // pause when tab hidden
-      const real = await tryRealAPI(prevRef.current);
-      if (!mounted) return;
-      const next = real || buildMockData(prevRef.current);
-      prevRef.current = next;
-      setLiveData(next);
-      setLastUpdated(new Date());
-    }
-    tick();
-    const iv = setInterval(tick, 2800);
-    return () => { mounted = false; clearInterval(iv); };
-  }, [mockCampaigns, avgScore]);
-
-  const data = liveData || buildMockData(null);
-  const ctr = (data.clicks > 0 && data.impressions > 0)
-    ? ((data.clicks / data.impressions) * 100).toFixed(2) : "0.00";
-  return { ...data, ctr, isRealData, lastUpdated };
+  return {
+    impressions: null,
+    clicks: null,
+    cost: null,
+    conversions: null,
+    roas: null,
+    campaigns: 0,
+    ctr: null,
+    source: "none",
+    isRealData,
+    lastUpdated,
+  };
 }
 
 
@@ -133,13 +112,16 @@ function useGoogleAdsData(mockCampaigns, avgScore) {
 // ══════════════════════════════════════════════
 
 export default function Index() {
-  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription } = useLoaderData();
+  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, previewLanding: _previewLandingFromServer, subscription: serverSubscription } = useLoaderData();
+  const [previewLanding, setPreviewLanding] = useState(_previewLandingFromServer);
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
 
   // Enterprise: trigger initial sync on client side (never block server render)
   useEffect(() => {
     if (needsInitialSync) {
-      fetch("/app/api/sync", { method: "POST" })
+      const form = new FormData();
+      form.append("step", "full_sync");
+      fetch("/app/api/sync", { method: "POST", body: form })
         .catch(() => {}); // silent — UI will update via webhook
     }
   }, [needsInitialSync]);
@@ -190,9 +172,10 @@ export default function Index() {
   // Plan — cookie is source of truth (set server-side, no flash)
   const [selectedPlan, setSelectedPlan] = useState(
     // Server subscription from DB is the true source of truth
+    // If DB has a real plan, use it. If DB says free, respect that (don't read stale cookie/session).
     serverSubscription?.plan && serverSubscription.plan !== "free"
       ? serverSubscription.plan
-      : (isPaidServer ? planFromCookie : ((() => { try { return sessionStorage.getItem("sai_plan") || null; } catch { return null; } })()))
+      : (serverSubscription ? null : (isPaidServer ? planFromCookie : ((() => { try { return sessionStorage.getItem("sai_plan") || null; } catch { return null; } })())))
   );
   const [isHydrated, setIsHydrated] = useState(isPaidServer); // if server knows isPaid, already hydrated
   useEffect(() => { setIsHydrated(true); }, []);
@@ -214,6 +197,8 @@ export default function Index() {
   const [campaignId, setCampaignId] = useState(() => { try { return sessionStorage.getItem("sai_campaign_id")||null; } catch { return "sim_001"; } });
   const [campaignControlStatus, setCampaignControlStatus] = useState(null); // 'pausing'|'removing'|'paused'|'removed'|'error'
   const [realSpend, setRealSpend] = useState(null); // live spend from Google Ads API
+  const [campaignList, setCampaignList] = useState([]); // campaigns from Google Ads API
+  const [campaignHistory, setCampaignHistory] = useState([]); // history points for chart: [{time, impressions, clicks}]
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [autoStatus, setAutoStatus] = useState(null);
@@ -226,6 +211,7 @@ export default function Index() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showManualPicker, setShowManualPicker] = useState(false);
+  const [onboardingPhase, setOnboardingPhase] = useState(null); // null | "scanning" | "complete"
   const [pickedProducts, setPickedProducts] = useState([]);
   const [autoLaunching, setAutoLaunching] = useState(false);
 
@@ -257,11 +243,26 @@ export default function Index() {
   // Pre-compute values for the Google Ads hook
   const _analyzedCount = analyzedDbProducts.length;
   const _avgScore = _analyzedCount > 0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/_analyzedCount) : 0;
-  const _mockCampaigns = isPaid && _analyzedCount > 0 ? Math.min(Math.floor(_analyzedCount * 0.6), 12) : 0;
-  const liveAds = useGoogleAdsData(_mockCampaigns, _avgScore);
+  const liveAds = useGoogleAdsData(); // Will provide real data when Google Ads token is approved
 
   function triggerConfetti() { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3500); }
   useEffect(() => { setVis(true); }, []);
+
+  // Freemium: locked overlay for free users
+  function LockedOverlay({ title, children }) {
+    if (isPaid) return children || null;
+    return (
+      <div style={{position:"relative"}}>
+        <div style={{filter:"blur(3px)",opacity:0.5,pointerEvents:"none"}}>{children}</div>
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(10,10,26,.7)",borderRadius:16,zIndex:10,cursor:"pointer"}} onClick={()=>{setShowOnboard(true);setOnboardTab("subscription");setOnboardStep(1);}}>
+          <div style={{fontSize:36,marginBottom:8}}>🔒</div>
+          <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:4}}>{title || "Premium Feature"}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:12}}>Subscribe to unlock this section</div>
+          <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600}}>Upgrade Now →</div>
+        </div>
+      </div>
+    );
+  }
 
   function selectPlan(plan) {
     setSelectedPlan(plan);
@@ -270,16 +271,25 @@ export default function Index() {
     document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
     try { sessionStorage.setItem("sai_plan", plan); } catch {}
     setAiCredits({ starter: 10, pro: 200, premium: 1000 }[plan] || 0);
-    // Also save to server API (best effort)
+    // Save to server API
     fetch("/app/api/subscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan }),
-    }).catch(() => {});
+    }).then(() => {
+      // AUTO-SCAN: After plan saved, trigger scanning phase
+      setShowOnboard(false);
+      setOnboardingPhase("scanning");
+    }).catch(() => {
+      // Even if save fails, trigger scanning
+      setShowOnboard(false);
+      setOnboardingPhase("scanning");
+    });
   }
 
   async function doScan(mode) {
     const isAuto = mode === "auto";
+    if (previewLanding) setPreviewLanding(false);
     setScanMode(mode || "review"); setIsScanning(true); setFakeProgress(0);
     setScanMsg(hasScanAccess ? "Connecting to your Shopify store..." : "Quick preview scan starting...");
     setAutoStatus(null); setScanError(null); cancelRef.current = false;
@@ -468,41 +478,129 @@ export default function Index() {
     return () => { cancelled = true; clearInterval(iv); };
   }, [campaignId]);
 
-  async function handlePauseCampaign() {
-    if (!campaignId) return;
-    setCampaignControlStatus("pausing");
+  async function handlePauseCampaign(targetId, actionOverride) {
+    const cid = targetId || campaignId;
+    if (!cid) return;
+    const act = actionOverride === "enable" ? "enable" : "pause";
+    setCampaignControlStatus(act === "pause" ? "pausing" : "enabling");
     try {
       const form = new FormData();
-      form.append("action", "pause");
-      form.append("campaignId", campaignId);
-      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
-      if (!res.ok) return;
-      const data = await res.json();
-      setCampaignControlStatus(data.success ? "paused" : "error");
-    } catch { setCampaignControlStatus("error"); }
-  }
-
-  async function handleRemoveCampaign() {
-    if (!campaignId) return;
-    setCampaignControlStatus("removing");
-    setConfirmRemove(false);
-    try {
-      const form = new FormData();
-      form.append("action", "remove");
-      form.append("campaignId", campaignId);
+      form.append("action", act);
+      form.append("campaignId", String(cid));
       const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
-        setCampaignControlStatus("removed");
-        setCampaignId(null);
-        try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
+        setCampaignControlStatus(act === "pause" ? "paused" : "enabled");
+        // Refresh campaign list
+        try {
+          const listForm = new FormData();
+          listForm.append("action", "list");
+          const listRes = await fetch("/app/api/campaign-manage", { method: "POST", body: listForm });
+          const listData = await listRes.json();
+          if (listData.campaigns) setCampaignList(listData.campaigns.filter(c => c.status !== "REMOVED"));
+        } catch {}
+        setTimeout(() => setCampaignControlStatus(null), 2000);
       } else {
         setCampaignControlStatus("error");
       }
     } catch { setCampaignControlStatus("error"); }
   }
 
+  async function handleRemoveCampaign(targetId) {
+    const cid = targetId || campaignId;
+    if (!cid) return;
+    setCampaignControlStatus("removing");
+    setConfirmRemove(false);
+    try {
+      const form = new FormData();
+      form.append("action", "remove");
+      form.append("campaignId", String(cid));
+      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        setCampaignControlStatus("removed");
+        if (String(cid) === String(campaignId)) {
+          setCampaignId(null);
+          try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
+        }
+        // Refresh campaign list
+        try {
+          const listForm = new FormData();
+          listForm.append("action", "list");
+          const listRes = await fetch("/app/api/campaign-manage", { method: "POST", body: listForm });
+          const listData = await listRes.json();
+          if (listData.campaigns) setCampaignList(listData.campaigns.filter(c => c.status !== "REMOVED"));
+        } catch {}
+        setTimeout(() => setCampaignControlStatus(null), 2000);
+      } else {
+        setCampaignControlStatus("error");
+      }
+    } catch { setCampaignControlStatus("error"); }
+  }
+
+
+  // ── Fetch campaign list from Google Ads API ──
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchCampaigns() {
+      try {
+        const form = new FormData();
+        form.append("action", "list");
+        const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.campaigns) {
+          const filtered = data.campaigns.filter(c => c.status !== "REMOVED");
+          setCampaignList(filtered);
+          // Track history point for chart
+          const totalImp = filtered.reduce((a,c) => a + (c.impressions||0), 0);
+          const totalClk = filtered.reduce((a,c) => a + (c.clicks||0), 0);
+          setCampaignHistory(prev => {
+            const next = [...prev, { time: Date.now(), impressions: totalImp, clicks: totalClk }];
+            return next.length > 30 ? next.slice(-30) : next; // keep last 30 points
+          });
+        }
+      } catch(e) { console.error("fetchCampaigns failed:", e); }
+    }
+    fetchCampaigns();
+    const iv = setInterval(fetchCampaigns, 60000); // refresh every minute
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
+
+  // ── Background scanning: continue analyzing remaining products ──
+  useEffect(() => {
+    if (!isPaid) return;
+    const totalDb = allDbProducts.length;
+    const analyzedDb = analyzedDbProducts.length;
+    if (analyzedDb === 0 || analyzedDb >= totalDb) return; // nothing to do or all done
+
+    let cancelled = false;
+    async function bgScan() {
+      // Wait a bit before starting background scan
+      await new Promise(r => setTimeout(r, 5000));
+      while (!cancelled) {
+        try {
+          const form = new FormData();
+          form.append("step", "analyze_batch");
+          form.append("batchSize", "3");
+          const res = await fetch("/app/api/sync", { method: "POST", body: form });
+          const data = await res.json();
+          if (!data.success || data.remaining === 0 || data.message === "All products up to date") break;
+          // Wait between batches to not overload
+          await new Promise(r => setTimeout(r, 3000));
+        } catch (e) {
+          console.warn("Background scan error:", e.message);
+          await new Promise(r => setTimeout(r, 10000));
+        }
+      }
+      // Reload to show new data
+      if (!cancelled) window.location.reload();
+    }
+    bgScan();
+    return () => { cancelled = true; };
+  }, [isPaid, allDbProducts.length, analyzedDbProducts.length]);
 
   const handleUpgradeClick = React.useCallback(() => {
     setShowOnboard(true);
@@ -600,9 +698,42 @@ export default function Index() {
       return { keywordGaps: gaps, totalMonthlyGapLoss: gaps.reduce((a,g) => a+g.estMonthlyLoss, 0) };
     }, [analyzedDbProducts, avgScore]);
 
+  const revalidator = useRevalidator();
+
   // OnboardModal — now imported from ../components/Modals.jsx
 
   // BuyCreditsModal — now imported from ../components/Modals.jsx
+
+  // ── ONBOARDING AUTO-SCAN ──
+  if (onboardingPhase === "scanning") {
+    return (
+      <div className="sr dk"><StyleTag/><div className="bg-m"/>
+        <div className="status-bar"><div className="status-bar-inner">
+          <div className="sb-row sb-row-data">
+            <div className="sb-chips-left">
+              <div className="sb-chip2 sb-chip-plan"><span className="sb-dot sb-dot-green"/><span className="sb-label">PLAN</span><span className="sb-value">{(selectedPlan||"starter").toUpperCase()}</span></div>
+              <div className="sb-chip2"><span className="sb-label">📦 PRODUCTS</span><span className="sb-value">{totalDbProducts}</span></div>
+            </div>
+          </div>
+        </div></div>
+        <div className="da">
+          <CollectingDataScreen
+            totalProducts={totalDbProducts}
+            autoStart={true}
+            onComplete={() => {
+              setOnboardingPhase(null);
+              setPreviewLanding(false);
+              revalidator.revalidate();
+            }}
+            onCancel={() => {
+              setOnboardingPhase(null);
+              if (!isPaid) setPreviewLanding(true);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // ── ERROR / LOADING SCREENS ──
   if (scanError) return (
@@ -612,8 +743,8 @@ export default function Index() {
         <h2 className="ld-title">Scan Failed</h2>
         <p className="ld-sub" style={{marginBottom:24}}>{scanError}</p>
         <div style={{display:"flex",gap:12}}>
-          <button className="btn-primary" onClick={()=>{setScanError(null);doScan("review");}}>🔄 Try Again</button>
-          <button className="btn-secondary" onClick={()=>setScanError(null)}>← Go Back</button>
+          <button className="btn-primary" onClick={()=>{setScanError(null);setOnboardingPhase("scanning");}}>🔄 Try Again</button>
+          <button className="btn-secondary" onClick={()=>{setScanError(null);if(!isPaid)setPreviewLanding(true);}}>← Go Back</button>
         </div>
       </div>
     </div>
@@ -659,7 +790,7 @@ export default function Index() {
                 <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:20}}>All progress will be lost.</p>
                 <div style={{display:"flex",gap:10,justifyContent:"center"}}>
                   <button className="btn-primary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>setShowCancelConfirm(false)}>Continue Scanning</button>
-                  <button className="btn-secondary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>{cancelRef.current=true;if(creepRef.current){clearInterval(creepRef.current);creepRef.current=null;}setShowCancelConfirm(false);setIsScanning(false);setFakeProgress(0);setProducts([]);setAiResults(null);}}>Yes, Cancel</button>
+                  <button className="btn-secondary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>{cancelRef.current=true;if(creepRef.current){clearInterval(creepRef.current);creepRef.current=null;}setShowCancelConfirm(false);setIsScanning(false);setFakeProgress(0);setProducts([]);setAiResults(null);if(!isPaid)setPreviewLanding(true);}}>Yes, Cancel</button>
                 </div>
               </div>
             </div>
@@ -697,12 +828,13 @@ export default function Index() {
 
   // ══════════════════════════════════════════════
 
-  if (hasScanAccess) {
+  if ((hasScanAccess || analyzedCount > 0) && !previewLanding) {
     const totalKeywords = analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.keywords?.length||0),0);
     const highPotential = analyzedDbProducts.filter(p=>(p.aiAnalysis?.ad_score||0)>=70).length;
     const topProduct = analyzedDbProducts.reduce((best,p)=>((p.aiAnalysis?.ad_score||0)>(best.aiAnalysis?.ad_score||0)?p:best),analyzedDbProducts[0]||null);
-    const mockCampaigns = canPublish&&analyzedCount>0 ? Math.min(Math.floor(analyzedCount*0.6),12) : 0;
-    const mockRoas = analyzedCount>0 ? (1.8+avgScore*0.028).toFixed(1) : "0";
+    // Google Ads real data (null until Developer Token approved)
+    const hasGoogleAds = liveAds.isRealData;
+    const realCampaigns = campaignList.filter(c => c.status === "ENABLED").length;
     const competitorThreat = avgScore>=70?"Low":avgScore>=50?"Moderate":"High";
     const threatColor = {Low:"#22c55e",Moderate:"#f59e0b",High:"#ef4444"}[competitorThreat];
     // Google Ranking — aggregated from real SerpAPI data
@@ -724,9 +856,7 @@ export default function Index() {
 
     // Competitor Gap Finder — keywords competitors use that we don't
 
-    // Live Google Ads data — from top-level hook
-    const impressionsBase = liveAds.impressions;
-    const clicksBase = liveAds.clicks;
+    // Live Google Ads data — from top-level hook (null until connected)
 
     // ── Fresh paid subscriber — never scanned yet ──
     if (isPaid && analyzedCount === 0) return (
@@ -780,7 +910,7 @@ export default function Index() {
                 {canPublish
                   ? <div className="sb-chip2 sb-chip-publish-active"><span className="sb-dot sb-dot-green"/><span className="sb-label">PUBLISH</span><span className="sb-value sb-val-green">ACTIVE</span></div>
                   : <div className="sb-chip2 sb-chip-warn"><span className="sb-dot sb-dot-orange"/><span className="sb-label">PUBLISH</span><span className="sb-value">LOCKED</span></div>}
-                {liveAds.isRealData && <div className="sb-chip2 sb-chip-live"><span className="sb-dot sb-dot-green" style={{animation:"ldPulse 1s ease infinite"}}/><span className="sb-label">LIVE DATA</span></div>}
+                {hasGoogleAds && <div className="sb-chip2 sb-chip-live"><span className="sb-dot sb-dot-green" style={{animation:"ldPulse 1s ease infinite"}}/><span className="sb-label">LIVE DATA</span></div>}
               </div>
             </div>
             {/* Row 2: action buttons */}
@@ -795,7 +925,7 @@ export default function Index() {
               </div>
               {liveAds.lastUpdated && (
                 <span className="sb-last-updated">
-                  {liveAds.isRealData ? "🟢 Live" : "⚪ Mock"} · Updated {liveAds.lastUpdated.toLocaleTimeString()}
+                  {hasGoogleAds ? "🟢 Live from Google Ads" : "⏳ Waiting for Google Ads data"}
                 </span>
               )}
             </div>
@@ -819,9 +949,26 @@ export default function Index() {
               <button className="btn-secondary" style={{padding:"8px 16px",fontSize:13}} onClick={()=>setShowManualPicker(true)}>🎯 Manual Campaign</button>
               {canPublish
                 ? <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={handleAutoCampaign}>⚡ Auto Launch All</button>
-                : <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>doScan("review")}>🔍 Scan Products</button>}
+                : <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>setOnboardingPhase("scanning")}>🔍 Scan Products</button>}
             </div>
           </div>
+
+          {/* Background scanning banner */}
+          {analyzedCount > 0 && analyzedCount < totalProducts && (
+            <div style={{
+              background:"linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.08))",
+              border:"1px solid rgba(99,102,241,.2)",borderRadius:12,
+              padding:"12px 18px",marginBottom:16,
+              display:"flex",alignItems:"center",gap:12
+            }}>
+              <div style={{width:20,height:20,borderRadius:"50%",border:"2px solid #6366f1",borderTopColor:"transparent",animation:"spin 1s linear infinite",flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#a5b4fc"}}>Scanning in progress</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:2}}>{analyzedCount} of {totalProducts} products analyzed — data updating live</div>
+              </div>
+              <div style={{fontSize:12,color:"#6366f1",fontWeight:700}}>{Math.round(analyzedCount/totalProducts*100)}%</div>
+            </div>
+          )}
 
           {/* ══ STORE HEALTH + LIVE PULSE ROW ══ */}
           {/* TOP MISSED OPPORTUNITY */}
@@ -843,10 +990,13 @@ export default function Index() {
               highPotential={highPotential}
               competitorCount={competitorCount}
             />
+            <LockedOverlay title="Live Campaign Pulse">
             <LivePulse
-              campaigns={mockCampaigns}
-              impressionsBase={impressionsBase}
-              clicksBase={clicksBase}
+              campaigns={realCampaigns}
+              campaignList={campaignList}
+              campaignHistory={campaignHistory}
+              impressionsBase={campaignList.reduce((a,c) => a + (c.impressions||0), 0)}
+              clicksBase={campaignList.reduce((a,c) => a + (c.clicks||0), 0)}
               campaignId={campaignId}
               realSpend={realSpend}
               campaignControlStatus={campaignControlStatus}
@@ -855,14 +1005,15 @@ export default function Index() {
               onPause={handlePauseCampaign}
               onRemove={handleRemoveCampaign}
             />
+            </LockedOverlay>
           </div>
 
           {/* SPEEDOMETERS */}
           <div className="speedo-row">
             <div className="speedo-card"><Speedometer value={avgScore} max={100} label="Avg Ad Score" color="#6366f1" size={130}/></div>
             <div className="speedo-card"><Speedometer value={highPotential} max={Math.max(totalProducts,1)} label="High-Potential" color="#22c55e" size={130}/></div>
-            <div className="speedo-card"><Speedometer value={Math.min(mockCampaigns,20)} max={20} label="Active Campaigns" color="#06b6d4" size={130}/></div>
-            <div className="speedo-card"><Speedometer value={parseFloat(mockRoas)*10} max={100} label="ROAS Score" color="#f59e0b" size={130}/></div>
+            <div className="speedo-card"><Speedometer value={realCampaigns} max={20} label="Active Campaigns" color="#06b6d4" size={130}/></div>
+            <div className="speedo-card"><Speedometer value={hasGoogleAds ? parseFloat(liveAds.roas||0)*10 : 0} max={100} label="ROAS Score" color="#f59e0b" size={130}/></div>
           </div>
 
           {/* STATS */}
@@ -875,13 +1026,13 @@ export default function Index() {
 
           {/* STATUS ROW */}
           <div className="status-row">
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>📈</div><div><div className="status-card-label">Campaigns Active</div><div className="status-card-val">{mockCampaigns} running</div></div><div className="status-card-trend">{canPublish?`+${Math.round(mockCampaigns*0.2)} this week`:"Subscribe to launch"}</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(6,182,212,.1)",color:"#06b6d4"}}>👁</div><div><div className="status-card-label">Impressions</div><div className="status-card-val">{(mockCampaigns*4200).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(99,102,241,.1)",color:"#a5b4fc"}}>👆</div><div><div className="status-card-label">Est. Clicks</div><div className="status-card-val">{(mockCampaigns*180).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>📈</div><div><div className="status-card-label">Campaigns</div><div className="status-card-val">{realCampaigns > 0 ? `${realCampaigns} running` : "None yet"}</div></div><div className="status-card-trend">{realCampaigns > 0 ? `${campaignList.length} total` : canPublish ? "Ready to launch" : "Subscribe to launch"}</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(6,182,212,.1)",color:"#06b6d4"}}>👁</div><div><div className="status-card-label">Impressions</div><div className="status-card-val">{hasGoogleAds ? liveAds.impressions.toLocaleString() : "—"}</div></div><div className="status-card-trend">{hasGoogleAds ? "from Google Ads" : "Launch campaigns to track"}</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(99,102,241,.1)",color:"#a5b4fc"}}>👆</div><div><div className="status-card-label">Clicks</div><div className="status-card-val">{hasGoogleAds ? liveAds.clicks.toLocaleString() : "—"}</div></div><div className="status-card-trend">{hasGoogleAds ? "from Google Ads" : "Launch campaigns to track"}</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:`rgba(${threatColor==="#22c55e"?"34,197,94":threatColor==="#f59e0b"?"245,158,11":"239,68,68"},.1)`,color:threatColor}}>🕵️</div><div><div className="status-card-label">Competitor Threat</div><div className="status-card-val" style={{color:threatColor}}>{competitorThreat}</div></div><div className="status-card-trend" style={{color:threatColor}}>{rankingData.bestPosition ? `Best: #${rankingData.bestPosition}` : "Scan to check"}</div></div>
             <div className="status-card"><div className="status-card-icon" style={{background:rankingData.bestPosition && rankingData.bestPosition<=10?"rgba(34,197,94,.1)":rankingData.bestPosition?"rgba(245,158,11,.1)":"rgba(255,255,255,.05)",color:rankingData.bestPosition && rankingData.bestPosition<=10?"#22c55e":rankingData.bestPosition?"#fbbf24":"rgba(255,255,255,.3)"}}>📍</div><div><div className="status-card-label">Google Ranking</div><div className="status-card-val">{rankingData.bestPosition ? `#${rankingData.bestPosition}` : "—"}</div></div><div className="status-card-trend">{rankingData.bestPosition ? `Avg #${rankingData.avgPosition} across ${rankingData.products} products` : "Run scan to check"}</div></div>
 
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(245,158,11,.1)",color:"#fbbf24"}}>💰</div><div><div className="status-card-label">Est. ROAS</div><div className="status-card-val">{mockRoas}x</div></div><div className="status-card-trend up">based on scores</div></div>
+            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(245,158,11,.1)",color:"#fbbf24"}}>💰</div><div><div className="status-card-label">ROAS</div><div className="status-card-val">{hasGoogleAds ? `${liveAds.roas}x` : "—"}</div></div><div className="status-card-trend">{hasGoogleAds ? "from Google Ads" : "Launch campaigns to track"}</div></div>
             {/* Total Spend Card */}
             {campaignId && (
               <div className="status-card status-card-spend">
@@ -899,12 +1050,17 @@ export default function Index() {
 
 
           {/* MARKET INTELLIGENCE */}
+          <LockedOverlay title="Market Intelligence">
           <MarketAlert shopDomain={shopDomain}/>
+          </LockedOverlay>
 
           {/* STORE PERFORMANCE ANALYTICS */}
+          <LockedOverlay title="Store Performance Analytics">
           <StoreAnalyticsWidget/>
+          </LockedOverlay>
 
           {/* COMPETITOR PANEL */}
+          <LockedOverlay title="Competitor Intelligence">
           {topCompetitors.length>0 && (
             <div className="competitor-panel">
               <div className="competitor-panel-header">
@@ -942,8 +1098,10 @@ export default function Index() {
               </div>
             </div>
           )}
+          </LockedOverlay>
 
           {/* COMPETITOR GAP FINDER */}
+          <LockedOverlay title="Competitor Gap Finder">
           {analyzedCount > 0 && (
             <CompetitorGapFinder
               keywordGaps={keywordGaps}
@@ -953,6 +1111,7 @@ export default function Index() {
               onUpgrade={handleUpgradeClick}
             />
           )}
+          </LockedOverlay>
 
           {/* BUDGET SIMULATOR */}
           <BudgetSimulator
@@ -963,14 +1122,16 @@ export default function Index() {
           />
 
           {/* AD PREVIEW PANEL */}
+          <LockedOverlay title="Ad Preview & Launch">
           <AdPreviewPanel
             topProduct={topProduct}
-            mockCampaigns={mockCampaigns}
+            mockCampaigns={realCampaigns}
             canPublish={canPublish}
             shop={shopDomain}
             onLaunch={canPublish ? handleAutoCampaignCb : handleUpgradeClick}
             onViewProduct={handleProductClickCb}
           />
+          </LockedOverlay>
 
           {/* AI SUMMARY */}
           {analyzedCount>0 && (
@@ -1006,7 +1167,7 @@ export default function Index() {
           <div style={{marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <h2 style={{fontSize:18,fontWeight:700}}>Your Products</h2>
             <div style={{display:"flex",gap:8}}>
-              <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>doScan("review")}>↻ Rescan</button>
+              <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setOnboardingPhase("scanning")}>↻ Rescan</button>
               {canPublish && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setShowManualPicker(true)}>🎯 Manual Campaign</button>}
             </div>
           </div>
@@ -1014,7 +1175,9 @@ export default function Index() {
             {sortedProducts.map((product,idx)=>{
               const ai=product.aiAnalysis, hasAi=product.hasAiAnalysis&&ai, score=hasAi?ai.ad_score||0:0;
               const isTopPick=idx<3&&hasAi&&score>=60;
-              const eI=hasAi?Math.round(score*46+500):0, eC=hasAi?Math.round(score*3.8+20):0, eCo=hasAi?Math.round(score*0.45+10):0;
+              // Show keyword count and strategy instead of fake traffic estimates
+              const kwCount = hasAi ? (ai.keywords?.length || 0) : 0;
+              const strategy = hasAi ? (ai.competitor_intel?.strategy || "—") : "—";
               return (
                 <div key={product.id} className={`p-card ${!hasAi?"p-card-pending":""} ${isTopPick?"p-card-recommended":""}`} onClick={()=>hasAi?handleProductClick(product):null}>
                   {isTopPick && <div className="p-card-rec-badge">⭐ AI Recommends</div>}
@@ -1030,9 +1193,9 @@ export default function Index() {
                     {hasAi ? (
                       <>
                         <div className="p-card-metrics">
-                          <div className="p-metric"><span className="p-metric-ic">👁</span><span className="p-metric-val">{eI.toLocaleString()}</span><span className="p-metric-lbl">/mo</span></div>
-                          <div className="p-metric"><span className="p-metric-ic">👆</span><span className="p-metric-val">{eC}</span><span className="p-metric-lbl">/mo</span></div>
-                          <div className="p-metric"><span className="p-metric-ic">💰</span><span className="p-metric-val">${eCo}</span><span className="p-metric-lbl">/day</span></div>
+                          <div className="p-metric"><span className="p-metric-ic">🎯</span><span className="p-metric-val">{score}</span><span className="p-metric-lbl">/100</span></div>
+                          <div className="p-metric"><span className="p-metric-ic">🔑</span><span className="p-metric-val">{kwCount}</span><span className="p-metric-lbl">keywords</span></div>
+                          <div className="p-metric"><span className="p-metric-ic">📊</span><span className="p-metric-val">{strategy}</span><span className="p-metric-lbl"></span></div>
                         </div>
                         <div className="p-card-hl">{ai.headlines?.[0]||"AI headline preview..."}</div>
                         <div className="p-card-cta">{canPublish?"View & Launch →":"View AI Analysis →"}</div>
@@ -1106,7 +1269,7 @@ export default function Index() {
           shop={shopDomain}
         />}
         {selCompetitor && <CompetitorModal competitor={selCompetitor} products={analyzedDbProducts} onClose={()=>setSelCompetitor(null)}/>}
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={() => setOnboardingPhase("scanning")}/>}
         {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
@@ -1129,7 +1292,7 @@ export default function Index() {
               <p className="da-sub">{analyzedCount} of {totalProducts} products analyzed · Upgrade to unlock all {totalProducts-analyzedCount} remaining</p>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <button className="btn-rescan" onClick={()=>doScan("review")}>↻ Scan Again</button>
+              <button className="btn-rescan" onClick={()=>setOnboardingPhase("scanning")}>↻ Scan Again</button>
               <button className="btn-secondary" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}>⚡ Buy Scan Credits</button>
               <button className="btn-primary" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Subscribe & Publish</button>
             </div>
@@ -1179,13 +1342,13 @@ export default function Index() {
           setOnboardTab={setOnboardTab} setOnboardStep={setOnboardStep}
           shop={shopDomain}
         />}
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={() => setOnboardingPhase("scanning")}/>}
         {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
   }
 
-  // ── LANDING PAGE ──
+  // ── LANDING PAGE (also shown when ?preview=landing) ──
   return (
     <div className="sr dk"><StyleTag/>
       <div className="bg-m"/>
@@ -1197,7 +1360,7 @@ export default function Index() {
           <p className="hero-p">Smart Ads AI scans your competitors, checks your Google rankings, writes killer ad copy, and launches campaigns that convert — in 60 seconds.</p>
           <div className="hero-btns">
             <button className="btn-primary btn-lg" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Start My Campaign</button>
-            <button className="btn-secondary" onClick={()=>doScan("review")}>Try Free Preview</button>
+            <button className="btn-secondary" onClick={()=>setOnboardingPhase("scanning")}>Try Free Preview</button>
           </div>
           <div className="hero-nudge" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}><span className="nudge-lock">⚡</span> No subscription? <strong>Buy scan credits</strong> — from $0.60/scan <span className="nudge-arrow">→</span></div>
           <div className="hero-metrics">
@@ -1231,12 +1394,12 @@ export default function Index() {
           <p className="cta-p">Join 2,000+ Shopify merchants who stopped guessing and started growing.</p>
           <button className="btn-primary btn-lg" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Start My Campaign →</button>
           <div style={{marginTop:12,display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-            <button className="btn-secondary" onClick={()=>doScan("review")}>🔍 Try Free Preview</button>
+            <button className="btn-secondary" onClick={()=>setOnboardingPhase("scanning")}>🔍 Try Free Preview</button>
             <button className="btn-secondary" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}>⚡ Buy Scan Credits</button>
           </div>
         </section>
       </div>
-      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={() => setOnboardingPhase("scanning")}/>}
       {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       {showLaunchChoice && (
         <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
@@ -1247,7 +1410,7 @@ export default function Index() {
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
               <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);doScan("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly — zero manual work</div></div></button>
-              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);doScan("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
+              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);setOnboardingPhase("scanning");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
             </div>
           </div>
         </div>
