@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useLoaderData, useRevalidator } from "react-router";
+import { useLoaderData, useLocation, useRevalidator } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
 import { getSubscriptionInfo } from "../license.server.js";
@@ -247,6 +247,13 @@ export default function Index() {
 
   function triggerConfetti() { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3500); }
   useEffect(() => { setVis(true); }, []);
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash === "#launch") {
+      setShowLaunchChoice(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [location.hash]);
 
   // Freemium: locked overlay for free users
   function LockedOverlay({ title, children }) {
