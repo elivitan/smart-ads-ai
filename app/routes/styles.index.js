@@ -824,6 +824,28 @@ body{-webkit-overflow-scrolling:touch}
 .da{position:relative;z-index:1}
 
 
+
+
+/* ─── Campaign Counter Hero Card ─── */
+.campaign-hero-card{position:relative;border-radius:16px;padding:28px 32px;margin-bottom:24px;overflow:hidden;border:1px solid rgba(99,102,241,.25)}
+.campaign-hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,rgba(99,102,241,.18) 0%,rgba(168,85,247,.12) 50%,rgba(34,197,94,.08) 100%);z-index:0}
+.campaign-hero-bg::after{content:'';position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.15),transparent 70%);border-radius:50%}
+.campaign-hero-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.campaign-hero-left{display:flex;flex-direction:column;gap:4px}
+.campaign-hero-number{font-size:56px;font-weight:900;line-height:1;background:linear-gradient(135deg,#a5b4fc,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.campaign-hero-label{font-size:16px;font-weight:700;color:rgba(255,255,255,.9);letter-spacing:.5px}
+.campaign-hero-sub{font-size:13px;color:rgba(255,255,255,.45);margin-top:2px}
+.campaign-hero-right{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.campaign-hero-dots{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.campaign-dot{width:14px;height:14px;border-radius:50%;transition:all .3s}
+.dot-active{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5);animation:dot-pulse 2s ease-in-out infinite}
+.dot-paused{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.3)}
+.dot-other{background:rgba(255,255,255,.15)}
+.dot-empty{background:rgba(255,255,255,.08);border:2px dashed rgba(255,255,255,.15)}
+@keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
+.campaign-hero-link{color:#a5b4fc;font-size:13px;font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid rgba(99,102,241,.3);border-radius:8px;transition:all .2s}
+.campaign-hero-link:hover{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.5)}
+
 `;
 
 export { CSS };
