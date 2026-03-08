@@ -3112,21 +3112,7 @@ export default function Index() {
             }}
           />
         </div>
-        {showLaunchChoice && (
-          <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
-            <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,textAlign:"center",padding:"44px 36px"}}>
-              <button className="modal-close" onClick={()=>setShowLaunchChoice(false)}>✕</button>
-              <div style={{fontSize:48,marginBottom:16}}>🚀</div>
-              <h2 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Launch Your Campaigns</h2>
-              <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
-              <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-                <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);setJustSubscribed(false);setAutoScanMode("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly — zero manual work</div></div></button>
-                <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);setJustSubscribed(false);setAutoScanMode("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{setAutoScanMode("review");}}/>}
       </div>
     );
 
