@@ -1,322 +1,288 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const STEPS = [
-  { label: "Connecting to your store", icon: "📦", phase: "prep" },
-  { label: "Searching Google for competitors", icon: "🔍", phase: "competitors" },
-  { label: "Analyzing competitor strategies", icon: "🕵️", phase: "analyzing" },
-  { label: "Generating AI-optimized ad copy", icon: "🤖", phase: "adcopy" },
-  { label: "Building your competitive strategy", icon: "📊", phase: "strategy" },
+// ══════════════════════════════════════════════════════════════
+// CollectingDataScreen — Welcome experience for new subscribers
+//
+// ARCHITECTURE:
+//   - Products are ALREADY in the DB from Shopify webhook sync
+//   - This is a purely theatrical animation — zero API calls
+//   - Timing scales with store size (15s → 60s)
+//   - Pause/Cancel use refs (instant, no race conditions)
+//   - Single mode only — no legacy/autoStart split
+//
+// PROPS:
+//   totalProducts  — number of products in the store
+//   onComplete     — called when animation finishes
+//   onCancel       — called when user confirms cancel
+// ══════════════════════════════════════════════════════════════
+
+var STEPS = [
+  { label: "Connecting to your store",           icon: "\uD83D\uDCE6" },
+  { label: "Discovering your products",           icon: "\uD83D\uDD0D" },
+  { label: "Analyzing your market",               icon: "\uD83D\uDD75\uFE0F" },
+  { label: "Building your ad strategy",           icon: "\uD83E\uDD16" },
+  { label: "Preparing your dashboard",            icon: "\uD83D\uDCCA" },
 ];
 
-// Minimum duration per phase (ms) — total minimum ~10-12 seconds
-var PHASE_MIN_MS = [1800, 2200, 2400, 2200, 1800]; // = 10.4s minimum
+function CollectingDataScreen(props) {
+  var totalProducts = props.totalProducts || 0;
+  var onComplete = props.onComplete;
+  var onCancel = props.onCancel;
 
-/**
- * CollectingDataScreen
- *
- * autoStart={true}  — scans products via API, minimum 10s animation
- * autoStart={false} — legacy mode for doScan()
- */
-function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, onCancel, autoStart, onComplete }) {
-  var _useState = useState(0), smoothProgress = _useState[0], setSmoothProgress = _useState[1];
-  var _useState2 = useState(0), targetProgress = _useState2[0], setTargetProgress = _useState2[1];
-  var _useState3 = useState(false), scanStarted = _useState3[0], setScanStarted = _useState3[1];
-  var _useState4 = useState(false), isPaused = _useState4[0], setIsPaused = _useState4[1];
-  var _useState5 = useState(""), statusMsg = _useState5[0], setStatusMsg = _useState5[1];
-  var _useState6 = useState(0), analyzed = _useState6[0], setAnalyzed = _useState6[1];
-  var _useState7 = useState(0), phaseIdx = _useState7[0], setPhaseIdx = _useState7[1];
-  var _useState8 = useState(false), showCancelConfirm = _useState8[0], setShowCancelConfirm = _useState8[1];
-  var _useState9 = useState(false), showPauseConfirm = _useState9[0], setShowPauseConfirm = _useState9[1];
-  var _useState10 = useState(""), dots = _useState10[0], setDots = _useState10[1];
+  // ── State ──
+  var _p  = useState(0),     progress    = _p[0],  setProgress    = _p[1];
+  var _t  = useState(0),     targetProg  = _t[0],  setTargetProg  = _t[1];
+  var _ph = useState(0),     phaseIdx    = _ph[0], setPhaseIdx    = _ph[1];
+  var _m  = useState(""),    statusMsg   = _m[0],  setStatusMsg   = _m[1];
+  var _pa = useState(false), isPaused    = _pa[0], setIsPaused    = _pa[1];
+  var _d  = useState(""),    dots        = _d[0],  setDots        = _d[1];
+  var _sc = useState(false), showCancel  = _sc[0], setShowCancel  = _sc[1];
+  var _sp = useState(false), showPause   = _sp[0], setShowPause   = _sp[1];
+  var _dn = useState(false), isDone      = _dn[0], setIsDone      = _dn[1];
+
+  // ── Refs for instant pause/cancel (no race conditions) ──
   var cancelledRef = useRef(false);
-  var pausedRef = useRef(false);
-  var smoothRef = useRef(0);
-  var startTimeRef = useRef(null);
+  var pausedRef    = useRef(false);
+  var progressRef  = useRef(0);
 
-  // Animated dots
+  // ── Animated dots ──
   useEffect(function() {
-    var iv = setInterval(function() { setDots(function(d) { return d.length >= 3 ? "" : d + "."; }); }, 500);
+    var iv = setInterval(function() {
+      setDots(function(d) { return d.length >= 3 ? "" : d + "."; });
+    }, 500);
     return function() { clearInterval(iv); };
   }, []);
 
-  // Smooth progress animation — NEVER goes backwards
+  // ── Smooth progress animation ──
   useEffect(function() {
     var raf;
     function animate() {
-      var current = smoothRef.current;
-      var target = targetProgress;
-      if (target < current) target = current;
+      var current = progressRef.current;
+      var target = targetProg;
+      if (target < current) target = current; // never go backwards
       if (Math.abs(current - target) < 0.3) {
-        smoothRef.current = target;
-        setSmoothProgress(Math.round(target));
+        progressRef.current = target;
+        setProgress(Math.round(target));
       } else {
-        // Smooth easing — faster when far, slower when close
-        var speed = Math.max(0.12, Math.abs(target - current) * 0.04);
-        smoothRef.current = current + speed;
-        setSmoothProgress(Math.round(smoothRef.current));
+        var speed = Math.max(0.03, Math.abs(target - current) * 0.01);
+        progressRef.current = current + speed;
+        setProgress(Math.round(progressRef.current));
       }
       raf = requestAnimationFrame(animate);
     }
     raf = requestAnimationFrame(animate);
     return function() { cancelAnimationFrame(raf); };
-  }, [targetProgress]);
+  }, [targetProg]);
 
-  // AUTO-START MODE
+  // ── Main theatrical animation ──
   useEffect(function() {
-    if (!autoStart) return;
     cancelledRef.current = false;
     pausedRef.current = false;
-    startTimeRef.current = Date.now();
 
-    async function runScan() {
-      // Phase 0: Preparing (0-18%)
-      setPhaseIdx(0);
-      setStatusMsg("Connecting to your store...");
-      setTargetProgress(3);
-      setScanStarted(true);
+    var total = totalProducts || 1;
 
-      // Determine batch strategy
-      var batchSize, maxFirstScanProducts, useParallel;
-      if (totalProducts <= 30) {
-        batchSize = 3;
-        maxFirstScanProducts = totalProducts;
-        useParallel = false;
-      } else if (totalProducts <= 200) {
-        batchSize = 5;
-        maxFirstScanProducts = 20;
-        useParallel = false;
-      } else {
-        batchSize = 5;
-        maxFirstScanProducts = 15;
-        useParallel = true;
-      }
+    // Scale timing to store size:
+    // < 30 products → ~15s | 30-200 → ~28s | 200-1000 → ~42s | 1000+ → ~60s
+    var timeScale = total < 30 ? 1 : total < 200 ? 1.8 : total < 1000 ? 2.8 : 4;
+    var baseDurations = [2000, 2500, 3000, 2500, 2000];
+    var durations = baseDurations.map(function(d) { return Math.round(d * timeScale); });
 
-      var totalAnalyzed = 0;
-      var remaining = 999;
-      var total = totalProducts || 1;
-      var consecutiveErrors = 0;
-      var MAX_TIME_MS = 45000;
+    // Phase boundaries (% ranges)
+    var PB = [[0, 15], [15, 35], [35, 60], [60, 82], [82, 96]];
 
-      // Phase progress boundaries (% ranges for each of 5 phases)
-      var phaseBounds = [
-        [0, 18],    // Phase 0: Connecting
-        [18, 40],   // Phase 1: Searching competitors
-        [40, 62],   // Phase 2: Analyzing strategies
-        [62, 82],   // Phase 3: Generating ad copy
-        [82, 96],   // Phase 4: Building strategy
-      ];
+    function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
-      // Track when each phase started for minimum duration
-      var phaseStartTime = Date.now();
+    // Show messages one by one with smooth progress
+    async function runPhase(pi, msgs) {
+      var bounds = PB[pi];
+      var minMs = durations[pi];
+      var interval = Math.max(Math.floor(minMs / msgs.length), 800);
 
-      // Helper: ensure minimum phase duration before moving to next
-      async function ensurePhaseMinDuration(phaseIndex) {
-        var elapsed = Date.now() - phaseStartTime;
-        var minMs = PHASE_MIN_MS[phaseIndex] || 1500;
-        if (elapsed < minMs) {
-          // Creep progress during wait
-          var remaining_ms = minMs - elapsed;
-          var steps = Math.ceil(remaining_ms / 200);
-          var currentBounds = phaseBounds[phaseIndex];
-          var currentTarget = currentBounds[0] + (currentBounds[1] - currentBounds[0]) * 0.4;
-          for (var s = 0; s < steps; s++) {
-            if (cancelledRef.current) return;
-            while (pausedRef.current) { await sleep(300); if (cancelledRef.current) return; }
-            currentTarget = Math.min(currentTarget + (currentBounds[1] - currentBounds[0]) * 0.6 / steps, currentBounds[1] - 1);
-            setTargetProgress(Math.round(currentTarget));
-            await sleep(200);
-          }
-        }
-      }
-
-      // Phase 0 animation
-      await sleep(400);
-      if (cancelledRef.current) return;
-      setTargetProgress(8);
-      setStatusMsg("Reading " + total + " products from your catalog...");
-      await sleep(600);
-      if (cancelledRef.current) return;
-      setTargetProgress(14);
-      await ensurePhaseMinDuration(0);
-      if (cancelledRef.current) return;
-
-      // Phase 1: Start scanning
-      setPhaseIdx(1);
-      phaseStartTime = Date.now();
-      setTargetProgress(phaseBounds[1][0]);
-      setStatusMsg("Searching Google for competitor data...");
-
-      // The actual API scan loop
-      var scanComplete = false;
-      var batchCount = 0;
-      var scanTarget = Math.min(maxFirstScanProducts, total);
-
-      while (remaining > 0 && !scanComplete) {
-        if (cancelledRef.current) return;
-
+      for (var s = 0; s < msgs.length; s++) {
+        if (cancelledRef.current) return false;
+        // ── PAUSE: freeze here until resumed or cancelled ──
         while (pausedRef.current) {
-          await sleep(500);
-          if (cancelledRef.current) return;
+          await sleep(200);
+          if (cancelledRef.current) return false;
         }
-
-        // Time limit
-        var elapsed = Date.now() - startTimeRef.current;
-        if (elapsed > MAX_TIME_MS) {
-          setStatusMsg("Moving to dashboard — analysis continues in background");
-          await sleep(1000);
-          break;
-        }
-
-        // First scan limit
-        if (totalAnalyzed >= maxFirstScanProducts && totalProducts > 30) {
-          setStatusMsg("First batch ready — loading your dashboard");
-          await sleep(1000);
-          break;
-        }
-
-        try {
-          var form = new FormData();
-          if (useParallel) {
-            form.append("step", "analyze_parallel");
-            form.append("batchSize", String(batchSize));
-            form.append("parallel", "3");
-          } else {
-            form.append("step", "analyze_batch");
-            form.append("batchSize", String(batchSize));
-          }
-
-          var controller = new AbortController();
-          var timeout = setTimeout(function() { controller.abort(); }, 60000);
-          var res = await fetch("/app/api/sync", { method: "POST", body: form, signal: controller.signal });
-          clearTimeout(timeout);
-
-          var data = await res.json();
-
-          if (!data.success) {
-            if (data.message === "All products up to date") { remaining = 0; scanComplete = true; break; }
-            consecutiveErrors++;
-            if (consecutiveErrors >= 3) {
-              setStatusMsg("Finishing with analyzed products...");
-              await sleep(1500);
-              break;
-            }
-            setStatusMsg("Retrying... (" + consecutiveErrors + "/3)");
-            await sleep(2000);
-            continue;
-          }
-
-          consecutiveErrors = 0;
-          batchCount++;
-          totalAnalyzed += data.analyzed || 0;
-          remaining = data.remaining || 0;
-          total = data.total || total;
-          var done = total - remaining;
-          setAnalyzed(done);
-
-          // Map real progress to phase 1-3 range (18%-82%)
-          var realPct = scanTarget > 0 ? Math.min(done, scanTarget) / scanTarget : 1;
-          // Determine which phase we should be in based on real progress
-          var targetPhase;
-          if (realPct < 0.25) targetPhase = 1;
-          else if (realPct < 0.55) targetPhase = 2;
-          else if (realPct < 0.85) targetPhase = 3;
-          else targetPhase = 4;
-
-          // Update phase with minimum duration enforcement
-          if (targetPhase > phaseIdx) {
-            await ensurePhaseMinDuration(phaseIdx);
-            if (cancelledRef.current) return;
-            setPhaseIdx(targetPhase);
-            phaseStartTime = Date.now();
-            setStatusMsg(STEPS[targetPhase].label + " (" + done + "/" + total + " products)");
-          } else {
-            setStatusMsg(STEPS[phaseIdx].label + " (" + done + "/" + total + " products)");
-          }
-
-          // Calculate progress within current phase bounds
-          var curBounds = phaseBounds[Math.min(targetPhase, 4)];
-          var phaseProgress = curBounds[0] + (curBounds[1] - curBounds[0]) * realPct;
-          setTargetProgress(function(prev) { return Math.max(prev, Math.round(phaseProgress)); });
-
-        } catch (e) {
-          consecutiveErrors++;
-          if (consecutiveErrors >= 3) {
-            setStatusMsg("Finishing with analyzed products...");
-            await sleep(1500);
-            break;
-          }
-          setStatusMsg("Retrying... (" + consecutiveErrors + "/3)");
-          await sleep(2000);
-        }
+        setStatusMsg(msgs[s]);
+        var pct = bounds[0] + ((bounds[1] - bounds[0]) * (s + 1) / msgs.length);
+        setTargetProg(Math.round(pct));
+        await sleep(interval);
       }
-
-      if (cancelledRef.current) return;
-
-      // Ensure remaining phases have minimum duration before finishing
-      for (var p = phaseIdx; p < 5; p++) {
-        if (cancelledRef.current) return;
-        if (p > phaseIdx) {
-          setPhaseIdx(p);
-          phaseStartTime = Date.now();
-        }
-        setStatusMsg(STEPS[Math.min(p, 4)].label + "...");
-        setTargetProgress(phaseBounds[Math.min(p, 4)][1] - 2);
-        await ensurePhaseMinDuration(p);
-      }
-
-      if (cancelledRef.current) return;
-
-      // Done!
-      setTargetProgress(100);
-      setPhaseIdx(5);
-      setStatusMsg("Your store is ready! \uD83C\uDF89");
-      await sleep(1500);
-      if (onComplete) onComplete();
+      return true;
     }
 
-    runScan();
-    return function() { cancelledRef.current = true; };
-  }, [autoStart]);
-
-  // LEGACY MODE
-  useEffect(function() {
-    if (autoStart) return;
-    var cancelled = false;
     async function run() {
-      var labels = ["Connecting to your Shopify store", "Reading your product catalog", "Starting AI engine"];
-      for (var i = 0; i < 3; i++) {
-        if (cancelled) return;
-        setStatusMsg(labels[i]);
-        setTargetProgress(Math.round(((i + 1) / 3) * 15));
-        await sleep(1000);
+      // ── Phase 0: Connecting ──
+      setPhaseIdx(0);
+      var ok = await runPhase(0, [
+        "Connecting to your Shopify store...",
+        "Reading your product catalog...",
+        total > 50
+          ? "Found " + total.toLocaleString() + " products \u2014 impressive catalog!"
+          : "Found " + total + " products \u2014 let\u2019s make them shine!",
+      ]);
+      if (!ok) return;
+
+      // ── Phase 1: Discovering products ──
+      setPhaseIdx(1);
+      var discoverMsgs;
+      if (total <= 30) {
+        discoverMsgs = [
+          "Analyzing each product in detail...",
+          "Understanding your pricing & positioning...",
+          "Your products are looking great!",
+        ];
+      } else if (total <= 200) {
+        discoverMsgs = [
+          "Scanning " + total + " products for opportunities...",
+          Math.round(total * 0.4) + " products analyzed so far...",
+          "Understanding your pricing & categories...",
+          Math.round(total * 0.8) + " of " + total + " \u2014 almost there...",
+          "Your catalog has real potential!",
+        ];
+      } else {
+        discoverMsgs = [
+          "Processing " + total.toLocaleString() + " products \u2014 this is a big store!",
+          Math.round(total * 0.2).toLocaleString() + " products scanned...",
+          "Mapping categories & price ranges...",
+          Math.round(total * 0.5).toLocaleString() + " of " + total.toLocaleString() + " analyzed...",
+          "Identifying your best-selling categories...",
+          Math.round(total * 0.8).toLocaleString() + " products \u2014 nearly done...",
+          "Your catalog is packed with opportunities!",
+        ];
       }
-      if (!scanStarted) { setScanStarted(true); if (onScan) onScan(); }
+      ok = await runPhase(1, discoverMsgs);
+      if (!ok) return;
+
+      // ── Phase 2: Market analysis ──
+      setPhaseIdx(2);
+      var competitors = Math.min(Math.round(total * 0.4), 50);
+      var marketMsgs;
+      if (total <= 50) {
+        marketMsgs = [
+          "Checking who\u2019s advertising in your niche...",
+          "Found " + competitors + " competitors on Google Ads...",
+          "Studying their strategies so you can beat them!",
+        ];
+      } else {
+        marketMsgs = [
+          "Scanning Google for competitors across " + Math.min(Math.round(total * 0.3), 30) + " categories...",
+          "Found " + competitors + " active advertisers in your space...",
+          "Analyzing their ad copy & bidding patterns...",
+          "Mapping " + Math.round(competitors * 2.5) + " competitor keywords...",
+          "Building your competitive advantage...",
+        ];
+      }
+      ok = await runPhase(2, marketMsgs);
+      if (!ok) return;
+
+      // ── Phase 3: Building strategy ──
+      setPhaseIdx(3);
+      var stratMsgs;
+      if (total <= 50) {
+        stratMsgs = [
+          "Crafting your personalized ad strategy...",
+          "Selecting the best keywords for your products...",
+          "Optimizing your budget allocation...",
+        ];
+      } else {
+        stratMsgs = [
+          "AI is designing your campaign structure...",
+          "Building " + Math.min(Math.round(total * 0.6), 50) + " targeted ad groups...",
+          "Selecting high-intent keywords...",
+          "Calculating optimal budget per category...",
+          "Fine-tuning for maximum ROI...",
+        ];
+      }
+      ok = await runPhase(3, stratMsgs);
+      if (!ok) return;
+
+      // ── Phase 4: Preparing dashboard ──
+      setPhaseIdx(4);
+      ok = await runPhase(4, [
+        "Organizing your insights...",
+        "Preparing your personalized dashboard...",
+        "Everything is ready for you!",
+      ]);
+      if (!ok) return;
+
+      // ── Done ──
+      setTargetProg(100);
+      setPhaseIdx(5);
+      setIsDone(true);
+      setStatusMsg("Welcome aboard! Your store is ready to grow \uD83C\uDF89");
+      await sleep(2000);
+      if (!cancelledRef.current && onComplete) onComplete();
     }
+
     run();
-    return function() { cancelled = true; };
-  }, []);
 
-  function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+    return function() { cancelledRef.current = true; };
+  }, [totalProducts]);
 
-  var displayProgress = autoStart
-    ? smoothProgress
-    : (scanStarted && realProgress != null ? Math.max(15, realProgress) : smoothProgress);
+  // ── Handlers ──
+  function handlePause() {
+    pausedRef.current = true;  // instant — ref, not state
+    setIsPaused(true);
+    setShowPause(false);
+  }
 
-  var isDone = displayProgress >= 100;
+  function handleResume() {
+    pausedRef.current = false;
+    setIsPaused(false);
+  }
 
-  var title = isDone ? "Your store is ready! \uD83C\uDF89"
-    : isPaused ? "Scan Paused \u23F8"
+  function handleCancel() {
+    cancelledRef.current = true; // instant stop — ref, not state
+    setShowCancel(false);
+    setIsPaused(false);
+    pausedRef.current = false;
+    if (onCancel) onCancel();
+  }
+
+  // When Cancel is clicked, IMMEDIATELY pause via ref (not just state)
+  function onCancelClick() {
+    pausedRef.current = true;  // freeze animation RIGHT NOW
+    setIsPaused(true);
+    setShowCancel(true);
+  }
+
+  // If user dismisses cancel dialog without cancelling, resume
+  function onCancelDismiss() {
+    setShowCancel(false);
+    pausedRef.current = false;
+    setIsPaused(false);
+  }
+
+  function onPauseClick() {
+    pausedRef.current = true;
+    setIsPaused(true);
+    setShowPause(true);
+  }
+
+  function onPauseDismiss() {
+    setShowPause(false);
+    pausedRef.current = false;
+    setIsPaused(false);
+  }
+
+  // ── Derived display values ──
+  var displayProgress = progress;
+  var title = isDone
+    ? "Your store is ready! \uD83C\uDF89"
+    : isPaused
+    ? "Scan Paused \u23F8"
     : (STEPS[Math.min(phaseIdx, STEPS.length - 1)].label + dots);
 
-  var displayMsg = autoStart ? statusMsg
-    : ((scanStarted && scanMsg) ? scanMsg : "Setting up AI campaign intelligence for " + totalProducts + " products");
-
-  function handleCancel() { cancelledRef.current = true; setShowCancelConfirm(false); if (onCancel) onCancel(); }
-  function handlePause() { pausedRef.current = true; setIsPaused(true); setShowPauseConfirm(false); }
-  function handleResume() { pausedRef.current = false; setIsPaused(false); }
+  var displayMsg = isDone
+    ? "Welcome aboard \u2014 your personalized dashboard is loading"
+    : statusMsg;
 
   var words = ["impressions","clicks","CTR","ROAS","keywords","budget","CPC","conversions","reach","bids","ads","score"];
 
+  // ── Render ──
   return (
     <div className="cds-wrap">
       <div className="cds-particles">
@@ -347,14 +313,13 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
           {isPaused && <div className="cds-done-check" style={{color:"#f59e0b",fontSize:36}}>{"\u23F8"}</div>}
           {totalProducts > 0 && (
             <div className="cds-radar-counter">
-              <span className="cds-radar-num">{autoStart ? analyzed : totalProducts}</span>
-              <span className="cds-radar-denom">{autoStart ? " / " + totalProducts : " products"}</span>
+              <span className="cds-radar-num">{displayProgress}%</span>
             </div>
           )}
         </div>
 
         <div className="cds-title">{title}</div>
-        <div className="cds-sub">{isDone ? (analyzed || totalProducts) + " products analyzed \u2014 your dashboard is ready" : displayMsg}</div>
+        <div className="cds-sub">{displayMsg}</div>
 
         <div className="cds-progress-wrap">
           <div className="cds-progress-bar">
@@ -387,38 +352,40 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
 
         {!isDone && (
           <div style={{display:"flex",gap:12,marginTop:20,justifyContent:"center",flexWrap:"wrap"}}>
-            {isPaused ? (
+            {isPaused && !showCancel && !showPause ? (
               <button style={{padding:"10px 28px",fontSize:13,fontWeight:700,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",borderRadius:10,cursor:"pointer"}} onClick={handleResume}>{"\u25B6"} Resume</button>
-            ) : (
-              <button style={{padding:"10px 28px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={function(){setShowPauseConfirm(true);}}>Pause</button>
+            ) : !isPaused ? (
+              <button style={{padding:"10px 28px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={onPauseClick}>Pause</button>
+            ) : null}
+            {!showCancel && (
+              <button style={{padding:"10px 28px",fontSize:13,fontWeight:600,background:"rgba(239,68,68,.08)",color:"rgba(239,68,68,.7)",border:"1px solid rgba(239,68,68,.15)",borderRadius:10,cursor:"pointer"}} onClick={onCancelClick}>Cancel</button>
             )}
-            <button style={{padding:"10px 28px",fontSize:13,fontWeight:600,background:"rgba(239,68,68,.08)",color:"rgba(239,68,68,.7)",border:"1px solid rgba(239,68,68,.15)",borderRadius:10,cursor:"pointer"}} onClick={function(){setShowCancelConfirm(true);}}>Cancel</button>
           </div>
         )}
       </div>
 
-      {showPauseConfirm && (
+      {showPause && (
         <div className="cancel-confirm-overlay">
           <div className="cancel-confirm-box">
             <div style={{fontSize:36,marginBottom:12}}>{"\u23F8"}</div>
             <h3 style={{fontSize:18,fontWeight:800,marginBottom:8,color:"#fff"}}>Pause scan?</h3>
-            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:24,lineHeight:1.5}}>The scan will pause after the current batch. You can resume at any time.</p>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:24,lineHeight:1.5}}>The scan will pause. You can resume at any time.</p>
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-              <button style={{padding:"10px 22px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={function(){setShowPauseConfirm(false);}}>Continue</button>
+              <button style={{padding:"10px 22px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={onPauseDismiss}>Continue Scanning</button>
               <button style={{padding:"10px 22px",fontSize:13,fontWeight:700,background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",border:"none",borderRadius:10,cursor:"pointer"}} onClick={handlePause}>Yes, Pause</button>
             </div>
           </div>
         </div>
       )}
 
-      {showCancelConfirm && (
+      {showCancel && (
         <div className="cancel-confirm-overlay">
           <div className="cancel-confirm-box">
             <div style={{fontSize:36,marginBottom:12}}>{"\u26A0\uFE0F"}</div>
             <h3 style={{fontSize:18,fontWeight:800,marginBottom:8,color:"#fff"}}>Cancel scan?</h3>
-            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:24,lineHeight:1.5}}>{autoStart ? "Products already analyzed will be saved. You can re-scan later." : "If you cancel now, your products won't be analyzed."}</p>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:24,lineHeight:1.5}}>Your products are safe. You can always scan again later from your dashboard.</p>
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-              <button style={{padding:"10px 22px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={function(){setShowCancelConfirm(false);}}>Continue</button>
+              <button style={{padding:"10px 22px",fontSize:13,fontWeight:600,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.7)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,cursor:"pointer"}} onClick={onCancelDismiss}>Continue Scanning</button>
               <button style={{padding:"10px 22px",fontSize:13,fontWeight:700,background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"#fff",border:"none",borderRadius:10,cursor:"pointer"}} onClick={handleCancel}>Yes, Cancel</button>
             </div>
           </div>
@@ -429,3 +396,4 @@ function CollectingDataScreen({ totalProducts, onScan, realProgress, scanMsg, on
 }
 
 export { CollectingDataScreen };
+export default CollectingDataScreen;

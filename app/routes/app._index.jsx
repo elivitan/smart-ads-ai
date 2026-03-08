@@ -3097,21 +3097,8 @@ export default function Index() {
           {autoScanMode ? (
             <CollectingDataScreen
               totalProducts={totalProducts}
-              autoStart={true}
-              realProgress={null}
-              scanMsg={""}
-              onScan={() => doScan("review")}
-              onCancel={() => {
-                cancelRef.current = true;
-                if (creepRef.current) { clearInterval(creepRef.current); creepRef.current = null; }
-                setIsScanning(false); setFakeProgress(0);
-                setProducts([]); setAiResults(null);
-                setAutoScanMode(null); setJustSubscribed(false);
-              }}
-              onComplete={() => {
-                setJustSubscribed(false);
-                window.location.reload();
-              }}
+              onComplete={() => { setJustSubscribed(false); window.location.reload(); }}
+              onCancel={() => { setAutoScanMode(null); setJustSubscribed(false); }}
             />
           ) : (
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",textAlign:"center",padding:"40px 20px"}}>
@@ -3121,7 +3108,7 @@ export default function Index() {
             </div>
           )}
         </div>
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{setAutoScanMode("review");}}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{if(justSubscribed){setAutoScanMode("review");}else{setShowLaunchChoice(true);}}}/>}
       </div>
     );
 
@@ -3461,7 +3448,7 @@ export default function Index() {
           shop={shopDomain}
         />}
         {selCompetitor && <CompetitorModal competitor={selCompetitor} products={analyzedDbProducts} onClose={()=>setSelCompetitor(null)}/>}
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{if(justSubscribed){setAutoScanMode("review");}else{setShowLaunchChoice(true);}}}/>}
         {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
@@ -3526,7 +3513,7 @@ export default function Index() {
           aiResults={aiResults}
           shop={shopDomain}
         />}
-        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{if(justSubscribed){setAutoScanMode("review");}else{setShowLaunchChoice(true);}}}/>}
         {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       </div>
     );
@@ -3583,7 +3570,7 @@ export default function Index() {
           </div>
         </section>
       </div>
-      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
+      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{if(justSubscribed){setAutoScanMode("review");}else{setShowLaunchChoice(true);}}}/>}
       {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
       {showLaunchChoice && (
         <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
