@@ -333,7 +333,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
               )}
             </div>
             <div style={{ display:"flex",alignItems:"baseline",gap:10,marginBottom:6 }}>
-              <span style={{ fontSize:60,fontWeight:900,letterSpacing:"-3px",color:rc.color,lineHeight:1 }}>
+              <span style={{ fontSize:42,fontWeight:800,letterSpacing:"-2px",color:rc.color,lineHeight:1 }}>
                 {p.roas > 0 ? (p.roas + "x") : "—"}
               </span>
               <span style={{ fontSize:18,fontWeight:700,color:"rgba(255,255,255,.4)" }}>ROAS</span>

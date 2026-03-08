@@ -74,7 +74,7 @@ const SEASONAL_PATTERNS = {
   general: { peak: [11, 12], low: [1, 2], tip: "General retail peaks around holiday season." },
 };
 
-function getUpcomingHolidays(regions, daysAhead = 30) {
+export function getUpcomingHolidays(regions, daysAhead = 30) {
   const now = new Date();
   const upcoming = [];
 
@@ -96,7 +96,7 @@ function getUpcomingHolidays(regions, daysAhead = 30) {
   return upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
-function getSeasonalInsight(category, month) {
+export function getSeasonalInsight(category, month) {
   const pattern = SEASONAL_PATTERNS[category] || SEASONAL_PATTERNS.general;
   const isPeak = pattern.peak.includes(month);
   const isLow = pattern.low.includes(month);
