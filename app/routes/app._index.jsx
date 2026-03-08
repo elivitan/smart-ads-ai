@@ -3093,24 +3093,32 @@ export default function Index() {
           </div>
         </div></div>
         <div className="da">
-          <CollectingDataScreen
-            totalProducts={totalProducts}
-            autoStart={!!autoScanMode}
-            realProgress={isScanning ? Math.round(fakeProgress) : null}
-            scanMsg={scanMsg}
-            onScan={() => doScan("review")}
-            onCancel={() => {
-              cancelRef.current = true;
-              if (creepRef.current) { clearInterval(creepRef.current); creepRef.current = null; }
-              setIsScanning(false); setFakeProgress(0);
-              setProducts([]); setAiResults(null);
-              setAutoScanMode(null);
-            }}
-            onComplete={() => {
-              // Reload to pick up newly analyzed products from the DB
-              window.location.reload();
-            }}
-          />
+          {autoScanMode ? (
+            <CollectingDataScreen
+              totalProducts={totalProducts}
+              autoStart={true}
+              realProgress={null}
+              scanMsg={scanMsg}
+              onScan={() => doScan("review")}
+              onCancel={() => {
+                cancelRef.current = true;
+                if (creepRef.current) { clearInterval(creepRef.current); creepRef.current = null; }
+                setIsScanning(false); setFakeProgress(0);
+                setProducts([]); setAiResults(null);
+                setAutoScanMode(null); setJustSubscribed(false);
+              }}
+              onComplete={() => {
+                setJustSubscribed(false);
+                window.location.reload();
+              }}
+            />
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",textAlign:"center",padding:"40px 20px"}}>
+              <div style={{fontSize:64,marginBottom:20}}>🚀</div>
+              <h2 style={{fontSize:28,fontWeight:800,color:"#f1f5f9",marginBottom:12}}>Welcome to Smart Ads AI!</h2>
+              <p style={{fontSize:16,color:"rgba(255,255,255,.55)",maxWidth:460,lineHeight:1.6,marginBottom:32}}>Complete the setup above to start scanning your store and generating AI-powered campaigns.</p>
+            </div>
+          )}
         </div>
         {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{setAutoScanMode("review");}}/>}
       </div>
