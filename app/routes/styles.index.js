@@ -117,7 +117,7 @@ body{-webkit-overflow-scrolling:touch}
 .cds-title{font-size:22px;font-weight:800;letter-spacing:-.3px}
 .cds-sub{font-size:14px;color:rgba(255,255,255,.45);line-height:1.5;max-width:380px}
 .cds-progress-wrap{display:flex;align-items:center;gap:12px;width:100%}
-.cds-progress-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:visible;position:relative}
+.cds-progress-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;position:relative}
 .cds-progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4);border-radius:3px;transition:width .3s ease}
 .cds-progress-glow{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 12px rgba(139,92,246,.9);transition:left .3s ease}
 .cds-progress-pct{font-size:12px;font-weight:700;color:rgba(255,255,255,.4);width:36px;text-align:right;flex-shrink:0}

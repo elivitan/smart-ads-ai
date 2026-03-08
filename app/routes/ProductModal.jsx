@@ -1,16 +1,58 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect } from "react";
 
-import { ScoreRing, ModalScrollLock } from "./SmallComponents.jsx";
+// ══════════════════════════════════════════════
+// SHARED: ScoreRing (used by ProductModal + main dashboard)
+// ══════════════════════════════════════════════
+export const ScoreRing = React.memo(function ScoreRing({ score, size = 54 }) {
+  const r = (size - 6) / 2, circ = 2 * Math.PI * r, off = circ - (score / 100) * circ;
+  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
+  return (
+    <svg width={size} height={size} style={{ filter:`drop-shadow(0 0 6px ${color}44)` }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="5"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="5"
+        strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} style={{ transition:"stroke-dashoffset 1s ease" }}/>
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fill={color} fontSize="13" fontWeight="800">{score}</text>
+    </svg>
+  );
+});
 
-function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadlines, editDescriptions, setEditDescriptions, isPaid, aiCredits, setShowBuyCredits, improvingIdx, handleAiImprove, canPublish, hasScanAccess, campaignStatus, setCampaignStatus, handleCreateCampaign, setSelProduct, setShowOnboard, setOnboardTab, setOnboardStep, shop }) {
+// ══════════════════════════════════════════════
+// HELPER: find AI result by product (id-first, title fallback)
+// ══════════════════════════════════════════════
+function findAiForProduct(aiProducts, product) {
+  if (!aiProducts || !product) return null;
+  if (product.id) {
+    const byId = aiProducts.find(ap => ap.id && String(ap.id) === String(product.id));
+    if (byId) return byId;
+  }
+  if (product.title) {
+    return aiProducts.find(ap => ap.title === product.title) || null;
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════
+// HELPER: Scroll lock when modal is open
+// ══════════════════════════════════════════════
+function ModalScrollLock() {
+  useEffect(() => {
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = originalStyle; };
+  }, []);
+  return null;
+}
+
+// ══════════════════════════════════════════════
+// PRODUCT MODAL
+// ══════════════════════════════════════════════
+export default function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadlines, editDescriptions, setEditDescriptions, isPaid, aiCredits, setShowBuyCredits, improvingIdx, handleAiImprove, canPublish, hasScanAccess, campaignStatus, setCampaignStatus, handleCreateCampaign, setSelProduct, setShowOnboard, setOnboardTab, setOnboardStep, shop }) {
   const isDb = !!product.hasAiAnalysis;
-  const ai = isDb ? (product.aiAnalysis||{}) : (aiResults?.products?.find(ap=>ap.title===product.title)||{});
+  const ai = isDb ? (product.aiAnalysis||{}) : (findAiForProduct(aiResults?.products, product)||{});
   const keywords = (ai.keywords||[]).map(k=>typeof k==="string"?{text:k,match_type:"BROAD"}:k);
   const sitelinks = ai.sitelinks||[], cIntel = ai.competitor_intel||null;
   const path1 = ai.path1||"Shop", path2 = ai.path2||"", negKw = ai.negative_keywords||[];
-  const longHeadlines = (ai.long_headlines||ai.longHeadlines||[]).map(h => typeof h==="string"?h:(h?.text||"")).filter(Boolean);
-  const recBid = ai.recommended_bid||null;
-  const targetDemo = ai.target_demographics||null;
   const score = ai.ad_score||0;
   const adStrength = editHeadlines.length>=8&&editDescriptions.length>=4?"Excellent":editHeadlines.length>=5?"Good":editHeadlines.length>=3?"Average":"Poor";
   const strengthColor = {Excellent:"#22c55e",Good:"#84cc16",Average:"#f59e0b",Poor:"#ef4444"}[adStrength];
@@ -30,13 +72,8 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
         <div className="rsa-strength">
           <div className="rsa-strength-bar"><div className="rsa-strength-fill" style={{width:strengthPct+"%",background:strengthColor}}/></div>
           <span className="rsa-strength-txt" style={{color:strengthColor}}>{adStrength}</span>
-          <span className="rsa-strength-info">{editHeadlines.length}/15 headlines · {editDescriptions.length}/4 descriptions{longHeadlines.length>0?` · ${longHeadlines.length}/5 long headlines`:""}</span>
+          <span className="rsa-strength-info">{editHeadlines.length}/15 headlines · {editDescriptions.length}/4 descriptions</span>
         </div>
-        {(recBid || targetDemo) && <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
-          {recBid && <div style={{background:"rgba(99,102,241,.1)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Recommended Bid: </span><strong style={{color:"#a5b4fc"}}>${recBid.toFixed(2)}</strong></div>}
-          {targetDemo && <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.15)",borderRadius:10,padding:"8px 14px",fontSize:12}}><span style={{color:"rgba(255,255,255,.5)"}}>Target: </span><strong style={{color:"#86efac"}}>{targetDemo}</strong></div>}
-        </div>}
-
         <div className="rsa-preview">
           <div className="rsa-preview-label">📱 Live Google Ad Preview</div>
           <div className="rsa-preview-ad">
@@ -52,30 +89,19 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
             <div className="rsa-items">{editHeadlines.map((h,i)=>(
               <div key={i} className="rsa-item">
                 <span className="rsa-item-num">{i+1}</span>
-                <input className="rsa-item-input" value={h} maxLength={30} onChange={e=>{const n=[...editHeadlines];n[i]=e.target.value.slice(0,30);setEditHeadlines(n);}}/>
+                <input className="rsa-item-input" value={h} maxLength={30} onChange={e=>{const n=[...editHeadlines];n[i]=e.target.value;setEditHeadlines(n);}}/>
                 <span className={`rsa-item-len ${h.length>30?"rsa-over":""}`}>{h.length}/30</span>
                 {isPaid && <button className={`btn-ai-improve ${improvingIdx===`h-${i}`?"improving":""}`} onClick={()=>handleAiImprove("h",i)} disabled={improvingIdx!==null}>{improvingIdx===`h-${i}`?"⏳":"✨"}</button>}
                 {i<3 && <span className="rsa-pin">📌 H{i+1}</span>}
               </div>
             ))}</div>
           </div>
-          {longHeadlines.length>0 && <div className="rsa-section">
-            <div className="rsa-section-head"><h3>Long Headlines ({longHeadlines.length}/5)</h3><span className="rsa-hint">Max 90 chars · Performance Max</span></div>
-            <div className="rsa-items">{longHeadlines.map((lh,li)=>(
-              <div key={li} className="rsa-item rsa-item-desc">
-                <span className="rsa-item-num">{li+1}</span>
-                <div className="rsa-item-input" style={{background:"rgba(99,102,241,.05)",padding:"8px 10px",borderRadius:8,fontSize:13,color:"rgba(255,255,255,.8)",minHeight:36,display:"flex",alignItems:"center"}}>{lh}</div>
-                <span className={"rsa-item-len "+(lh.length>90?"rsa-over":"")}>{lh.length}/90</span>
-              </div>
-            ))}</div>
-          </div>}
-
           <div className="rsa-section">
             <div className="rsa-section-head"><h3>📝 Descriptions ({editDescriptions.length}/4)</h3><span className="rsa-hint">Max 90 chars each</span></div>
             <div className="rsa-items">{editDescriptions.map((d,i)=>(
               <div key={i} className="rsa-item rsa-item-desc">
                 <span className="rsa-item-num">{i+1}</span>
-                <textarea className="rsa-item-input rsa-item-textarea" value={d} maxLength={90} rows={2} onChange={e=>{const n=[...editDescriptions];n[i]=e.target.value.slice(0,90);setEditDescriptions(n);}}/>
+                <textarea className="rsa-item-input rsa-item-textarea" value={d} maxLength={90} rows={2} onChange={e=>{const n=[...editDescriptions];n[i]=e.target.value;setEditDescriptions(n);}}/>
                 <span className={`rsa-item-len ${d.length>90?"rsa-over":""}`}>{d.length}/90</span>
                 {isPaid && <button className={`btn-ai-improve ${improvingIdx===`d-${i}`?"improving":""}`} onClick={()=>handleAiImprove("d",i)} disabled={improvingIdx!==null}>{improvingIdx===`d-${i}`?"⏳":"✨"}</button>}
               </div>
@@ -90,7 +116,13 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
           {cIntel && (
             <div className="rsa-section ci-section">
               <h3>🕵️ Competitor Intelligence</h3>
-
+              {cIntel.store_ranking && (
+                <div className="ci-ranking">
+                  <div className="ci-ranking-icon">{cIntel.store_ranking.status==="page_1"?"🟢":cIntel.store_ranking.status==="page_2"?"🟡":"🔴"}</div>
+                  <div className="ci-ranking-info"><strong>Your Google Position</strong><span>{cIntel.store_ranking.position?`#${cIntel.store_ranking.position} for "${cIntel.store_ranking.query}"` :`Not found in top 10 for "${cIntel.store_ranking.query}"`}</span></div>
+                  <div className={`ci-strategy-badge ci-strat-${(cIntel.strategy||"aggressive").split("_")[0]}`}>{(cIntel.strategy||"aggressive").replace(/_/g," ").toUpperCase()}</div>
+                </div>
+              )}
               {cIntel.strategy_reason && <p className="ci-reason">{cIntel.strategy_reason}</p>}
               {cIntel.top_competitors?.length>0 && <div className="ci-competitors"><strong>Top Competitors:</strong><div className="ci-comp-list">{cIntel.top_competitors.map((c,i)=><div key={i} className="ci-comp-card"><div className="ci-comp-rank">#{c.position||i+1}</div><div className="ci-comp-info"><a href={`https://${c.domain}`} target="_blank" rel="noopener noreferrer" className="ci-comp-domain ci-comp-link">{c.domain}</a><span className="ci-comp-strength">{c.strength||"unknown"}</span></div>{c.price_range&&<span className="ci-comp-price">{c.price_range}</span>}</div>)}</div></div>}
               {cIntel.keyword_gaps?.length>0 && <div className="ci-gaps"><strong>💡 Keyword Opportunities:</strong><div className="rsa-kw-grid" style={{marginTop:6}}>{cIntel.keyword_gaps.map((k,i)=><div key={i} className="rsa-kw kw-gap">+{k}</div>)}</div></div>}
@@ -124,9 +156,3 @@ function ProductModal({ product, onClose, aiResults, editHeadlines, setEditHeadl
     </div>
   );
 }
-
-
-
-// Single CSS injection — renders once, never duplicated
-
-export { ProductModal };

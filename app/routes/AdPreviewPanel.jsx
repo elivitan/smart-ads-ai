@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState } from "react";
 
 import { ScoreRing } from "./SmallComponents.jsx";
 
 const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCampaigns, canPublish, onLaunch, onViewProduct, shop }) {
   const [tab, setTab] = useState("search");
-  const [typing, setTyping] = useState(false);
-  const [typedQuery, setTypedQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
 
   const isActive = mockCampaigns > 0 && canPublish;
   const ai = topProduct?.aiAnalysis || topProduct?.ai || {};
@@ -28,19 +25,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
   const comps = topComps.length >= 3 ? topComps : topComps.length > 0 ? [...topComps, ...fallbackComps.slice(0, 3 - topComps.length)] : fallbackComps;
 
   const searchQuery = keywords[0] || "luxury bedding set queen";
-  useEffect(() => {
-    if (!topProduct) return;
-    let i = 0;
-    setTypedQuery("");
-    setTyping(true);
-    const iv = setInterval(() => {
-      i++;
-      setTypedQuery(searchQuery.slice(0, i));
-      if (i >= searchQuery.length) { clearInterval(iv); setTyping(false); setShowDropdown(true); setTimeout(() => setShowDropdown(false), 2000); }
-    }, 60);
-    return () => clearInterval(iv);
-  }, [topProduct?.id]);
-
   const h1 = headlines[0] || productTitle;
   const h2 = headlines[1] || "Free Shipping On Orders $50+";
   const h3 = headlines[2] || "Shop Now & Save";
@@ -59,7 +43,7 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
   );
 
   return (
-    <div className="adp-card" style={{overflow:"visible"}}>
+    <div className="adp-card">
       {/* Header */}
       <div className="adp-header">
         <div className="adp-header-left">
@@ -92,112 +76,137 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
         ))}
       </div>
 
-      {/* ══════ SEARCH TAB ══════ */}
+      {/* === SEARCH TAB === */}
       {tab === "search" && (
-        <div style={{background:"#fff",borderRadius:12,marginBottom:14,padding:16,display:"flex",gap:16}}>
-          {/* Left: search results */}
-          <div style={{flex:1,minWidth:0}}>
-          {/* Google search bar */}
-          <div className="adp-google-bar">
-            <svg width="16" height="16" viewBox="0 0 24 24" style={{flexShrink:0}}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            <span className="adp-typed-text">{typedQuery}{typing ? <span className="adp-cursor">|</span> : ""}</span>
-            <span className="adp-search-icon">{"🔍"}</span>
-          </div>
+        <div style={{display:"flex",gap:14,alignItems:"flex-start",marginBottom:14}}>
+          {/* LEFT — White card with search results (55% width) */}
+          <div style={{flex:"0 0 58%",background:"#fff",borderRadius:12,overflow:"hidden"}}>
+            {/* Google search bar */}
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px",borderBottom:"1px solid #e8eaed",background:"#fff",minHeight:38}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" style={{flexShrink:0}}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              <span style={{fontSize:13,color:"#202124",flex:1}}>{searchQuery}</span>
+              <span style={{fontSize:14}}>{"🔍"}</span>
+            </div>
 
-          {showDropdown && (
-            <div className="adp-dropdown">
-              {[searchQuery, searchQuery+" online", searchQuery+" best price"].map((s,i) => (
-                <div key={i} className="adp-dropdown-item"><span style={{color:"rgba(0,0,0,.4)",fontSize:12}}>{"🔍"}</span> {s}</div>
-              ))}
-            </div>
-          )}
+            <div style={{padding:"0 16px"}}>
+              {/* YOUR AD */}
+              <div style={{padding:"12px 0",borderBottom:"1px solid #ebebeb"}}>
+                <div style={{display:"inline-block",fontSize:11,fontWeight:700,background:"#f1f3f4",color:"#202124",borderRadius:4,padding:"2px 6px",marginBottom:6}}>Sponsored</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <div style={{width:20,height:20,borderRadius:3,background:"#e8eaed",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                    {productImage ? <img src={productImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:10}}>{"🛍"}</span>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#202124"}}>{storeDomain}</div>
+                    <div style={{fontSize:11,color:"#4d5156"}}>www.{storeDomain} {"›"} shop</div>
+                  </div>
+                </div>
+                <div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:4,cursor:"pointer"}}>
+                  {h1} | {h2} | {h3}
+                </div>
+                <div style={{fontSize:13,color:"#4d5156",lineHeight:1.5}}>{d1}</div>
+                {(ai.sitelinks?.length > 0) && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+                    {ai.sitelinks.slice(0,4).map((sl,i) => (
+                      <div key={i} style={{padding:"4px 10px",border:"1px solid #dadce0",borderRadius:6,fontSize:11,color:"#1a0dab",cursor:"pointer"}}>{sl.title||sl}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-          {/* YOUR AD */}
-          <div style={{padding:"14px 0",borderBottom:"1px solid #eee"}}>
-            <div style={{display:"inline-block",fontSize:11,fontWeight:700,border:"1px solid #dadce0",borderRadius:3,padding:"1px 5px",marginBottom:6}}>Sponsored</div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{width:20,height:20,borderRadius:3,background:"#e8eaed",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
-                {productImage ? <img src={productImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:10}}>{"🛍"}</span>}
+              {/* COMPETITOR AD */}
+              <div style={{padding:"12px 0",borderBottom:"1px solid #ebebeb"}}>
+                <div style={{display:"inline-block",fontSize:11,fontWeight:700,background:"#f1f3f4",color:"#202124",borderRadius:4,padding:"2px 6px",marginBottom:6}}>Sponsored</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <div style={{width:20,height:20,borderRadius:3,background:"#e8eaed",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{"🏪"}</div>
+                  <div>
+                    <div style={{fontSize:12,color:"#202124"}}>{comp1.domain || "competitor-store.com"}</div>
+                    <div style={{fontSize:11,color:"#4d5156"}}>www.{comp1.domain || "competitor-store.com"}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:4}}>
+                  {comp1.strength || "Quality Products"} | Shop Now
+                </div>
+                <div style={{fontSize:13,color:"#4d5156"}}>{comp1.price_range ? "From "+comp1.price_range : "Great prices on top brands."}</div>
               </div>
-              <div>
-                <div style={{fontSize:12,color:"#202124"}}>{storeDomain}</div>
-                <div style={{fontSize:11,color:"#4d5156"}}>www.{storeDomain} {"›"} shop</div>
-              </div>
-            </div>
-            <div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:4,cursor:"pointer"}}>
-              {h1} | {h2} | {h3}
-            </div>
-            <div style={{fontSize:13,color:"#4d5156",lineHeight:1.5}}>{d1}</div>
-            {(ai.sitelinks?.length > 0) && (
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
-                {ai.sitelinks.slice(0,4).map((sl,i) => (
-                  <div key={i} style={{padding:"5px 12px",border:"1px solid #dadce0",borderRadius:6,fontSize:12,color:"#1a0dab",cursor:"pointer"}}>{sl.title||sl}</div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* COMPETITOR AD */}
-          <div style={{padding:"14px 0",borderBottom:"1px solid #eee",opacity:.65}}>
-            <div style={{display:"inline-block",fontSize:11,fontWeight:700,border:"1px solid #dadce0",borderRadius:3,padding:"1px 5px",marginBottom:6}}>Sponsored</div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{width:20,height:20,borderRadius:3,background:"#e8eaed",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{"🏪"}</div>
-              <div>
-                <div style={{fontSize:12,color:"#202124"}}>{comp1.domain || "competitor-store.com"}</div>
-                <div style={{fontSize:11,color:"#4d5156"}}>www.{comp1.domain || "competitor-store.com"}</div>
-              </div>
-            </div>
-            <div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:4}}>
-              {comp1.strength || "Quality Products"} | Shop Now
-            </div>
-            <div style={{fontSize:13,color:"#4d5156"}}>{comp1.price_range ? "From "+comp1.price_range : "Great prices on top brands."}</div>
-          </div>
-
-          {/* ORGANIC RESULTS */}
-          <div style={{paddingTop:14}}>
-            <div style={{fontSize:11,color:"#70757a",marginBottom:10}}>Organic results</div>
-            {[
-              {title:"Top 10 Best "+(keywords[0]||"products")+" (2025 Guide)",desc:"Expert-reviewed picks for every budget. Updated monthly with the latest options and deals..."},
-              {title:"Compare "+(keywords[0]||"products")+" | Reviews & Ratings",desc:"Side-by-side comparison of top brands. Read real customer reviews before you buy..."},
-              {title:"How to Choose the Right "+(keywords[0]||"product"),desc:"Complete buying guide covers materials, sizes, care tips, and what to look for..."},
-            ].map((r,i) => (
-              <div key={i} style={{marginBottom:12}}>
-                <div style={{fontSize:14,color:"#1a0dab",marginBottom:2,cursor:"pointer"}}>{r.title}</div>
-                <div style={{fontSize:12,color:"#4d5156",lineHeight:1.5}}>{r.desc}</div>
-              </div>
-            ))}
-          </div>
-          </div>
-          {/* Right: Product Knowledge Panel */}
-          <div style={{width:220,flexShrink:0}}>
-            <div style={{border:"1px solid #dadce0",borderRadius:10,padding:14,background:"#fff"}}>
-              {productImage && <img src={productImage} alt="" style={{width:"100%",height:140,objectFit:"contain",borderRadius:6,marginBottom:10,background:"#f8f9fa"}}/>}
-              <div style={{fontSize:16,fontWeight:700,color:"#202124",marginBottom:4}}>{productTitle}</div>
-              <div style={{fontSize:14,fontWeight:700,color:"#d93025",marginBottom:8}}>{productPrice}</div>
-              <div style={{fontSize:11,color:"#70757a",lineHeight:1.5,marginBottom:10}}>Available at {storeDomain}</div>
-              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:10}}>
-                <span style={{color:"#fbbc04",fontSize:13}}>{"★★★★★"}</span>
-                <span style={{fontSize:11,color:"#70757a"}}>4.8</span>
-              </div>
-              <div style={{borderTop:"1px solid #eee",paddingTop:10}}>
-                <div style={{fontSize:11,color:"#70757a",marginBottom:6}}>Quick facts</div>
+              {/* ORGANIC RESULTS */}
+              <div style={{padding:"12px 0"}}>
+                <div style={{fontSize:11,color:"#70757a",marginBottom:8}}>Organic results</div>
                 {[
-                  {label:"Score",val:(score||0)+"/100"},
-                  {label:"Keywords",val:keywords.length+" targeted"},
-                  {label:"Competitors",val:comps.length+" found"},
-                ].map((f,i) => (
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 0"}}>
-                    <span style={{color:"#70757a"}}>{f.label}</span>
-                    <span style={{color:"#202124",fontWeight:600}}>{f.val}</span>
+                  {title:"Top 10 Best "+(keywords[0]||"products")+" (2025 Guide)",desc:"Expert-reviewed picks for every budget. Updated monthly with the latest options..."},
+                  {title:"Compare "+(keywords[0]||"products")+" | Reviews & Ratings",desc:"Side-by-side comparison of top brands. Read real customer reviews before you buy..."},
+                  {title:"How to Choose the Right "+(keywords[0]||"product"),desc:"Complete buying guide covers materials, sizes, care tips, and what to look for..."},
+                ].map((r,i) => (
+                  <div key={i} style={{marginBottom:10}}>
+                    <div style={{fontSize:13,color:"#1a0dab",marginBottom:2,cursor:"pointer"}}>{r.title}</div>
+                    <div style={{fontSize:12,color:"#4d5156",lineHeight:1.4}}>{r.desc}</div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Insights bar */}
+            <div style={{background:"#f8f9fa",borderTop:"1px solid #e8eaed",padding:"10px 16px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:adStrengthColor}}/>
+                <span style={{fontSize:11,color:"#555"}}>Ad Score: <strong style={{color:adStrengthColor}}>{score}/100</strong></span>
+              </div>
+              <span style={{fontSize:11,color:"#999"}}>{"•"}</span>
+              <span style={{fontSize:11,color:"#555"}}>{keywords.length} keywords targeted</span>
+              <span style={{fontSize:11,color:"#999"}}>{"•"}</span>
+              <span style={{fontSize:11,color:"#555"}}>{comps.length} competitors found</span>
+              {comp1.price_range && (
+                <>
+                  <span style={{fontSize:11,color:"#999"}}>{"•"}</span>
+                  <span style={{fontSize:11,color:"#16a34a",fontWeight:600}}>Your price: {productPrice} vs {comp1.price_range}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT — Knowledge Panel (on dark background, outside white card) */}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{border:"1px solid rgba(255,255,255,.1)",borderRadius:12,overflow:"hidden",background:"rgba(255,255,255,.03)"}}>
+              {/* Product image */}
+              <div style={{width:"100%",height:140,background:"rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+                {productImage
+                  ? <img src={productImage} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+                  : <span style={{fontSize:48,opacity:.3}}>{"🛍"}</span>}
+              </div>
+              {/* Product info */}
+              <div style={{padding:"12px 14px"}}>
+                <div style={{fontSize:15,fontWeight:600,color:"rgba(255,255,255,.9)",lineHeight:1.3,marginBottom:6}}>{productTitle}</div>
+                <div style={{fontSize:18,fontWeight:700,color:"#a5b4fc",marginBottom:4}}>{productPrice}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginBottom:10}}>Available at {storeDomain.split(".")[0]}</div>
+                {/* Rating */}
+                <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:10}}>
+                  <span style={{fontSize:12,color:"#fbbc04"}}>{"★★★★★"}</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>4.8</span>
+                </div>
+                {/* Quick facts */}
+                <div style={{borderTop:"1px solid rgba(255,255,255,.08)",paddingTop:10}}>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8}}>Quick facts</div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>Score</span>
+                    <span style={{fontSize:11,fontWeight:700,color:adStrengthColor}}>{score}/100</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>Keywords</span>
+                    <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.7)"}}>{keywords.length} targeted</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>Competitors</span>
+                    <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.7)"}}>{comps.length} found</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════ SHOPPING TAB ══════ */}
+      {/* === SHOPPING TAB === */}
       {tab === "shopping" && (
         <div style={{background:"#fff",borderRadius:12,marginBottom:14,padding:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -205,7 +214,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
             <span style={{fontSize:11,color:"#70757a"}}>{comps.length+1} results for "{keywords[0]||"bedding"}"</span>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-            {/* Our product */}
             <div style={{border:"2px solid #6366f1",borderRadius:10,padding:8,position:"relative",background:"#fff"}}>
               <div style={{position:"absolute",top:-8,left:8,background:"#6366f1",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10}}>YOUR AD</div>
               {productImage
@@ -216,7 +224,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
               <div style={{fontSize:10,color:"#70757a",marginTop:2}}>{storeDomain.split(".")[0]}</div>
               <div style={{fontSize:11,color:"#fbbc04",marginTop:2}}>{"★★★★★"} <span style={{color:"rgba(0,0,0,.5)",fontSize:9}}>4.8</span></div>
             </div>
-            {/* Competitors */}
             {comps.map((c,i) => (
               <div key={i} style={{border:"1px solid #e0e0e0",borderRadius:10,padding:8,background:"#fff"}}>
                 <div style={{width:"100%",height:80,background:"#f8f8f8",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{["🛏","🏠","⭐"][i]||"🏪"}</div>
@@ -229,7 +236,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
               </div>
             ))}
           </div>
-          {/* Price comparison */}
           <div style={{marginTop:14,padding:"10px 14px",background:"#f8f9fa",borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{fontSize:12,color:"#333"}}><strong>Your price:</strong> {productPrice}</div>
             {comp1.price_range && <div style={{fontSize:12,color:"#666"}}><strong>Avg competitor:</strong> {comp1.price_range}</div>}
@@ -238,21 +244,17 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
         </div>
       )}
 
-      {/* ══════ MOBILE TAB ══════ */}
+      {/* === MOBILE TAB === */}
       {tab === "mobile" && (
         <div style={{display:"flex",justifyContent:"center",padding:"20px 0"}}>
           <div style={{width:260,background:"#1a1a2e",borderRadius:28,padding:"10px 0",boxShadow:"0 8px 32px rgba(0,0,0,.4)",border:"2px solid rgba(255,255,255,.1)"}}>
-            {/* Notch */}
             <div style={{width:80,height:6,background:"rgba(255,255,255,.15)",borderRadius:3,margin:"4px auto 10px"}}/>
-            {/* Screen */}
             <div style={{background:"#fff",margin:"0 8px",borderRadius:14,overflow:"hidden"}}>
-              {/* Search bar */}
               <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:"#f1f3f4",borderBottom:"1px solid #e0e0e0"}}>
                 <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                 <span style={{fontSize:11,color:"#555",flex:1}}>{searchQuery}</span>
                 <span style={{fontSize:12}}>{"🔍"}</span>
               </div>
-              {/* Your Ad */}
               <div style={{padding:"10px 12px",borderBottom:"1px solid #eee"}}>
                 <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
                   <span style={{fontSize:9,fontWeight:700,color:"#000",background:"#f1f3f4",padding:"1px 5px",borderRadius:3}}>Ad</span>
@@ -272,7 +274,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
                   </div>
                 )}
               </div>
-              {/* Competitor Ad */}
               <div style={{padding:"8px 12px",borderBottom:"1px solid #eee",opacity:.6}}>
                 <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
                   <span style={{fontSize:8,fontWeight:700,color:"#000",background:"#f1f3f4",padding:"1px 4px",borderRadius:3}}>Ad</span>
@@ -281,7 +282,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
                 <div style={{fontSize:11,color:"#1a0dab",fontWeight:600,lineHeight:1.3}}>{comp1.strength||"Shop Now"} | {(comp1.domain||"competitor").split(".")[0]}</div>
                 <div style={{fontSize:9,color:"#4d5156",marginTop:2}}>{comp1.price_range?"From "+comp1.price_range:"Great deals available"}</div>
               </div>
-              {/* Organic results */}
               <div style={{padding:"8px 12px"}}>
                 <div style={{fontSize:9,color:"#999",marginBottom:6}}>Organic results</div>
                 {[
@@ -296,7 +296,6 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
                 ))}
               </div>
             </div>
-            {/* Home bar */}
             <div style={{width:60,height:4,background:"rgba(255,255,255,.2)",borderRadius:2,margin:"10px auto 4px"}}/>
           </div>
         </div>
