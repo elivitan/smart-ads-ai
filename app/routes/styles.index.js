@@ -185,7 +185,7 @@ body{-webkit-overflow-scrolling:touch}
 .gap-empty{text-align:center;padding:24px 0}
 
 /* AD PREVIEW PANEL */
-.adp-card{background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(99,102,241,.04));border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px;margin-bottom:24px;position:relative;overflow:visible}
+.adp-card{background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(99,102,241,.04));border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px;margin-bottom:24px;position:relative;overflow:hidden}
 .adp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,.4),rgba(6,182,212,.4),transparent)}
 .adp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:160px;gap:8px}
 .adp-empty-icon{font-size:36px;opacity:.4}
@@ -211,7 +211,7 @@ body{-webkit-overflow-scrolling:touch}
 .adp-tab{flex:1;padding:6px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;background:transparent;color:rgba(255,255,255,.4)}
 .adp-tab.adp-tab-active{background:rgba(99,102,241,.25);color:#c4b5fd}
 .adp-tab:hover:not(.adp-tab-active){color:rgba(255,255,255,.7)}
-.adp-preview-wrap{background:#fff;border-radius:12px;overflow:visible;margin-bottom:14px}
+.adp-preview-wrap{background:#fff;border-radius:12px;overflow:hidden;margin-bottom:14px}
 .adp-google-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e8eaed;background:#fff;font-size:13px;color:#202124;min-height:38px}
 .adp-typed-text{flex:1;color:#202124;font-size:13px}
 .adp-cursor{animation:cursorBlink .7s ease infinite;color:#4285F4}
@@ -245,7 +245,7 @@ body{-webkit-overflow-scrolling:touch}
 .adp-shopping-store{font-size:10px;color:#70757a;margin-bottom:3px}
 .adp-shopping-stars{font-size:11px;color:#fbbc04}
 .adp-mobile-wrap{background:transparent!important;display:flex;justify-content:center;padding:10px 0}
-.adp-phone-frame{width:180px;height:420px;background:#1a1a1a;border-radius:24px;padding:6px;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.adp-phone-frame{width:180px;height:280px;background:#1a1a1a;border-radius:24px;padding:6px;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .adp-phone-notch{width:50px;height:8px;background:#0a0a0a;border-radius:4px;margin:0 auto 4px}
 .adp-phone-screen{background:#fff;border-radius:18px;height:100%;overflow:hidden;display:flex;flex-direction:column}
 .adp-phone-searchbar{background:#f1f3f4;margin:6px;border-radius:10px;padding:5px 8px;font-size:9px;color:#202124}
