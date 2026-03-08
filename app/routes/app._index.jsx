@@ -1205,7 +1205,8 @@ export default function Index() {
                           <div className="p-metric"><span className="p-metric-ic">📊</span><span className="p-metric-val">{strategy}</span><span className="p-metric-lbl"></span></div>
                         </div>
                         <div className="p-card-hl">{ai.headlines?.[0]||"AI headline preview..."}</div>
-                        <div className="p-card-cta">{canPublish?"View & Launch →":"View AI Analysis →"}</div>
+                        <div style={{display:"flex",gap:6,alignItems:"center"}}><a href="/app/campaigns" onClick={e=>e.stopPropagation()} className="p-card-cta" style={{flex:1,textDecoration:"none",color:"inherit"}}>Manage Campaigns</a></div>
+
                       </>
                     ) : (
                       <><div className="p-card-hl" style={{color:"rgba(255,255,255,.25)"}}>Analysis pending...</div><div className="p-card-cta" style={{color:"rgba(255,255,255,.3)"}}>⏳ In queue</div></>
