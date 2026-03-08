@@ -2641,6 +2641,8 @@ export default function Index() {
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [pickedProducts, setPickedProducts] = useState([]);
   const [autoLaunching, setAutoLaunching] = useState(false);
+  const [autoScanMode, setAutoScanMode] = useState(null);
+  const [justSubscribed, setJustSubscribed] = useState(false); // true after selectPlan until scan starts // "auto"|"review"|null — set by Launch Choice after subscription
 
   const cancelRef = useRef(false);
   const creepRef = useRef(null);
@@ -2661,6 +2663,7 @@ export default function Index() {
 
   function selectPlan(plan) {
     setSelectedPlan(plan);
+    setJustSubscribed(true); // Mark: show scanning flow, not dashboard
     // Save as cookie (1 year) — survives tab close, cache clear
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
     document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
@@ -2980,7 +2983,7 @@ export default function Index() {
     </div>
   );
 
-  if (isScanning && !(isPaid && analyzedDbProducts.length === 0)) {
+  if (isScanning && !justSubscribed) {
     const pct = Math.round(fakeProgress);
     const steps = hasScanAccess ? [
       {label:"Fetching products from your store",done:pct>=10,active:pct<10},
@@ -3078,7 +3081,7 @@ export default function Index() {
     const clicksBase = liveAds.clicks;
 
     // ── Fresh paid subscriber — never scanned yet ──
-    if (isPaid && analyzedCount === 0) return (
+    if (isPaid && (analyzedCount === 0 || justSubscribed)) return (
       <div className="sr dk"><StyleTag/><div className="bg-m"/>
         <div className="status-bar"><div className="status-bar-inner">
           <div className="sb-row sb-row-data">
@@ -3092,6 +3095,7 @@ export default function Index() {
         <div className="da">
           <CollectingDataScreen
             totalProducts={totalProducts}
+            autoStart={!!autoScanMode}
             realProgress={isScanning ? Math.round(fakeProgress) : null}
             scanMsg={scanMsg}
             onScan={() => doScan("review")}
@@ -3100,9 +3104,29 @@ export default function Index() {
               if (creepRef.current) { clearInterval(creepRef.current); creepRef.current = null; }
               setIsScanning(false); setFakeProgress(0);
               setProducts([]); setAiResults(null);
+              setAutoScanMode(null);
+            }}
+            onComplete={() => {
+              // Reload to pick up newly analyzed products from the DB
+              window.location.reload();
             }}
           />
         </div>
+        {showLaunchChoice && (
+          <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
+            <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,textAlign:"center",padding:"44px 36px"}}>
+              <button className="modal-close" onClick={()=>setShowLaunchChoice(false)}>✕</button>
+              <div style={{fontSize:48,marginBottom:16}}>🚀</div>
+              <h2 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Launch Your Campaigns</h2>
+              <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
+              <div style={{display:"flex",gap:16,flexDirection:"column"}}>
+                <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);setJustSubscribed(false);setAutoScanMode("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly — zero manual work</div></div></button>
+                <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);setJustSubscribed(false);setAutoScanMode("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>setShowLaunchChoice(true)}/>}
       </div>
     );
 
