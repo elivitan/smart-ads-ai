@@ -108,7 +108,17 @@ function CollectingDataScreen(props) {
         setStatusMsg(msgs[s]);
         var pct = bounds[0] + ((bounds[1] - bounds[0]) * (s + 1) / msgs.length);
         setTargetProg(Math.round(pct));
-        await sleep(interval);
+        // Pause-aware sleep: check every 100ms instead of sleeping the full interval
+        var elapsed = 0;
+        while (elapsed < interval) {
+          if (cancelledRef.current) return false;
+          while (pausedRef.current) {
+            await sleep(100);
+            if (cancelledRef.current) return false;
+          }
+          await sleep(100);
+          elapsed += 100;
+        }
       }
       return true;
     }
