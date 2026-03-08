@@ -2664,6 +2664,7 @@ export default function Index() {
   function selectPlan(plan) {
     setSelectedPlan(plan);
     setJustSubscribed(true); // Mark: show scanning flow, not dashboard
+    setScanMsg(""); // Clear stale scan messages from previous sessions
     // Save as cookie (1 year) — survives tab close, cache clear
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
     document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
@@ -3098,7 +3099,7 @@ export default function Index() {
               totalProducts={totalProducts}
               autoStart={true}
               realProgress={null}
-              scanMsg={scanMsg}
+              scanMsg={""}
               onScan={() => doScan("review")}
               onCancel={() => {
                 cancelRef.current = true;
