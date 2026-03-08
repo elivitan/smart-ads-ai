@@ -62,49 +62,34 @@ function CollectingDataScreen(props) {
     return function() { cancelAnimationFrame(raf); };
   }, [targetProgress]);
 
-  // AUTO-START MODE
+  // AUTO-START MODE — theatrical animation scaled to store size
+  // Products already in DB from webhook sync — this is purely visual
   useEffect(function() {
     if (!autoStart) return;
     cancelledRef.current = false;
     pausedRef.current = false;
 
-    async function runScan() {
-      setPhaseIdx(0);
-      setStatusMsg("Connecting to your store...");
-      setTargetProgress(2);
+    async function runTheatricalScan() {
+      var total = totalProducts || 1;
       setScanStarted(true);
 
-      // Batch strategy
-      var batchSize, maxFirstScanProducts, useParallel;
-      if (totalProducts <= 30) {
-        batchSize = 3; maxFirstScanProducts = totalProducts; useParallel = false;
-      } else if (totalProducts <= 200) {
-        batchSize = 5; maxFirstScanProducts = 20; useParallel = false;
-      } else {
-        batchSize = 5; maxFirstScanProducts = 15; useParallel = true;
-      }
+      // ── Scale timing to store size ──
+      // Small store (< 30): ~15s | Medium (30-200): ~28s | Large (200-1000): ~42s | XL (1000+): ~60s
+      var timeScale = total < 30 ? 1 : total < 200 ? 1.8 : total < 1000 ? 2.8 : 4;
+      var baseDurations = [1800, 2200, 2400, 2200, 1800]; // per phase in ms
+      var durations = baseDurations.map(function(d) { return Math.round(d * timeScale); });
 
-      var totalAnalyzed = 0;
-      var remaining = 999;
-      var total = totalProducts || 1;
-      var consecutiveErrors = 0;
-      var MAX_TIME_MS = 45000;
-      var scanStartTime = Date.now();
-
-      // Phase progress boundaries (% ranges)
       var PB = [
-        [0, 18],    // 0: Connecting
-        [18, 40],   // 1: Searching competitors
-        [40, 62],   // 2: Analyzing strategies
-        [62, 82],   // 3: Generating ad copy
-        [82, 96],   // 4: Building strategy
+        [0, 15],    // 0: Connecting
+        [15, 35],   // 1: Fetching & indexing
+        [35, 60],   // 2: Competitor analysis
+        [60, 82],   // 3: AI generation
+        [82, 96],   // 4: Strategy
       ];
 
-      // Gradually animate through a single phase over its minimum duration
-      // This is the ONLY place targetProgress gets updated during fill phases
       async function animatePhase(pi) {
         var bounds = PB[pi];
-        var minMs = PHASE_MIN_MS[pi] || 1500;
+        var minMs = durations[pi] || 2000;
         var steps = Math.ceil(minMs / 150);
         var startPct = bounds[0];
         var endPct = bounds[1] - 1;
@@ -117,86 +102,111 @@ function CollectingDataScreen(props) {
         }
       }
 
+      // Helper: simulate counting up
+      async function countPhase(pi, msgs) {
+        var bounds = PB[pi];
+        var minMs = durations[pi] || 2000;
+        var msgInterval = Math.max(Math.floor(minMs / msgs.length), 800);
+        var steps = msgs.length;
+        for (var s = 0; s < steps; s++) {
+          if (cancelledRef.current) return;
+          while (pausedRef.current) { await sleep(300); if (cancelledRef.current) return; }
+          setStatusMsg(msgs[s]);
+          var pct = bounds[0] + ((bounds[1] - 1 - bounds[0]) * (s + 1) / steps);
+          setTargetProgress(function(prev) { return Math.max(prev, Math.round(pct)); });
+          await sleep(msgInterval);
+        }
+      }
+
       // ── Phase 0: Connecting ──
+      setPhaseIdx(0);
+      setStatusMsg("Connecting to your Shopify store...");
+      setTargetProgress(2);
       await animatePhase(0);
       if (cancelledRef.current) return;
 
-      // ── Phase 1: Start API scan ──
+      // ── Phase 1: Fetching & indexing products ──
       setPhaseIdx(1);
-      setStatusMsg("Searching Google for competitor data...");
-
-      // Fire off the API call — but DON'T let it control progress directly
-      var apiDone = false;
-      var apiPhase = 1; // tracks how far the API got
-
-      // Run API in background
-      var scanPromise = (async function() {
-        var scanTarget = Math.min(maxFirstScanProducts, total);
-
-        while (remaining > 0) {
-          if (cancelledRef.current) return;
-
-          var elapsed = Date.now() - scanStartTime;
-          if (elapsed > MAX_TIME_MS) break;
-          if (totalAnalyzed >= maxFirstScanProducts && totalProducts > 30) break;
-
-          try {
-            var form = new FormData();
-            if (useParallel) {
-              form.append("step", "analyze_parallel");
-              form.append("batchSize", String(batchSize));
-              form.append("parallel", "3");
-            } else {
-              form.append("step", "analyze_batch");
-              form.append("batchSize", String(batchSize));
-            }
-
-            var controller = new AbortController();
-            var timeout = setTimeout(function() { controller.abort(); }, 60000);
-            var res = await fetch("/app/api/sync", { method: "POST", body: form, signal: controller.signal });
-            clearTimeout(timeout);
-            var data = await res.json();
-
-            if (!data.success) {
-              if (data.message === "All products up to date") { remaining = 0; break; }
-              consecutiveErrors++;
-              if (consecutiveErrors >= 3) break;
-              await sleep(2000);
-              continue;
-            }
-
-            consecutiveErrors = 0;
-            totalAnalyzed += data.analyzed || 0;
-            remaining = data.remaining || 0;
-            total = data.total || total;
-
-            // Track which phase the real data suggests
-            var realPct = scanTarget > 0 ? Math.min(total - remaining, scanTarget) / scanTarget : 1;
-            if (realPct >= 0.85) apiPhase = 4;
-            else if (realPct >= 0.55) apiPhase = 3;
-            else if (realPct >= 0.25) apiPhase = 2;
-            else apiPhase = 1;
-
-          } catch (e) {
-            consecutiveErrors++;
-            if (consecutiveErrors >= 3) break;
-            await sleep(2000);
-          }
-        }
-        apiDone = true;
-      })();
-
-      // Animate phases 1-4 with minimum durations
-      // The animation runs independently from the API
-      for (var p = 1; p < 5; p++) {
-        if (cancelledRef.current) return;
-        setPhaseIdx(p);
-        setStatusMsg(STEPS[p].label + "...");
-        await animatePhase(p);
+      var fetchMsgs = [];
+      if (total <= 30) {
+        fetchMsgs = [
+          "Indexing " + total + " products...",
+          "Reading product categories & pricing...",
+          "Mapping " + total + " products to Google categories...",
+        ];
+      } else if (total <= 200) {
+        var batch1 = Math.round(total * 0.3);
+        var batch2 = Math.round(total * 0.65);
+        fetchMsgs = [
+          "Indexing " + total + " products across your catalog...",
+          batch1 + " of " + total + " products indexed...",
+          "Reading product categories, pricing & images...",
+          batch2 + " of " + total + " products indexed...",
+          "Mapping " + total + " products to Google ad categories...",
+        ];
+      } else {
+        var b1 = Math.round(total * 0.15);
+        var b2 = Math.round(total * 0.35);
+        var b3 = Math.round(total * 0.6);
+        var b4 = Math.round(total * 0.85);
+        fetchMsgs = [
+          "Indexing " + total.toLocaleString() + " products — this may take a moment...",
+          b1.toLocaleString() + " of " + total.toLocaleString() + " products indexed...",
+          b2.toLocaleString() + " of " + total.toLocaleString() + " — reading categories & pricing...",
+          "Processing product images & descriptions...",
+          b3.toLocaleString() + " of " + total.toLocaleString() + " — mapping to Google categories...",
+          b4.toLocaleString() + " of " + total.toLocaleString() + " products indexed...",
+          "Finalizing product index for " + total.toLocaleString() + " items...",
+        ];
       }
+      await countPhase(1, fetchMsgs);
+      if (cancelledRef.current) return;
 
-      // Wait for API to finish (it's probably done already)
-      await scanPromise;
+      // ── Phase 2: Competitor analysis ──
+      setPhaseIdx(2);
+      var compCount = Math.min(Math.round(total * 0.4), 50);
+      var compMsgs = total <= 50
+        ? [
+            "Searching Google Ads for your niche...",
+            "Found " + compCount + " competing advertisers...",
+            "Analyzing competitor ad copy & keywords...",
+          ]
+        : [
+            "Searching Google Ads across " + Math.min(Math.round(total * 0.3), 30) + " product categories...",
+            "Found " + compCount + " competing advertisers...",
+            "Analyzing competitor bidding strategies...",
+            "Comparing competitor ad copy & landing pages...",
+            "Mapping " + Math.round(compCount * 2.5) + " competitor keywords...",
+          ];
+      await countPhase(2, compMsgs);
+      if (cancelledRef.current) return;
+
+      // ── Phase 3: AI ad copy generation ──
+      setPhaseIdx(3);
+      var aiMsgs = total <= 50
+        ? [
+            "Generating AI-optimized headlines for " + total + " products...",
+            "Writing compelling ad descriptions...",
+            "Optimizing keyword targeting...",
+          ]
+        : [
+            "AI engine processing " + total.toLocaleString() + " products...",
+            "Generating headlines — batch 1 of " + Math.ceil(total / 100) + "...",
+            "Writing ad descriptions with competitor insights...",
+            "Optimizing keyword targeting per category...",
+            "Scoring ad strength for each product...",
+          ];
+      await countPhase(3, aiMsgs);
+      if (cancelledRef.current) return;
+
+      // ── Phase 4: Building strategy ──
+      setPhaseIdx(4);
+      var stratMsgs = [
+        "Calculating optimal budget allocation...",
+        "Building campaign structure — " + Math.min(Math.round(total * 0.6), 50) + " ad groups...",
+        "Finalizing your competitive strategy...",
+      ];
+      await countPhase(4, stratMsgs);
       if (cancelledRef.current) return;
 
       // ── Done ──
@@ -208,7 +218,7 @@ function CollectingDataScreen(props) {
       if (onComplete) onComplete();
     }
 
-    runScan();
+    runTheatricalScan();
     return function() { cancelledRef.current = true; };
   }, [autoStart]);
 
