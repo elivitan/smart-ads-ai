@@ -16,10 +16,140 @@ import { GoogleAdsPreview } from "../components/campaigns/GoogleAdsPreview";
 import CampaignWizard, { CampaignCreatingAnimation, CampaignSuccessScreen } from "../components/campaigns/CampaignWizard";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  const mockCampaigns = [
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  // Try to get real campaigns from Google Ads API
+  let campaigns = [];
+  let isSimulated = false;
+
+  try {
+    // Call our campaign-manage API internally
+    const hasGoogleAds = process.env.GOOGLE_ADS_DEVELOPER_TOKEN && process.env.GOOGLE_ADS_REFRESH_TOKEN;
+
+    if (hasGoogleAds) {
+      // Import and use Google Ads functions directly
+      const token = await getGoogleAccessToken();
+      const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
+
+      if (token && customerId) {
+        const query = `
+          SELECT
+            campaign.id, campaign.name, campaign.status,
+            campaign.advertising_channel_type, campaign.bidding_strategy_type,
+            campaign_budget.amount_micros,
+            metrics.impressions, metrics.clicks, metrics.cost_micros,
+            metrics.conversions, metrics.conversions_value,
+            metrics.ctr, metrics.average_cpc
+          FROM campaign
+          WHERE campaign.name LIKE 'Smart Ads%'
+          AND campaign.status != 'REMOVED'
+          ORDER BY campaign.id DESC
+          LIMIT 50
+        `;
+
+        const url = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.[0]?.results) {
+            campaigns = data[0].results.map(row => {
+              const c = row.campaign;
+              const m = row.metrics || {};
+              const b = row.campaignBudget;
+              const costNum = m.costMicros ? parseInt(m.costMicros) / 1000000 : 0;
+              const revenueNum = parseFloat(m.conversionsValue || 0);
+              return {
+                id: c.id,
+                name: c.name,
+                type: c.advertisingChannelType === "SEARCH" ? "manual" : "auto",
+                status: c.status,
+                createdAt: new Date().toISOString(),
+                budget: b?.amountMicros ? parseInt(b.amountMicros) / 1000000 : 30,
+                products: [], // will be enriched client-side
+                keywords: [],
+                headlines: [],
+                descriptions: [],
+                finalUrl: "",
+                displayPath: [],
+                performance: {
+                  impressions: parseInt(m.impressions || 0),
+                  clicks: parseInt(m.clicks || 0),
+                  roas: costNum > 0 ? parseFloat((revenueNum / costNum).toFixed(2)) : 0,
+                  spend: parseFloat(costNum.toFixed(2)),
+                  today_clicks: 0,
+                  today_spend: 0,
+                  conversions: parseFloat(m.conversions || 0),
+                  revenue: parseFloat(revenueNum.toFixed(2)),
+                  ctr: parseFloat((parseFloat(m.ctr || 0) * 100).toFixed(2)),
+                  avgCpc: m.averageCpc ? parseInt(m.averageCpc) / 1000000 : 0,
+                  qualityScore: 7,
+                },
+              };
+            });
+          }
+        }
+      }
+    }
+
+    // If no real campaigns, use simulated data
+    if (campaigns.length === 0) {
+      isSimulated = true;
+      campaigns = getSimulatedCampaigns();
+    }
+  } catch (err) {
+    console.error("[Campaigns Loader] Error loading real data:", err.message);
+    isSimulated = true;
+    campaigns = getSimulatedCampaigns();
+  }
+
+  // Get quick market signal (no API cost)
+  let marketSignal = null;
+  try {
+    const { getQuickMarketSignal } = await import("../market-intel.server.js");
+    marketSignal = await getQuickMarketSignal({
+      regions: ["US"],
+      productCategory: "bedding",
+    });
+  } catch (e) {
+    console.warn("[Campaigns Loader] Market signal failed:", e.message);
+  }
+
+  return { campaigns, isSimulated, marketSignal };
+};
+
+// Helper: Get Google Ads access token
+async function getGoogleAccessToken() {
+  try {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
+        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
+        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+        grant_type: "refresh_token",
+      }),
+    });
+    const data = await res.json();
+    return data.access_token;
+  } catch { return null; }
+}
+
+// Simulated campaigns for demo/development
+function getSimulatedCampaigns() {
+  return [
     {
-      id: "camp_001", name: "Summer Bedding Collection", type: "auto", status: "PENDING_REVIEW",
+      id: "camp_001", name: "Summer Bedding Collection", type: "auto", status: "ENABLED",
       createdAt: "2026-03-05T10:00:00Z", budget: 25,
       products: [
         { id:"p1", title:"Luxury Cotton Duvet Cover", image:null, clicks:82, spend:142, revenue:280, roas:1.97 },
@@ -33,7 +163,7 @@ export const loader = async ({ request }) => {
         { text:"microfiber sheets king", bid:0.75 },
         { text:"soft bedding online", bid:0.60 }
       ],
-      headlines: ["Premium Bedding — Shop Now","Luxury Cotton Sheets & Covers","Free Shipping on All Orders","Soft Duvet Covers From $49","Top-Rated Bedding Store","Transform Your Bedroom Today"],
+      headlines: ["Premium Bedding \u2014 Shop Now","Luxury Cotton Sheets & Covers","Free Shipping on All Orders","Soft Duvet Covers From $49","Top-Rated Bedding Store","Transform Your Bedroom Today"],
       descriptions: [
         "Transform your bedroom with our luxury bedding collection. Soft, durable, and beautiful.",
         "Shop premium cotton duvets, bamboo pillows & more. Fast US shipping.",
@@ -45,7 +175,7 @@ export const loader = async ({ request }) => {
       performance: { impressions:4200, clicks:180, roas:2.8, spend:312, today_clicks:12, today_spend:18, conversions:8, revenue:560, ctr:4.3, avgCpc:1.73, qualityScore:8 },
     },
     {
-      id: "camp_002", name: "Winter Pillows — Manual", type: "manual", status: "ENABLED",
+      id: "camp_002", name: "Winter Pillows \u2014 Manual", type: "manual", status: "ENABLED",
       createdAt: "2026-03-01T08:00:00Z", budget: 40,
       products: [
         { id:"p4", title:"Memory Foam Pillow King", image:null, clicks:245, spend:312, revenue:560, roas:1.79 },
@@ -57,7 +187,7 @@ export const loader = async ({ request }) => {
         { text:"king size pillow set", bid:0.90 },
         { text:"down alternative pillow", bid:0.70 }
       ],
-      headlines: ["Best Pillows for Deep Sleep","Memory Foam King Pillows","Free US Shipping Over $50","Cooling Gel Pillows — New","Wake Up Pain-Free","Doctor Recommended Pillows"],
+      headlines: ["Best Pillows for Deep Sleep","Memory Foam King Pillows","Free US Shipping Over $50","Cooling Gel Pillows \u2014 New","Wake Up Pain-Free","Doctor Recommended Pillows"],
       descriptions: [
         "Wake up refreshed with our premium memory foam pillows. Designed for all sleep positions.",
         "Shop our full pillow collection. Trusted by 10,000+ sleepers. Fast delivery.",
@@ -69,8 +199,7 @@ export const loader = async ({ request }) => {
       performance: { impressions:8900, clicks:410, roas:3.4, spend:520, today_clicks:28, today_spend:31, conversions:12, revenue:840, ctr:4.6, avgCpc:1.27, qualityScore:9 },
     },
   ];
-  return { campaigns: mockCampaigns };
-};
+}
 
 
 /* ── Launch Dialog ── */
@@ -648,7 +777,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
 /* ── Main Component ── */
 
 export default function Campaigns() {
-  const { campaigns } = useLoaderData();
+  const { campaigns, isSimulated, marketSignal } = useLoaderData();
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id || null);
   const [viewMode, setViewMode] = useState({});
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
@@ -701,6 +830,19 @@ export default function Campaigns() {
       </div>
 
       <div className="camp-fade" style={{ display:"grid",gridTemplateColumns:"280px 1fr",flex:1,minHeight:0,overflow:"auto" }}>
+        {isSimulated && (
+          <div style={{ background:"rgba(255,180,0,.12)", border:"1px solid rgba(255,180,0,.25)", borderRadius:12, padding:"10px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:16 }}>⚡</span>
+            <span style={{ fontSize:13, color:"rgba(255,180,0,.9)", fontWeight:500 }}>Demo Mode — Connect Google Ads for real data</span>
+          </div>
+        )}
+        {marketSignal && (
+          <div style={{ background: marketSignal.signal === "green" ? "rgba(0,200,100,.08)" : marketSignal.signal === "yellow" ? "rgba(255,200,0,.08)" : "rgba(255,60,60,.08)", border: "1px solid " + (marketSignal.signal === "green" ? "rgba(0,200,100,.2)" : marketSignal.signal === "yellow" ? "rgba(255,200,0,.2)" : "rgba(255,60,60,.2)"), borderRadius:12, padding:"10px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:16 }}>{marketSignal.signal === "green" ? "🟢" : marketSignal.signal === "yellow" ? "🟡" : "🔴"}</span>
+            <span style={{ fontSize:13, color:"rgba(255,255,255,.7)", fontWeight:500 }}>{marketSignal.signal_label}{marketSignal.holiday ? ` — ${marketSignal.holiday.name} in ${marketSignal.holiday.daysUntil} days` : ""}</span>
+            {marketSignal.budget_multiplier !== 1.0 && <span style={{ fontSize:12, color:"rgba(168,85,247,.8)", fontWeight:600, marginLeft:"auto" }}>Budget: {marketSignal.budget_multiplier}x</span>}
+          </div>
+        )}
         <CampaignSidebar campaigns={campaigns} selectedId={selectedId} onSelect={setSelectedId} onNew={() => setShowLaunchDialog(true)} />
         {selected && (
           <CampaignDetail
