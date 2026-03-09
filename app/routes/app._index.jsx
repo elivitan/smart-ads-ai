@@ -19,6 +19,30 @@ import { MarketAlert } from "./MarketAlert.jsx";
 import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
 
+// Error Boundary — prevents widget crashes from killing the whole page
+class WidgetErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(err, info) { console.error(`[WidgetErrorBoundary] ${this.props.label || "widget"} crashed:`, err, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(239,68,68,.2)",borderRadius:16,padding:"16px 20px",marginBottom:20,minHeight:72}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:18}}>⚠️</span>
+            <span style={{fontWeight:700,fontSize:14,color:"rgba(255,255,255,.7)"}}>{this.props.label || "Widget"}</span>
+          </div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.4)",marginTop:6}}>
+            Something went wrong loading this section.
+            <button onClick={()=>this.setState({hasError:false,error:null})} style={{marginLeft:8,background:"rgba(99,102,241,.15)",border:"1px solid rgba(99,102,241,.3)",borderRadius:6,padding:"3px 10px",color:"#a5b4fc",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Retry</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function getPlanFromCookie(request) {
   try {
     const cookie = request.headers.get("cookie") || "";
@@ -851,14 +875,18 @@ export default function Index() {
             )}
           </div>
           {/* MARKET INTELLIGENCE */}
+          <WidgetErrorBoundary label="Market Intelligence">
           <LockedOverlay title="Market Intelligence">
           <MarketAlert shopDomain={shopDomain}/>
           </LockedOverlay>
+          </WidgetErrorBoundary>
 
           {/* STORE PERFORMANCE ANALYTICS */}
+          <WidgetErrorBoundary label="Store Performance">
           <LockedOverlay title="Store Performance Analytics">
           <StoreAnalyticsWidget/>
           </LockedOverlay>
+          </WidgetErrorBoundary>
 
 
 
