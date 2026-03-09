@@ -2,12 +2,8 @@
 // ═══════════════════════════════════════════════════════════════
 // Smart Ads AI — The Brain
 // This is the core intelligence engine. Claude receives REAL data
-// from Serper.dev, SerpAPI (fallback), Google Ads API, and Shopify
-// — and makes decisions like a senior ad agency campaign manager.
-//
-// SEARCH PRIORITY:
-//   1. Serper.dev (SERPER_API_KEY) — 2,500 free searches
-//   2. SerpAPI (SERPAPI_KEY) — fallback if Serper unavailable
+// from SerpAPI, Google Ads API, and Shopify — and makes decisions
+// like a senior ad agency campaign manager.
 //
 // RULE: Claude never invents numbers. Every metric shown to the
 // user must come from a real source. If data is missing, say so.
@@ -17,7 +13,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { withRetry } from "./retry.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const SERPER_KEY = process.env.SERPER_API_KEY || "";
 const SERP_KEY = process.env.SERPAPI_KEY || "";
 
 // ─────────────────────────────────────────────
@@ -25,255 +20,110 @@ const SERP_KEY = process.env.SERPAPI_KEY || "";
 // ─────────────────────────────────────────────
 
 /**
- * Search via Serper.dev (primary) or SerpAPI (fallback)
- * Serper returns: organic, ads (peopleAlsoAsk, knowledgeGraph, shopping)
- * Returns unified format regardless of source
- */
-async function searchWithSerper(keyword) {
-  if (!SERPER_KEY) return null;
-  try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: {
-        "X-API-KEY": SERPER_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        q: keyword,
-        gl: "us",
-        hl: "en",
-        num: 20,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) {
-      console.warn("[AI-Brain] Serper HTTP error:", res.status);
-      return null;
-    }
-    const data = await res.json();
-    return { source: "serper", data };
-  } catch (err) {
-    console.warn("[AI-Brain] Serper failed:", err.message);
-    return null;
-  }
-}
-
-async function searchWithSerpAPI(keyword) {
-  if (!SERP_KEY) return null;
-  try {
-    const url = `https://serpapi.com/search.json?q=${encodeURIComponent(keyword)}&api_key=${SERP_KEY}&num=20&hl=en&gl=us`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { source: "serpapi", data };
-  } catch (err) {
-    console.warn("[AI-Brain] SerpAPI failed:", err.message);
-    return null;
-  }
-}
-
-/**
- * Parse Serper.dev results into our unified format
- */
-function parseSerperResults(data, keyword, storeDomain) {
-  const ads = [];
-  const organic = [];
-  const shopping = [];
-  let storeRanking = null;
-
-  // Paid ads
-  if (data.ads) {
-    for (const ad of data.ads) {
-      ads.push({
-        keyword,
-        title: ad.title || "",
-        domain: ad.link ? new URL(ad.link).hostname.replace("www.", "") : "",
-        description: ad.description || "",
-        position: ad.position || 0,
-        sitelinks: ad.sitelinks || [],
-      });
-    }
-  }
-
-  // Organic results
-  if (data.organic) {
-    for (const r of data.organic.slice(0, 10)) {
-      const domain = r.link ? new URL(r.link).hostname.replace("www.", "") : "";
-      organic.push({
-        keyword,
-        position: r.position || 0,
-        title: r.title || "",
-        domain,
-        snippet: r.snippet || "",
-      });
-    }
-
-    // Check store ranking
-    if (storeDomain) {
-      const cleanDomain = storeDomain.replace(/https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-      const found = data.organic.find(r =>
-        r.link?.toLowerCase().includes(cleanDomain)
-      );
-      storeRanking = {
-        keyword,
-        position: found?.position || null,
-        found: !!found,
-      };
-    }
-  }
-
-  // Shopping results
-  if (data.shopping) {
-    for (const s of data.shopping.slice(0, 5)) {
-      shopping.push({
-        keyword,
-        title: s.title || "",
-        price: s.price || "",
-        source: s.source || "",
-        rating: s.rating || null,
-        reviews: s.reviews || null,
-      });
-    }
-  }
-
-  return { ads, organic, shopping, storeRanking };
-}
-
-/**
- * Parse SerpAPI results into our unified format (legacy)
- */
-function parseSerpAPIResults(data, keyword, storeDomain) {
-  const ads = [];
-  const organic = [];
-  const shopping = [];
-  let storeRanking = null;
-
-  if (data.ads) {
-    for (const ad of data.ads) {
-      ads.push({
-        keyword,
-        title: ad.title || "",
-        domain: ad.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
-        description: ad.description || "",
-        position: ad.position || 0,
-        sitelinks: ad.sitelinks || [],
-      });
-    }
-  }
-
-  if (data.organic_results) {
-    for (const r of data.organic_results.slice(0, 10)) {
-      organic.push({
-        keyword,
-        position: r.position,
-        title: r.title,
-        domain: r.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
-        snippet: r.snippet || "",
-      });
-    }
-
-    if (storeDomain) {
-      const cleanDomain = storeDomain.replace(/https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-      const found = data.organic_results.find(r =>
-        r.displayed_link?.toLowerCase().includes(cleanDomain) ||
-        r.link?.toLowerCase().includes(cleanDomain)
-      );
-      storeRanking = {
-        keyword,
-        position: found?.position || null,
-        found: !!found,
-      };
-    }
-  }
-
-  if (data.shopping_results) {
-    for (const s of data.shopping_results.slice(0, 5)) {
-      shopping.push({
-        keyword,
-        title: s.title || "",
-        price: s.price || "",
-        source: s.source || "",
-        rating: s.rating || null,
-        reviews: s.reviews || null,
-      });
-    }
-  }
-
-  return { ads, organic, shopping, storeRanking };
-}
-
-/**
- * collectCompetitorData — Main search function
- * Priority: Serper.dev > SerpAPI > empty
+ * SerpAPI: Search Google for real competitor data
+ * Returns: ads running, organic competitors, shopping prices, trend data
  */
 export async function collectCompetitorData(keywords, storeDomain) {
-  if (!SERPER_KEY && !SERP_KEY) {
-    console.warn("[AI-Brain] No search API keys available (SERPER_API_KEY or SERPAPI_KEY)");
-    return { ads: [], organic: [], shopping: [], trends: null, competitorCount: 0, searchSource: "none" };
-  }
+  if (!SERP_KEY) return { ads: [], organic: [], shopping: [], trends: null, competitorCount: 0 };
 
   const allAds = [];
   const allOrganic = [];
   const allShopping = [];
   const storeRankings = [];
-  let searchSource = "unknown";
 
   // Search top keywords (max 3 to save API calls)
   for (const kw of keywords.slice(0, 3)) {
-    // Try Serper first, fall back to SerpAPI
-    let result = await searchWithSerper(kw);
-    let parsed;
-
-    if (result) {
-      searchSource = "serper.dev";
-      parsed = parseSerperResults(result.data, kw, storeDomain);
-    } else {
-      result = await searchWithSerpAPI(kw);
-      if (result) {
-        searchSource = "serpapi";
-        parsed = parseSerpAPIResults(result.data, kw, storeDomain);
-      } else {
-        console.warn(`[AI-Brain] All search APIs failed for "${kw}"`);
-        continue;
-      }
-    }
-
-    allAds.push(...parsed.ads);
-    allOrganic.push(...parsed.organic);
-    allShopping.push(...parsed.shopping);
-    if (parsed.storeRanking) storeRankings.push(parsed.storeRanking);
-  }
-
-  // Google Trends via SerpAPI (only if SerpAPI key exists — Serper doesn't have trends)
-  let trends = null;
-  if (SERP_KEY) {
     try {
-      const trendQuery = keywords.slice(0, 3).join(",");
-      const trendUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(trendQuery)}&geo=US&date=today 3-m&api_key=${SERP_KEY}`;
-      const trendRes = await fetch(trendUrl, { signal: AbortSignal.timeout(10000) });
-      if (trendRes.ok) {
-        const trendData = await trendRes.json();
-        const timeline = trendData.interest_over_time?.timeline_data || [];
-        if (timeline.length > 4) {
-          const recent = timeline.slice(-4);
-          const older = timeline.slice(-8, -4);
-          const recentAvg = recent.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / recent.length;
-          const olderAvg = older.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / Math.max(older.length, 1);
-          const change = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg * 100) : 0;
-          trends = {
-            keywords: trendQuery,
-            recentInterest: Math.round(recentAvg),
-            previousInterest: Math.round(olderAvg),
-            changePercent: parseFloat(change.toFixed(1)),
-            direction: change > 10 ? "rising" : change < -10 ? "falling" : "stable",
-          };
+      const url = `https://serpapi.com/search.json?q=${encodeURIComponent(kw)}&api_key=${SERP_KEY}&num=20&hl=en&gl=us`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+
+      // Paid ads — who is spending money on this keyword
+      if (data.ads) {
+        for (const ad of data.ads) {
+          allAds.push({
+            keyword: kw,
+            title: ad.title || "",
+            domain: ad.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
+            description: ad.description || "",
+            position: ad.position || 0,
+            sitelinks: ad.sitelinks || [],
+          });
+        }
+      }
+
+      // Organic results — who ranks naturally
+      if (data.organic_results) {
+        for (const r of data.organic_results.slice(0, 10)) {
+          allOrganic.push({
+            keyword: kw,
+            position: r.position,
+            title: r.title,
+            domain: r.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
+            snippet: r.snippet || "",
+          });
+        }
+
+        // Check where our store ranks
+        if (storeDomain) {
+          const cleanDomain = storeDomain.replace(/https?:\/\//, "").replace(/\/$/, "").toLowerCase();
+          const found = data.organic_results.find(r =>
+            r.displayed_link?.toLowerCase().includes(cleanDomain) ||
+            r.link?.toLowerCase().includes(cleanDomain)
+          );
+          storeRankings.push({
+            keyword: kw,
+            position: found?.position || null,
+            found: !!found,
+          });
+        }
+      }
+
+      // Shopping results — real prices from competitors
+      if (data.shopping_results) {
+        for (const s of data.shopping_results.slice(0, 5)) {
+          allShopping.push({
+            keyword: kw,
+            title: s.title || "",
+            price: s.price || "",
+            source: s.source || "",
+            rating: s.rating || null,
+            reviews: s.reviews || null,
+          });
         }
       }
     } catch (err) {
-      console.warn("[AI-Brain] Trends failed:", err.message);
+      console.warn(`[AI-Brain] SerpAPI failed for "${kw}":`, err.message);
     }
-  } else {
-    console.log("[AI-Brain] No SERPAPI_KEY — skipping Google Trends (Serper doesn't support trends)");
+  }
+
+  // Google Trends via SerpAPI
+  let trends = null;
+  try {
+    const trendQuery = keywords.slice(0, 3).join(",");
+    const trendUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(trendQuery)}&geo=US&date=today 3-m&api_key=${SERP_KEY}`;
+    const trendRes = await fetch(trendUrl, { signal: AbortSignal.timeout(10000) });
+    if (trendRes.ok) {
+      const trendData = await trendRes.json();
+      const timeline = trendData.interest_over_time?.timeline_data || [];
+      if (timeline.length > 4) {
+        const recent = timeline.slice(-4);
+        const older = timeline.slice(-8, -4);
+        const recentAvg = recent.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / recent.length;
+        const olderAvg = older.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / Math.max(older.length, 1);
+        const change = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg * 100) : 0;
+        trends = {
+          keywords: trendQuery,
+          recentInterest: Math.round(recentAvg),
+          previousInterest: Math.round(olderAvg),
+          changePercent: parseFloat(change.toFixed(1)),
+          direction: change > 10 ? "rising" : change < -10 ? "falling" : "stable",
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[AI-Brain] Trends failed:", err.message);
   }
 
   // Deduplicate competitor domains
@@ -288,8 +138,6 @@ export async function collectCompetitorData(keywords, storeDomain) {
   const bigPlayers = ["amazon", "walmart", "wayfair", "target", "bedbathandbeyond", "overstock", "macys", "pottery barn", "ikea", "costco"];
   const bigCompetitors = uniqueAds.filter(a => bigPlayers.some(bp => a.domain.toLowerCase().includes(bp)));
 
-  console.log(`[AI-Brain] Search complete via ${searchSource}: ${allOrganic.length} organic, ${uniqueAds.length} ads, ${allShopping.length} shopping`);
-
   return {
     ads: uniqueAds.slice(0, 10),
     organic: allOrganic,
@@ -299,7 +147,6 @@ export async function collectCompetitorData(keywords, storeDomain) {
     competitorCount: uniqueAds.length,
     bigPlayerCount: bigCompetitors.length,
     bigPlayers: bigCompetitors.map(a => a.domain),
-    searchSource,
   };
 }
 
