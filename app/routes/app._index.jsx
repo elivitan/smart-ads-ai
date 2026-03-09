@@ -43,6 +43,22 @@ class WidgetErrorBoundary extends React.Component {
   }
 }
 
+// LockedOverlay — MUST be outside Index() to prevent child remount loops
+function LockedOverlay({ isPaid, onUpgrade, title, children }) {
+  if (isPaid) return children || null;
+  return (
+    <div style={{position:"relative"}}>
+      <div style={{filter:"blur(3px)",opacity:0.5,pointerEvents:"none"}}>{children}</div>
+      <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(10,10,26,.7)",borderRadius:16,zIndex:10,cursor:"pointer"}} onClick={onUpgrade}>
+        <div style={{fontSize:36,marginBottom:8}}>🔒</div>
+        <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:4}}>{title || "Premium Feature"}</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:12}}>Subscribe to unlock this section</div>
+        <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600}}>Upgrade Now →</div>
+      </div>
+    </div>
+  );
+}
+
 function getPlanFromCookie(request) {
   try {
     const cookie = request.headers.get("cookie") || "";
@@ -224,20 +240,7 @@ export default function Index() {
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;
 
-  function LockedOverlay({ title, children }) {
-    if (isPaid) return children || null;
-    return (
-      <div style={{position:"relative"}}>
-        <div style={{filter:"blur(3px)",opacity:0.5,pointerEvents:"none"}}>{children}</div>
-        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(10,10,26,.7)",borderRadius:16,zIndex:10,cursor:"pointer"}} onClick={()=>{setShowOnboard(true);setOnboardTab("subscription");setOnboardStep(1);}}>
-          <div style={{fontSize:36,marginBottom:8}}>🔒</div>
-          <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:4}}>{title || "Premium Feature"}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:12}}>Subscribe to unlock this section</div>
-          <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600}}>Upgrade Now →</div>
-        </div>
-      </div>
-    );
-  }
+  // LockedOverlay — moved outside Index() to prevent remount loops
 
   const [marketIntel, setMarketIntel] = useState(null);
   useEffect(() => {
@@ -876,14 +879,14 @@ export default function Index() {
           </div>
           {/* MARKET INTELLIGENCE */}
           <WidgetErrorBoundary label="Market Intelligence">
-          <LockedOverlay title="Market Intelligence">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Market Intelligence">
           <MarketAlert shopDomain={shopDomain}/>
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           {/* STORE PERFORMANCE ANALYTICS */}
           <WidgetErrorBoundary label="Store Performance">
-          <LockedOverlay title="Store Performance Analytics">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Store Performance Analytics">
           <StoreAnalyticsWidget/>
           </LockedOverlay>
           </WidgetErrorBoundary>
