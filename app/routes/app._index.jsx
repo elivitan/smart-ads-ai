@@ -195,6 +195,7 @@ export default function Index() {
   const cancelRef = useRef(false);
   const creepRef = useRef(null);
 
+  const _forcePreview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'landing';
   const isPaid = !!selectedPlan;
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { ScoreRing } from "./ui/SmallWidgets.jsx";
 
 function ModalScrollLock() {
   useEffect(() => {
