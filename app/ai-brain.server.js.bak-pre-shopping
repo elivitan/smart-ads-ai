@@ -32,7 +32,6 @@ const SERP_KEY = process.env.SERPAPI_KEY || "";
 async function searchWithSerper(keyword) {
   if (!SERPER_KEY) return null;
   try {
-    // Fetch organic + ads from /search
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
       headers: {
@@ -52,30 +51,6 @@ async function searchWithSerper(keyword) {
       return null;
     }
     const data = await res.json();
-
-    // Fetch shopping from separate endpoint
-    try {
-      const shopRes = await fetch("https://google.serper.dev/shopping", {
-        method: "POST",
-        headers: {
-          "X-API-KEY": SERPER_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          q: keyword,
-          gl: "us",
-          num: 5,
-        }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (shopRes.ok) {
-        const shopData = await shopRes.json();
-        data.shopping = shopData.shopping || [];
-      }
-    } catch (shopErr) {
-      console.warn("[AI-Brain] Serper shopping failed:", shopErr.message);
-    }
-
     return { source: "serper", data };
   } catch (err) {
     console.warn("[AI-Brain] Serper failed:", err.message);
