@@ -18,7 +18,7 @@ import { ProductModal } from "../components/ProductModal.jsx";
 import { MarketAlert } from "./MarketAlert.jsx";
 import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
-import { SubscriberHome } from "./SubscriberHome.jsx";
+import { SubscriberHome } from "../components/SubscriberHome.jsx";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
