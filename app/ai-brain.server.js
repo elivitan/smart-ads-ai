@@ -12,7 +12,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { withRetry } from "./retry.server.js";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY,
+  baseURL: process.env.OPENROUTER_API_KEY ? "https://openrouter.ai/api/v1" : undefined,
+  defaultHeaders: process.env.OPENROUTER_API_KEY ? { "HTTP-Referer": "https://smart-ads-ai.app", "X-Title": "Smart Ads AI" } : {},
+});
 const SERP_KEY = process.env.SERPAPI_KEY || "";
 
 // ─────────────────────────────────────────────
