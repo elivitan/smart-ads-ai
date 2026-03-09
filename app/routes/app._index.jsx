@@ -229,6 +229,15 @@ export default function Index() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  // Browser back arrow support: dashboard ↔ home
+  useEffect(() => {
+    if (showDashboard) {
+      window.history.pushState({ view: "dashboard" }, "");
+    }
+    const onPop = () => { if (showDashboard) setShowDashboard(false); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [showDashboard]);
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
   const [editDescriptions, setEditDescriptions] = useState([]);
@@ -691,6 +700,7 @@ export default function Index() {
 
     // ── SUBSCRIBER HOME PAGE — shows before dashboard ──
     if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
+      <>
       <SubscriberHome
         selectedPlan={selectedPlan}
         shopDomain={shopDomain}
@@ -703,10 +713,27 @@ export default function Index() {
         keywordGaps={keywordGaps}
         totalMonthlyGapLoss={totalMonthlyGapLoss}
         onOpenDashboard={() => setShowDashboard(true)}
-        onScan={() => { setShowDashboard(true); doScan("review"); }}
-        onLaunch={() => { setShowDashboard(true); setShowLaunchChoice(true); }}
+        onScan={() => doScan("review")}
+        onLaunch={() => setShowLaunchChoice(true)}
         onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
       />
+      {showLaunchChoice && (
+        <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,textAlign:"center",padding:"44px 36px"}}>
+            <button className="modal-close" onClick={()=>setShowLaunchChoice(false)}>✕</button>
+            <div style={{fontSize:48,marginBottom:16}}>🚀</div>
+            <h2 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Launch Your Campaigns</h2>
+            <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
+            <div style={{display:"flex",gap:16,flexDirection:"column"}}>
+              <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);setShowDashboard(true);doScan("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly</div></div></button>
+              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);setShowDashboard(true);doScan("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showOnboard && <OnboardModal onClose={()=>setShowOnboard(false)} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} onLaunchChoice={()=>{if(justSubscribed){setAutoScanMode("review");}else{setShowLaunchChoice(true);}}}/>}
+      {showBuyCredits && <BuyCreditsModal onClose={()=>setShowBuyCredits(false)} aiCredits={aiCredits} setAiCredits={setAiCredits}/>}
+      </>
     );
 
     // ── Fresh paid subscriber — never scanned yet ──
@@ -746,6 +773,9 @@ export default function Index() {
         <div className="bg-m"/>
 
         {/* STATUS BAR — two rows */}
+        <div style={{padding:"8px 32px 0",maxWidth:1600,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+          <button onClick={()=>setShowDashboard(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,.5)",fontSize:13,cursor:"pointer",padding:"4px 0",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}}>← Back to Home</button>
+        </div>
         <div className="status-bar">
           <div className="status-bar-inner">
             {/* Row 1: data chips */}
