@@ -18,6 +18,7 @@ import { ProductModal } from "../components/ProductModal.jsx";
 import { MarketAlert } from "./MarketAlert.jsx";
 import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
+import { SubscriberHome } from "./SubscriberHome.jsx";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
@@ -227,6 +228,7 @@ export default function Index() {
   const [realSpend, setRealSpend] = useState(null); // live spend from Google Ads API
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
   const [editDescriptions, setEditDescriptions] = useState([]);
@@ -686,6 +688,26 @@ export default function Index() {
     // Live Google Ads data — from top-level hook
     const impressionsBase = liveAds.impressions;
     const clicksBase = liveAds.clicks;
+
+    // ── SUBSCRIBER HOME PAGE — shows before dashboard ──
+    if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
+      <SubscriberHome
+        selectedPlan={selectedPlan}
+        shopDomain={shopDomain}
+        analyzedDbProducts={analyzedDbProducts}
+        totalProducts={totalProducts}
+        analyzedCount={analyzedCount}
+        avgScore={avgScore}
+        topCompetitors={topCompetitors}
+        liveAds={liveAds}
+        keywordGaps={keywordGaps}
+        totalMonthlyGapLoss={totalMonthlyGapLoss}
+        onOpenDashboard={() => setShowDashboard(true)}
+        onScan={() => doScan("review")}
+        onLaunch={() => setShowLaunchChoice(true)}
+        onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
+      />
+    );
 
     // ── Fresh paid subscriber — never scanned yet ──
     if (isPaid && (analyzedCount === 0 || justSubscribed)) return (
