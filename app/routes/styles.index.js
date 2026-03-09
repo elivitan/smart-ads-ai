@@ -1,6 +1,5 @@
 // app/routes/styles.index.js
-// All CSS for the Smart Ads AI dashboard
-// Extracted to reduce app._index.jsx size
+// All CSS — extracted from app._index.jsx
 
 const CSS = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -117,7 +116,7 @@ body{-webkit-overflow-scrolling:touch}
 .cds-title{font-size:22px;font-weight:800;letter-spacing:-.3px}
 .cds-sub{font-size:14px;color:rgba(255,255,255,.45);line-height:1.5;max-width:380px}
 .cds-progress-wrap{display:flex;align-items:center;gap:12px;width:100%}
-.cds-progress-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;position:relative}
+.cds-progress-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:visible;position:relative}
 .cds-progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4);border-radius:3px;transition:width .3s ease}
 .cds-progress-glow{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 12px rgba(139,92,246,.9);transition:left .3s ease}
 .cds-progress-pct{font-size:12px;font-weight:700;color:rgba(255,255,255,.4);width:36px;text-align:right;flex-shrink:0}
@@ -347,11 +346,11 @@ body{-webkit-overflow-scrolling:touch}
 .budget-sim-sub{font-size:13px;color:rgba(255,255,255,.5);margin:0}
 .budget-sim-upgrade{padding:8px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
 .budget-sim-inputs{display:flex;flex-direction:column;gap:18px;margin-bottom:24px;position:relative;z-index:11}
-.budget-sim-input-row{display:flex;flex-direction:column;gap:6px}
+.budget-sim-input-row{display:flex;flex-direction:column;gap:6px;z-index:9999;touch-action:none}
 .budget-sim-input-label{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.7)}
 .budget-sim-input-val{font-weight:800;color:#a5b4fc}
-.budget-sim-slider{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:rgba(99,102,241,.2);border-radius:4px;outline:none;cursor:pointer;position:relative;z-index:9999;pointer-events:all;margin:8px 0;touch-action:none;-webkit-user-select:none;user-select:none}.budget-sim-slider:active{cursor:grabbing}.budget-sim-input-row{position:relative;z-index:9999;touch-action:none}
-.budget-sim-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;box-shadow:0 0 8px rgba(99,102,241,.5);margin-top:-7px}.budget-sim-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;box-shadow:0 0 8px rgba(99,102,241,.5);border:none}.budget-sim-slider::-moz-range-track{height:8px;background:rgba(99,102,241,.2);border-radius:4px}
+.budget-sim-slider{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:rgba(99,102,241,.2);border-radius:3px;outline:none;cursor:pointer;position:relative;z-index:9999;touch-action:none;user-select:none;pointer-events:all}
+.budget-sim-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;box-shadow:0 0 8px rgba(99,102,241,.5)}
 .budget-sim-range-labels{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.3)}
 .budget-sim-results{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .budget-sim-result-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;text-align:center;transition:border-color .3s}
@@ -823,28 +822,18 @@ body{-webkit-overflow-scrolling:touch}
 /* FIX: .da needs position:relative for gradient bg */
 .da{position:relative;z-index:1}
 
-
-
-
-/* ─── Campaign Counter Hero Card ─── */
-.campaign-hero-card{position:relative;border-radius:16px;padding:28px 32px;margin-bottom:24px;overflow:hidden;border:1px solid rgba(99,102,241,.25)}
-.campaign-hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,rgba(99,102,241,.18) 0%,rgba(168,85,247,.12) 50%,rgba(34,197,94,.08) 100%);z-index:0}
-.campaign-hero-bg::after{content:'';position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.15),transparent 70%);border-radius:50%}
-.campaign-hero-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:24px}
-.campaign-hero-left{display:flex;flex-direction:column;gap:4px}
-.campaign-hero-number{font-size:56px;font-weight:900;line-height:1;background:linear-gradient(135deg,#a5b4fc,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.campaign-hero-label{font-size:16px;font-weight:700;color:rgba(255,255,255,.9);letter-spacing:.5px}
-.campaign-hero-sub{font-size:13px;color:rgba(255,255,255,.45);margin-top:2px}
-.campaign-hero-right{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
-.campaign-hero-dots{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.campaign-dot{width:14px;height:14px;border-radius:50%;transition:all .3s}
-.dot-active{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5);animation:dot-pulse 2s ease-in-out infinite}
-.dot-paused{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.3)}
-.dot-other{background:rgba(255,255,255,.15)}
-.dot-empty{background:rgba(255,255,255,.08);border:2px dashed rgba(255,255,255,.15)}
-@keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
-.campaign-hero-link{color:#a5b4fc;font-size:13px;font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid rgba(99,102,241,.3);border-radius:8px;transition:all .2s}
-.campaign-hero-link:hover{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.5)}
+/* RESPONSIVE FIX: narrow mobile */
+@media(max-width:480px){
+  .gap-table-head,.gap-row{grid-template-columns:2fr 1fr 1fr}
+  .gap-diff,.gap-freq,.gap-action{display:none}
+  .comp-metrics-row{grid-template-columns:repeat(2,1fr)}
+  .hero-h{font-size:24px}
+  .hero-p{font-size:14px}
+  .da-header{flex-direction:column;gap:12px}
+  .tmo-content{flex-direction:column}
+}
+/* FIX: .da needs position:relative for gradient bg */
+.da{position:relative;z-index:1}
 
 `;
 
