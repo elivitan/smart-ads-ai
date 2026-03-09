@@ -492,8 +492,8 @@ body{-webkit-overflow-scrolling:touch}
 .upc-desc{font-size:13px;color:rgba(255,255,255,.55);line-height:1.4}
 
 /* PRODUCTS GRID */
-.p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;contain:layout}
-.p-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;position:relative;will-change:transform;backface-visibility:hidden}
+.p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+.p-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;position:relative;}
 .p-card:hover{transform:translate3d(0,-3px,0);border-color:rgba(99,102,241,.4);box-shadow:0 8px 30px rgba(99,102,241,.12)}
 .p-card-recommended{border-color:rgba(245,158,11,.35);box-shadow:0 0 20px rgba(245,158,11,.1)}
 .p-card-rec-badge{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,rgba(245,158,11,.9),rgba(251,191,36,.8));color:#000;font-size:11px;font-weight:700;padding:5px 12px;z-index:2;text-align:center}
