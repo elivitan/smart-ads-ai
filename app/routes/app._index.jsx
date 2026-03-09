@@ -229,15 +229,7 @@ export default function Index() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  // Browser back arrow support: dashboard ↔ home
-  useEffect(() => {
-    if (showDashboard) {
-      window.history.pushState({ view: "dashboard" }, "");
-    }
-    const onPop = () => { if (showDashboard) setShowDashboard(false); };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [showDashboard]);
+
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
   const [editDescriptions, setEditDescriptions] = useState([]);
