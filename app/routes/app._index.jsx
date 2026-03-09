@@ -703,8 +703,8 @@ export default function Index() {
         keywordGaps={keywordGaps}
         totalMonthlyGapLoss={totalMonthlyGapLoss}
         onOpenDashboard={() => setShowDashboard(true)}
-        onScan={() => doScan("review")}
-        onLaunch={() => setShowLaunchChoice(true)}
+        onScan={() => { setShowDashboard(true); doScan("review"); }}
+        onLaunch={() => { setShowDashboard(true); setShowLaunchChoice(true); }}
         onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
       />
     );

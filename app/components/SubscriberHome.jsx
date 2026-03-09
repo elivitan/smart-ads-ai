@@ -195,6 +195,7 @@ export function SubscriberHome({
             <p style={{ fontSize: 14, color: "#94a3b8", margin: "5px 0 0" }}>Here's what needs your attention today</p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            <button className="sh-btn sh-btn-secondary" onClick={onOpenDashboard}><LayoutDashboard size={14} /> Dashboard</button>
             <button className="sh-btn sh-btn-secondary" onClick={onScan}><Search size={14} /> New Scan</button>
             <button className="sh-btn sh-btn-primary" onClick={onLaunch}><Rocket size={14} /> Launch Campaign</button>
           </div>
