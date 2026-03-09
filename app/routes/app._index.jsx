@@ -829,25 +829,6 @@ export default function Index() {
           )}
 
           
-          {/* CAMPAIGN HERO CARD */}
-          {isPaid && (
-            <div style={{background:"linear-gradient(135deg,rgba(34,197,94,.08),rgba(16,185,129,.06))",border:"1px solid rgba(34,197,94,.15)",borderRadius:16,padding:"20px 24px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-              <div style={{display:"flex",alignItems:"center",gap:16}}>
-                <div style={{width:64,height:64,borderRadius:16,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:"0 4px 16px rgba(34,197,94,.3)"}}>📈</div>
-                <div>
-                  <div style={{fontSize:32,fontWeight:800,color:"#fff",lineHeight:1}}>{mockCampaigns}</div>
-                  <div style={{fontSize:13,color:"rgba(255,255,255,.6)",marginTop:4}}>{mockCampaigns === 1 ? "Active Campaign" : "Active Campaigns"}</div>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👁</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.impressions ? liveAds.impressions.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Impressions</div></div>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👆</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.clicks ? liveAds.clicks.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Clicks</div></div>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>💰</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.roas ? liveAds.roas+"x" : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>ROAS</div></div>
-              </div>
-              <a href="/app/campaigns" style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap"}}>View Campaigns →</a>
-            </div>
-          )}
-
           {/* STATUS ROW */}
           <div className="status-row">
             <div className="status-card"><div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>📈</div><div><div className="status-card-label">Campaigns Active</div><div className="status-card-val">{mockCampaigns} running</div></div><div className="status-card-trend">{canPublish?`+${Math.round(mockCampaigns*0.2)} this week`:"Subscribe to launch"}</div></div>
