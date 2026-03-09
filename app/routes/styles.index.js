@@ -6,7 +6,7 @@ const CSS = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+
 html{scroll-behavior:smooth}
 body{-webkit-overflow-scrolling:touch}
 .sr{font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
-.dk{background:#0a0a1a;color:#fff;min-height:100vh;position:relative;overflow-x:hidden;width:100%;display:flex;flex-direction:column}
+.dk{background:#0a0a1a;color:#fff;min-height:100%;position:relative;overflow-x:hidden;width:100%;display:flex;flex-direction:column}
 .bg-m{position:absolute;top:0;left:0;right:0;min-height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(99,102,241,.15),transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,.1),transparent 50%),radial-gradient(ellipse at 50% 80%,rgba(139,92,246,.1),transparent 50%);pointer-events:none;z-index:0}
 
 /* TOP BAR */

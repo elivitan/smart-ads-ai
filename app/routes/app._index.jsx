@@ -424,6 +424,7 @@ export default function Index() {
         const form = new FormData();
         form.append("action", "list");
         const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+        if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); return; }
         const data = await res.json();
         if (!cancelled && data.campaigns) {
           // Find our campaign by id
@@ -446,6 +447,7 @@ export default function Index() {
       form.append("action", "pause");
       form.append("campaignId", campaignId);
       const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+      if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); setCampaignControlStatus("error"); return; }
       const data = await res.json();
       setCampaignControlStatus(data.success ? "paused" : "error");
     } catch { setCampaignControlStatus("error"); }
@@ -460,6 +462,7 @@ export default function Index() {
       form.append("action", "remove");
       form.append("campaignId", campaignId);
       const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+      if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); setCampaignControlStatus("error"); return; }
       const data = await res.json();
       if (data.success) {
         setCampaignControlStatus("removed");
