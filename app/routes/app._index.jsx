@@ -193,26 +193,36 @@ export default function Index() {
   const [onboardTab, setOnboardTab] = useState("subscription");
 
   // Plan — cookie is source of truth (set server-side, no flash)
-  const [selectedPlan, setSelectedPlan] = useState(
-    isPaidServer ? planFromCookie : ((() => { try { return sessionStorage.getItem("sai_plan") || null; } catch { return null; } })())
-  );
+  const [selectedPlan, setSelectedPlan] = useState(isPaidServer ? planFromCookie : null);
+  useEffect(() => {
+    if (!isPaidServer) {
+      try { const stored = sessionStorage.getItem("sai_plan"); if (stored) setSelectedPlan(stored); } catch {}
+    }
+  }, []);
   const [isHydrated, setIsHydrated] = useState(isPaidServer); // if server knows isPaid, already hydrated
   useEffect(() => { setIsHydrated(true); }, []);
 
-  const [scanCredits, setScanCreditsRaw] = useState(() => {
-    if (serverSubscription?.scanCredits != null) return serverSubscription.scanCredits;
-    try { const c = sessionStorage.getItem("sai_scan_credits"); return c ? parseInt(c) : 0; } catch { return 0; }
-  });
-  const [aiCredits, setAiCreditsRaw] = useState(() => {
-    if (serverSubscription?.aiCredits != null) return serverSubscription.aiCredits;
-    try { const c = sessionStorage.getItem("sai_credits"); return c ? parseInt(c) : 0; } catch { return 0; }
-  });
+  const [scanCredits, setScanCreditsRaw] = useState(serverSubscription?.scanCredits ?? 0);
+  useEffect(() => {
+    if (serverSubscription?.scanCredits == null) {
+      try { const c = sessionStorage.getItem("sai_scan_credits"); if (c) setScanCreditsRaw(parseInt(c)); } catch {}
+    }
+  }, []);
+  const [aiCredits, setAiCreditsRaw] = useState(serverSubscription?.aiCredits ?? 0);
+  useEffect(() => {
+    if (serverSubscription?.aiCredits == null) {
+      try { const c = sessionStorage.getItem("sai_credits"); if (c) setAiCreditsRaw(parseInt(c)); } catch {}
+    }
+  }, []);
   function setScanCredits(v) { setScanCreditsRaw(v); try { sessionStorage.setItem("sai_scan_credits", String(v)); } catch {} }
   function setAiCredits(v) { setAiCreditsRaw(v); try { sessionStorage.setItem("sai_credits", String(v)); } catch {} }
 
   const [googleConnected, setGoogleConnected] = useState(false);
   const [campaignStatus, setCampaignStatus] = useState(null);
-  const [campaignId, setCampaignId] = useState(() => { try { return sessionStorage.getItem("sai_campaign_id")||"sim_001"; } catch { return "sim_001"; } });
+  const [campaignId, setCampaignId] = useState("sim_001");
+  useEffect(() => {
+    try { const c = sessionStorage.getItem("sai_campaign_id"); if (c) setCampaignId(c); } catch {}
+  }, []);
   const [campaignControlStatus, setCampaignControlStatus] = useState(null); // 'pausing'|'removing'|'paused'|'removed'|'error'
   const [realSpend, setRealSpend] = useState(null); // live spend from Google Ads API
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -242,21 +252,7 @@ export default function Index() {
 
   // LockedOverlay — moved outside Index() to prevent remount loops
 
-  const [marketIntel, setMarketIntel] = useState(null);
-  useEffect(() => {
-    async function fetchMarketSignal() {
-      try {
-        const form = new FormData();
-        form.append("mode", "quick");
-        form.append("regions", "US");
-        const res = await fetch("/app/api/market-intel", { method: "POST", body: form });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.success) setMarketIntel(data.intel);
-      } catch {}
-    }
-    fetchMarketSignal();
-  }, []);
+  // marketIntel removed — MarketAlert component handles its own data fetching
 
   // ⚠️ ALL HOOKS MUST BE CALLED HERE — before any early returns
   // Pre-compute values for the Google Ads hook
@@ -787,16 +783,19 @@ export default function Index() {
 
           {/* ══ STORE HEALTH + LIVE PULSE ROW ══ */}
           {/* TOP MISSED OPPORTUNITY */}
+          <WidgetErrorBoundary label="Top Missed Opportunity">
           <TopMissedOpportunity
             topProduct={topProduct}
             avgScore={avgScore}
             totalMonthlyGapLoss={totalMonthlyGapLoss}
             analyzedCount={analyzedCount}
             hasScanAccess={hasScanAccess}
-            onScan={() => { setShowOnboard(true); setOnboardTab("scan"); setOnboardStep(1); }}
+            onScan={handleUpgradeClick}
             onViewProduct={handleProductClickCb}
           />
+          </WidgetErrorBoundary>
 
+          <WidgetErrorBoundary label="Health & Pulse">
           <div className="health-pulse-row">
             <StoreHealthScore
               analyzedCount={analyzedCount}
@@ -818,6 +817,7 @@ export default function Index() {
               onRemove={handleRemoveCampaign}
             />
           </div>
+          </WidgetErrorBoundary>
 
           {/* SPEEDOMETERS */}
           <div className="speedo-row">
@@ -935,6 +935,7 @@ export default function Index() {
 
           {/* COMPETITOR GAP FINDER */}
           {analyzedCount > 0 && (
+            <WidgetErrorBoundary label="Competitor Gap Finder">
             <CompetitorGapFinder
               keywordGaps={keywordGaps}
               totalMonthlyGapLoss={totalMonthlyGapLoss}
@@ -942,17 +943,21 @@ export default function Index() {
               canPublish={canPublish}
               onUpgrade={handleUpgradeClick}
             />
+            </WidgetErrorBoundary>
           )}
 
           {/* BUDGET SIMULATOR */}
+          <WidgetErrorBoundary label="Budget Simulator">
           <BudgetSimulator
             avgScore={avgScore}
             avgCpc={liveAds?.avgCpc || null}
             canPublish={canPublish}
             onUpgrade={handleUpgradeClick}
           />
+          </WidgetErrorBoundary>
 
           {/* AD PREVIEW PANEL */}
+          <WidgetErrorBoundary label="Ad Preview">
           <AdPreviewPanel
             topProduct={topProduct}
             mockCampaigns={mockCampaigns}
@@ -961,6 +966,7 @@ export default function Index() {
             onLaunch={canPublish ? handleAutoCampaignCb : handleUpgradeClick}
             onViewProduct={handleProductClickCb}
           />
+          </WidgetErrorBoundary>
 
           {/* AI SUMMARY */}
           {analyzedCount>0 && (
