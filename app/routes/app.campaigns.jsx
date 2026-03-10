@@ -1,4 +1,4 @@
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -784,6 +784,20 @@ export default function Campaigns() {
   const [showStandaloneWizard, setShowStandaloneWizard] = useState(false);
   const [showAutoLaunch, setShowAutoLaunch] = useState(false);
   const [autoLaunchDone, setAutoLaunchDone] = useState(false);
+
+  // Auto-launch from Home Page: ?autoLaunch=true or ?wizard=true
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const al = searchParams.get("autoLaunch");
+    const wz = searchParams.get("wizard");
+    if (al === "true") {
+      setShowAutoLaunch(true);
+      setSearchParams({}, { replace: true });
+    } else if (wz === "true") {
+      setShowStandaloneWizard(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const selected = campaigns.find(c => c.id === selectedId);
   const currentMode = viewMode[selectedId] !== undefined ? viewMode[selectedId] : (selected?.type || "auto");
