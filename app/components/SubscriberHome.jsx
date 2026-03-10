@@ -16,12 +16,18 @@ import {
 function AnimNum({ end, pre = "", suf = "" }) {
   const [v, setV] = useState(0);
   useEffect(() => {
-    let s = 0; const step = end / 70;
-    const t = setInterval(() => {
-      s += step;
-      if (s >= end) { setV(end); clearInterval(t); } else setV(s);
-    }, 16);
-    return () => clearInterval(t);
+    if (end === 0) { setV(0); return; }
+    let frame;
+    const duration = 1000;
+    const start = performance.now();
+    const animate = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      setV(progress * end);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
   }, [end]);
   return <span>{pre}{end % 1 !== 0 ? v.toFixed(1) : Math.round(v)}{suf}</span>;
 }
