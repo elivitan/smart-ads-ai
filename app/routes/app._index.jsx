@@ -1063,7 +1063,7 @@ export default function Index() {
             </div>
           </div>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-            <button onClick={()=>navigate("/app/campaigns")} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 18px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>📋 Go to Campaigns →</button>
+            <button onClick={()=>setShowLaunchChoice(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 18px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>🚀 Launch Campaign</button>
           </div>
           <div className="p-grid">
             {sortedProducts.map((product,idx)=>{
