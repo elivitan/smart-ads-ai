@@ -71,8 +71,6 @@ export function WizardNav({ step, totalSteps, onBack, onNext, onSaveDraft, nextL
 
 
 /* ── Confetti Animation ── */
-
-/* ── Confetti Animation ── */
 export function ConfettiCelebration() {
   const colors = ["#6366f1","#8b5cf6","#10b981","#f59e0b","#ec4899","#3b82f6","#ef4444","#14b8a6"];
   const particles = Array.from({length:60}, (_, i) => ({
@@ -102,7 +100,6 @@ export function ConfettiCelebration() {
         }} />
       ))}
     
-        {onCancel && <button onClick={onCancel} style={{marginTop:24,padding:"10px 28px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.5)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .2s"}}>✕ Cancel</button>}
       </div>
   );
 }
@@ -160,27 +157,28 @@ export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
 export function CampaignCreatingAnimation({ onComplete, onCancel }) {
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState(0);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const cancelledRef = { current: false };
   const tasks = [
-    { label:"Analyzing your products...", icon:"\u{1F50D}" },
-    { label:"Building ad groups...", icon:"\u{1F4E6}" },
-    { label:"Setting up keywords and bids...", icon:"\u{1F3AF}" },
-    { label:"Creating ad copy variations...", icon:"\u270D\uFE0F" },
-    { label:"Configuring targeting...", icon:"\u{1F465}" },
-    { label:"Setting budget strategy...", icon:"\u{1F4B0}" },
-    { label:"Submitting to Google Ads...", icon:"\u{1F680}" },
+    { label:"Analyzing your products...", icon:"🔍" },
+    { label:"Building ad groups...", icon:"📦" },
+    { label:"Setting up keywords and bids...", icon:"🎯" },
+    { label:"Creating ad copy variations...", icon:"✍️" },
+    { label:"Configuring targeting...", icon:"👥" },
+    { label:"Setting budget strategy...", icon:"💰" },
+    { label:"Submitting to Google Ads...", icon:"🚀" },
   ];
   useEffect(() => {
     let p = 0;
     let cancelled = false;
-    /* Variable speed per phase - some tasks take longer */
     const speeds = [
-      { until:8, interval:200 },   /* Analyzing products - slow start */
-      { until:22, interval:180 },  /* Building ad groups */
-      { until:40, interval:150 },  /* Keywords & bids - medium */
-      { until:55, interval:160 },  /* Creating ad copy */
-      { until:68, interval:200 },  /* Configuring targeting - slower */
-      { until:82, interval:140 },  /* Budget strategy */
-      { until:100, interval:250 }, /* Submitting to Google - slowest */
+      { until:8, interval:200 },
+      { until:22, interval:180 },
+      { until:40, interval:150 },
+      { until:55, interval:160 },
+      { until:68, interval:200 },
+      { until:82, interval:140 },
+      { until:100, interval:250 },
     ];
     let phase = 0;
     const tick = () => {
@@ -192,7 +190,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
       setCurrentTask(Math.min(Math.floor(p / 15), tasks.length - 1));
       setTimeout(tick, speeds[phase].interval + Math.random() * 80);
     };
-    setTimeout(tick, 600); /* initial pause before starting */
+    setTimeout(tick, 600);
     return () => { cancelled = true; };
   }, []);
   return (
@@ -215,12 +213,30 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
             <div key={i} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:active?"rgba(99,102,241,.08)":"transparent",borderRadius:10 }}>
               <span style={{ fontSize:16,opacity:done||active?1:0.3 }}>{task.icon}</span>
               <span style={{ fontSize:13,color:done?"#10b981":active?"#fff":"rgba(255,255,255,.25)",fontWeight:active?700:400 }}>{task.label}</span>
-              {done && <span style={{ marginLeft:"auto",fontSize:12,color:"#10b981",fontWeight:700 }}>{"\u2713"}</span>}
+              {done && <span style={{ marginLeft:"auto",fontSize:12,color:"#10b981",fontWeight:700 }}>{"✓"}</span>}
               {active && <span style={{ marginLeft:"auto",width:16,height:16,border:"2px solid #6366f1",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite" }} />}
             </div>
           );
         })}
       </div>
+      {onCancel && (
+        <button onClick={() => setShowCancelConfirm(true)} style={{ marginTop:28,padding:"10px 28px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,color:"rgba(255,255,255,.45)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>
+          ✕ Cancel
+        </button>
+      )}
+      {showCancelConfirm && (
+        <div style={{ position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+          <div style={{ background:"#1e1e2e",borderRadius:20,padding:"36px 32px",maxWidth:400,textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.4)" }}>
+            <div style={{ fontSize:36,marginBottom:12 }}>⚠️</div>
+            <h3 style={{ fontSize:18,fontWeight:800,color:"#fff",marginBottom:8 }}>Stop Campaign Creation?</h3>
+            <p style={{ fontSize:14,color:"rgba(255,255,255,.5)",marginBottom:24,lineHeight:1.6 }}>The campaign is being created. Are you sure you want to cancel?</p>
+            <div style={{ display:"flex",gap:12,justifyContent:"center" }}>
+              <button onClick={() => setShowCancelConfirm(false)} style={{ padding:"10px 24px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.6)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>Continue Creating</button>
+              <button onClick={() => { setShowCancelConfirm(false); onCancel(); }} style={{ padding:"10px 24px",background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
