@@ -1,5 +1,4 @@
 import { useState, useEffect , useRef} from "react";
-import { Link } from "react-router";
 import { CharInput, BudgetSlider } from "./shared";
 import { GoogleAdsPreview } from "./GoogleAdsPreview";
 
