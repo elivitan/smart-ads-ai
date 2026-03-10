@@ -37,3 +37,8 @@ export function ErrorBoundary() {
 export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
+
+export const shouldRevalidate = ({ currentUrl, nextUrl }) => {
+  if (currentUrl.pathname !== nextUrl.pathname) return false;
+  return true;
+};
