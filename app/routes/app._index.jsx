@@ -413,7 +413,7 @@ export default function Index() {
       } catch {}
     }
     setAutoLaunching(false); setAutoStatus(successCount > 0 ? "success" : "error");
-    if (successCount > 0) triggerConfetti();
+    if (successCount > 0) { triggerConfetti(); setTimeout(() => navigate("/app/campaigns"), 3000); }
   }
 
   function handleProductClick(product) {
@@ -670,7 +670,7 @@ export default function Index() {
         <h2 className="ld-title">{autoStatus==="success"?"Campaigns Are Live!":"Campaign Creation Failed"}</h2>
         <p className="ld-sub" style={{marginBottom:24}}>{autoStatus==="success"?"Your AI-optimized campaigns are created in PAUSED state. Review them in Google Ads.":"Something went wrong. Try manual mode."}</p>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"center"}}>
-          <button className="btn-primary" onClick={()=>setAutoStatus(null)}>📊 View Dashboard</button>
+          <button className="btn-primary" onClick={()=>{setAutoStatus(null);navigate("/app/campaigns");}}>📊 View Campaigns</button>
           {autoStatus==="success" && <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:"none"}}>Open Google Ads →</a>}
         </div>
       </div>
@@ -725,9 +725,9 @@ export default function Index() {
             <h2 style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>Launch Your Campaigns</h2>
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-              <button onClick={()=>{setLaunchLoading("auto");navigate("/app/campaigns?autoLaunch=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></button>
-              <button onClick={()=>{setLaunchLoading("manual");navigate("/app/campaigns?wizard=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
-              <Link to="/app/campaigns" style={{display:"flex",alignItems:"center",gap:14,padding:"14px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.08)",background:"transparent",cursor:"pointer",textAlign:"left",color:"rgba(255,255,255,.6)",fontFamily:"inherit",textDecoration:"none",fontSize:13,fontWeight:600,justifyContent:"center"}}>📋 View Existing Campaigns →</Link>
+              <button onClick={()=>{setShowLaunchChoice(false);setLaunchLoading("auto");sessionStorage.setItem("campaignIntent","autoLaunch");navigate("/app/campaigns");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></button>
+              <button onClick={()=>{setLaunchLoading("manual");sessionStorage.setItem("campaignIntent","wizard");navigate("/app/campaigns");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
+              <button onClick={()=>navigate("/app/campaigns")} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.08)",background:"transparent",cursor:"pointer",textAlign:"left",color:"rgba(255,255,255,.6)",fontFamily:"inherit",textDecoration:"none",fontSize:13,fontWeight:600,justifyContent:"center"}}>📋 View Existing Campaigns →</button>
             </div></>)}
           </div>
         </div>
@@ -832,7 +832,7 @@ export default function Index() {
               {analyzedCount>0 && <Link to="/app/saved" className="btn-saved" style={{textDecoration:"none"}}>📋 My Results</Link>}
               <button className="btn-secondary" style={{padding:"8px 16px",fontSize:13}} onClick={()=>setShowManualPicker(true)}>🎯 Manual Campaign</button>
               {canPublish
-                ? <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>{navigate("/app/campaigns?autoLaunch=true");}}>⚡ Auto Launch All</button>
+                ? <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>{sessionStorage.setItem("campaignIntent","autoLaunch");navigate("/app/campaigns");}}>⚡ Auto Launch All</button>
                 : <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>doScan("review")}>🔍 Scan Products</button>}
             </div>
           </div>
@@ -907,7 +907,7 @@ export default function Index() {
                 <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👆</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.clicks ? liveAds.clicks.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Clicks</div></div>
                 <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>💰</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.roas ? liveAds.roas+"x" : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>ROAS</div></div>
               </div>
-              <Link to="/app/campaigns" style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap"}}>View Campaigns →</Link>
+              <button onClick={()=>navigate("/app/campaigns")} style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap",border:"none",cursor:"pointer",fontFamily:"inherit"}}>View Campaigns →</button>
             </div>
           )}
 
@@ -1019,7 +1019,7 @@ export default function Index() {
             mockCampaigns={mockCampaigns}
             canPublish={canPublish}
             shop={shopDomain}
-            onLaunch={canPublish ? handleAutoCampaignCb : handleUpgradeClick}
+            onLaunch={canPublish ? ()=>{sessionStorage.setItem("campaignIntent","autoLaunch");navigate("/app/campaigns");} : handleUpgradeClick}
             onViewProduct={handleProductClickCb}
           />
           </WidgetErrorBoundary>
@@ -1042,7 +1042,7 @@ export default function Index() {
                 <div className="auto-campaign-icon">⚡</div>
                 <div><div className="auto-campaign-title">Fully Automatic Campaign</div><div className="auto-campaign-desc">The AI handles everything — competitor research, keywords, ad copy, targeting, and launch. Zero manual work.</div></div>
               </div>
-              <button className="btn-auto-launch" onClick={()=>{navigate("/app/campaigns?autoLaunch=true");}}><span>Launch All Campaigns</span><span style={{fontSize:12,opacity:0.7,display:"block"}}>AI does everything for you</span></button>
+              <button className="btn-auto-launch" onClick={()=>{sessionStorage.setItem("campaignIntent","autoLaunch");navigate("/app/campaigns");}}><span>Launch All Campaigns</span><span style={{fontSize:12,opacity:0.7,display:"block"}}>AI does everything for you</span></button>
             </div>
           ) : (
             <div className="upgrade-publish-card">
@@ -1063,7 +1063,7 @@ export default function Index() {
             </div>
           </div>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-            <Link to="/app/campaigns" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 18px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none",border:"none",cursor:"pointer"}}>📋 Go to Campaigns →</Link>
+            <button onClick={()=>navigate("/app/campaigns")} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 18px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>📋 Go to Campaigns →</button>
           </div>
           <div className="p-grid">
             {sortedProducts.map((product,idx)=>{

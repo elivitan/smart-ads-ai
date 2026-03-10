@@ -15,8 +15,11 @@ import {
 
 function AnimNum({ end, pre = "", suf = "" }) {
   const [v, setV] = useState(0);
+  const hasAnimated = React.useRef(false);
   useEffect(() => {
     if (end === 0) { setV(0); return; }
+    if (hasAnimated.current) { setV(end); return; }
+    hasAnimated.current = true;
     let frame;
     const duration = 1000;
     const start = performance.now();
