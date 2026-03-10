@@ -348,7 +348,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
           </div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <ExportButton />
-            <button onClick={()=>navigate("/app")} style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
+            <button onClick={()=>{sessionStorage.setItem("returnToDashboard","true");navigate("/app");}} style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
               {"📊"} Dashboard
             </button>
             <button onClick={onSwitchMode} style={{ fontSize:13,fontWeight:700,color:"#fff",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit" }}>
@@ -477,7 +477,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
             <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
               <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
               <div style={{ display:"flex",gap:8 }}>
-                <button onClick={() => navigate("/app")} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"←"} Dashboard</button>
+                <button onClick={()=>{sessionStorage.setItem("returnToDashboard","true");navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"←"} Dashboard</button>
                 <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
               </div>
             </div>
@@ -855,7 +855,7 @@ export default function Campaigns() {
               <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
                 <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
                 <div style={{ display:"flex",gap:8 }}>
-                  <button onClick={()=>navigate("/app")} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
+                  <button onClick={()=>{sessionStorage.setItem("returnToDashboard","true");navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
                   <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
                 </div>
               </div>
@@ -885,7 +885,7 @@ export default function Campaigns() {
 
       <div style={{ background:"#0a0a1a",borderBottom:"1px solid rgba(255,255,255,.08)",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <button onClick={()=>navigate("/app")} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
+          <button onClick={()=>{sessionStorage.setItem("returnToDashboard","true");navigate("/app");}} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
             {"←"} Dashboard
           </button>
           <div>
@@ -941,7 +941,7 @@ export default function Campaigns() {
             <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
               <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
               <div style={{ display:"flex",gap:8 }}>
-                <button onClick={()=>navigate("/app")} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
+                <button onClick={()=>{sessionStorage.setItem("returnToDashboard","true");navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
                 <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
               </div>
             </div>

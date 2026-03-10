@@ -142,6 +142,9 @@ export default function Index() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  React.useEffect(() => { try { if(sessionStorage.getItem("returnToDashboard")){sessionStorage.removeItem("returnToDashboard");setShowDashboard(true);} } catch(e){} }, []);
+  const scrollRef = React.useRef(0);
+  React.useEffect(() => { const s = scrollRef.current; if (s > 0) window.scrollTo(0, s); const h = () => { scrollRef.current = window.scrollY; }; window.addEventListener("scroll", h, { passive: true }); return () => window.removeEventListener("scroll", h); });
   useEffect(() => {
     if (location.hash === "#launch") {
       setShowLaunchChoice(true);
@@ -483,7 +486,6 @@ export default function Index() {
       }
     } catch { setCampaignControlStatus("error"); }
   }
-
 
   const handleUpgradeClick = React.useCallback(() => {
     setShowOnboard(true);
@@ -1285,8 +1287,8 @@ export default function Index() {
             <h2 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Launch Your Campaigns</h2>
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-              <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);doScan("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly — zero manual work</div></div></button>
-              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);doScan("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
+              <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);sessionStorage.setItem("campaignIntent","autoLaunch");navigate("/app/campaigns");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI builds and launches campaigns automatically</div></div></button>
+              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);sessionStorage.setItem("campaignIntent","wizard");navigate("/app/campaigns");}}><span className="launch-choice-icon">🎯</span><div><div className="launch-choice-title">Manual Campaign</div><div className="launch-choice-desc">Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
             </div>
           </div>
         </div>
