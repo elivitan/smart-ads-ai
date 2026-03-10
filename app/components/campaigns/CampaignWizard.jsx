@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect , useRef} from "react";
 import { CharInput, BudgetSlider } from "./shared";
 import { GoogleAdsPreview } from "./GoogleAdsPreview";
 
@@ -144,9 +144,9 @@ export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
         <button onClick={onViewCampaign} style={{ fontSize:14,fontWeight:700,color:"#fff",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",border:"none",borderRadius:12,padding:"14px 28px",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 20px rgba(99,102,241,.3)" }}>
           View Campaign
         </button>
-        <a href="/app" style={{ fontSize:14,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"14px 24px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center" }}>
+        <Link to="/app" style={{ fontSize:14,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"14px 24px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center" }}>
           Go to Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -158,7 +158,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState(0);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const cancelledRef = { current: false };
+  const pausedRef = useRef(false);
   const tasks = [
     { label:"Analyzing your products...", icon:"🔍" },
     { label:"Building ad groups...", icon:"📦" },
@@ -183,6 +183,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
     let phase = 0;
     const tick = () => {
       if (cancelled) return;
+      if (pausedRef.current) { setTimeout(tick, 100); return; }
       if (p >= 100) { setTimeout(() => onComplete && onComplete(), 1200); return; }
       while (phase < speeds.length - 1 && p >= speeds[phase].until) phase++;
       p += 1;
@@ -220,7 +221,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
         })}
       </div>
       {onCancel && (
-        <button onClick={() => setShowCancelConfirm(true)} style={{ marginTop:28,padding:"10px 28px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,color:"rgba(255,255,255,.45)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>
+        <button onClick={() => { pausedRef.current = true; setShowCancelConfirm(true); }} style={{ marginTop:28,padding:"10px 28px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,color:"rgba(255,255,255,.45)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>
           ✕ Cancel
         </button>
       )}
@@ -231,7 +232,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
             <h3 style={{ fontSize:18,fontWeight:800,color:"#fff",marginBottom:8 }}>Stop Campaign Creation?</h3>
             <p style={{ fontSize:14,color:"rgba(255,255,255,.5)",marginBottom:24,lineHeight:1.6 }}>The campaign is being created. Are you sure you want to cancel?</p>
             <div style={{ display:"flex",gap:12,justifyContent:"center" }}>
-              <button onClick={() => setShowCancelConfirm(false)} style={{ padding:"10px 24px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.6)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>Continue Creating</button>
+              <button onClick={() => { pausedRef.current = false; setShowCancelConfirm(false); }} style={{ padding:"10px 24px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.6)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>Continue Creating</button>
               <button onClick={() => { setShowCancelConfirm(false); onCancel(); }} style={{ padding:"10px 24px",background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>Yes, Cancel</button>
             </div>
           </div>
