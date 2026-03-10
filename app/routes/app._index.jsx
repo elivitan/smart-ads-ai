@@ -229,6 +229,7 @@ export default function Index() {
   const [realSpend, setRealSpend] = useState(null); // live spend from Google Ads API
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
+  const [launchLoading, setLaunchLoading] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
 
   const [autoStatus, setAutoStatus] = useState(null);
@@ -717,17 +718,17 @@ export default function Index() {
         onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
       />
       {showLaunchChoice && (
-        <div onClick={()=>setShowLaunchChoice(false)} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div onClick={()=>{setShowLaunchChoice(false);setLaunchLoading(null);}} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#1e1e2e",borderRadius:20,maxWidth:520,width:"90%",textAlign:"center",padding:"44px 36px",position:"relative",boxShadow:"0 20px 60px rgba(0,0,0,.4)"}}>
-            <button onClick={()=>setShowLaunchChoice(false)} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,.1)",border:"none",color:"#fff",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-            <div style={{fontSize:48,marginBottom:16}}>🚀</div>
+            <button onClick={()=>{setShowLaunchChoice(false);setLaunchLoading(null);}} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,.1)",border:"none",color:"#fff",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+            {launchLoading ? (<><div style={{fontSize:48,marginBottom:16}}>{launchLoading==="auto"?"⚡":"🎯"}</div><h2 style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>{launchLoading==="auto"?"Launching...":"Loading Wizard..."}</h2><div style={{margin:"24px auto",width:40,height:40,border:"3px solid rgba(255,255,255,.15)",borderTopColor:"#8b5cf6",borderRadius:"50%",animation:"spin 1s linear infinite"}}></div><p style={{color:"rgba(255,255,255,.45)",fontSize:14}}>Preparing your campaigns...</p></>) : (<><div style={{fontSize:48,marginBottom:16}}>🚀</div>
             <h2 style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>Launch Your Campaigns</h2>
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-              <button onClick={()=>{setShowLaunchChoice(false);navigate("/app/campaigns?autoLaunch=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></button>
-              <button onClick={()=>{setShowLaunchChoice(false);navigate("/app/campaigns?wizard=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
+              <button onClick={()=>{setLaunchLoading("auto");navigate("/app/campaigns?autoLaunch=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></button>
+              <button onClick={()=>{setLaunchLoading("manual");navigate("/app/campaigns?wizard=true");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
               <Link to="/app/campaigns" style={{display:"flex",alignItems:"center",gap:14,padding:"14px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.08)",background:"transparent",cursor:"pointer",textAlign:"left",color:"rgba(255,255,255,.6)",fontFamily:"inherit",textDecoration:"none",fontSize:13,fontWeight:600,justifyContent:"center"}}>📋 View Existing Campaigns →</Link>
-            </div>
+            </div></>)}
           </div>
         </div>
       )}
