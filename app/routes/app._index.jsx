@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useLoaderData, useLocation, useRevalidator } from "react-router";
+import { useLoaderData, useLocation, useRevalidator, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
 import { getSubscriptionInfo } from "../license.server.js";
@@ -141,6 +141,7 @@ export default function Index() {
   }, [needsInitialSync]);
 
   const location = useLocation();
+  const navigate = useNavigate();
   useEffect(() => {
     if (location.hash === "#launch") {
       setShowLaunchChoice(true);
@@ -723,8 +724,8 @@ export default function Index() {
             <h2 style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>Launch Your Campaigns</h2>
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-              <a href="/app/campaigns" onClick={()=>setShowLaunchChoice(false)} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit",textDecoration:"none"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></a>
-              <a href="/app/campaigns" onClick={()=>setShowLaunchChoice(false)} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit",textDecoration:"none"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></a>
+              <button onClick={()=>{setShowLaunchChoice(false);navigate("/app/campaigns");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI builds and launches campaigns automatically</div></div></button>
+              <button onClick={()=>{setShowLaunchChoice(false);navigate("/app/campaigns");}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
               <a href="/app/campaigns" style={{display:"flex",alignItems:"center",gap:14,padding:"14px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.08)",background:"transparent",cursor:"pointer",textAlign:"left",color:"rgba(255,255,255,.6)",fontFamily:"inherit",textDecoration:"none",fontSize:13,fontWeight:600,justifyContent:"center"}}>📋 View Existing Campaigns →</a>
             </div>
           </div>
