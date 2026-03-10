@@ -907,7 +907,7 @@ export default function Index() {
                 <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👆</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.clicks ? liveAds.clicks.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Clicks</div></div>
                 <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>💰</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.roas ? liveAds.roas+"x" : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>ROAS</div></div>
               </div>
-              <button onClick={()=>navigate("/app/campaigns")} style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap",border:"none",cursor:"pointer",fontFamily:"inherit"}}>View Campaigns →</button>
+              <button onClick={()=>setShowLaunchChoice(true)} style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap",border:"none",cursor:"pointer",fontFamily:"inherit"}}>🚀 Launch Campaign →</button>
             </div>
           )}
 
