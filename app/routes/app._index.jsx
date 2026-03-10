@@ -633,7 +633,7 @@ export default function Index() {
                 <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:20}}>All progress will be lost.</p>
                 <div style={{display:"flex",gap:10,justifyContent:"center"}}>
                   <button className="btn-primary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>setShowCancelConfirm(false)}>Continue Scanning</button>
-                  <button className="btn-secondary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>{cancelRef.current=true;if(creepRef.current){clearInterval(creepRef.current);creepRef.current=null;}setShowCancelConfirm(false);setIsScanning(false);setFakeProgress(0);setProducts([]);setAiResults(null);}}>Yes, Cancel</button>
+                  <button className="btn-secondary" style={{padding:"10px 22px",fontSize:13}} onClick={()=>{cancelRef.current=true;if(creepRef.current){clearInterval(creepRef.current);creepRef.current=null;}setShowCancelConfirm(false);setIsScanning(false);setFakeProgress(0);setProducts([]);setAiResults(null);setShowDashboard(false);}}>Yes, Cancel</button>
                 </div>
               </div>
             </div>
@@ -650,6 +650,7 @@ export default function Index() {
         <h2 className="ld-title">Launching Your Campaigns...</h2>
         <p className="ld-sub">AI is building and submitting Google Ads campaigns for all your products.</p>
         <div className="ld-bar-bg"><div className="ld-bar-fill" style={{width:"60%",animation:"barPulse 2s ease infinite"}}/></div>
+        <button onClick={()=>{cancelRef.current=true;setAutoLaunching(false);setShowDashboard(false);}} style={{marginTop:24,padding:"10px 28px",background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,color:"rgba(255,255,255,.7)",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>✕ Cancel</button>
       </div>
     </div>
   );
@@ -710,15 +711,16 @@ export default function Index() {
         onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
       />
       {showLaunchChoice && (
-        <div className="modal-overlay" onClick={()=>setShowLaunchChoice(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,textAlign:"center",padding:"44px 36px"}}>
-            <button className="modal-close" onClick={()=>setShowLaunchChoice(false)}>✕</button>
+        <div onClick={()=>setShowLaunchChoice(false)} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e1e2e",borderRadius:20,maxWidth:520,width:"90%",textAlign:"center",padding:"44px 36px",position:"relative",boxShadow:"0 20px 60px rgba(0,0,0,.4)"}}>
+            <button onClick={()=>setShowLaunchChoice(false)} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,.1)",border:"none",color:"#fff",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
             <div style={{fontSize:48,marginBottom:16}}>🚀</div>
-            <h2 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Launch Your Campaigns</h2>
+            <h2 style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>Launch Your Campaigns</h2>
             <p style={{color:"rgba(255,255,255,.55)",marginBottom:32,fontSize:15}}>How would you like to proceed?</p>
             <div style={{display:"flex",gap:16,flexDirection:"column"}}>
-              <button className="launch-choice-btn launch-auto" onClick={()=>{setShowLaunchChoice(false);setShowDashboard(true);doScan("auto");}}><span className="launch-choice-icon">⚡</span><div><div className="launch-choice-title">Auto Launch</div><div className="launch-choice-desc">AI scans, builds and launches campaigns instantly</div></div></button>
-              <button className="launch-choice-btn" onClick={()=>{setShowLaunchChoice(false);setShowDashboard(true);doScan("review");}}><span className="launch-choice-icon">🔍</span><div><div className="launch-choice-title">Review & Edit</div><div className="launch-choice-desc">Check keywords, headlines & images before launching</div></div></button>
+              <button onClick={()=>{setShowLaunchChoice(false);handleAutoCampaign();}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(124,58,237,.4)",background:"linear-gradient(135deg,rgba(124,58,237,.15),rgba(99,102,241,.1))",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>⚡</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Auto Launch</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>AI scans, builds and launches campaigns instantly</div></div></button>
+              <button onClick={()=>{setShowLaunchChoice(false);window.location.href="/app/campaigns";}} style={{display:"flex",alignItems:"center",gap:14,padding:"18px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left",color:"#fff",fontFamily:"inherit"}}><span style={{fontSize:28,flexShrink:0}}>🎯</span><div><div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Manual Campaign</div><div style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>Step-by-step wizard: goals, keywords, headlines, budget & launch</div></div></button>
+              <a href="/app/campaigns" style={{display:"flex",alignItems:"center",gap:14,padding:"14px 22px",borderRadius:14,border:"1px solid rgba(255,255,255,.08)",background:"transparent",cursor:"pointer",textAlign:"left",color:"rgba(255,255,255,.6)",fontFamily:"inherit",textDecoration:"none",fontSize:13,fontWeight:600,justifyContent:"center"}}>📋 View Existing Campaigns →</a>
             </div>
           </div>
         </div>
