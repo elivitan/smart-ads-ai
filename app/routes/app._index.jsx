@@ -1019,7 +1019,7 @@ export default function Index() {
             mockCampaigns={mockCampaigns}
             canPublish={canPublish}
             shop={shopDomain}
-            onLaunch={canPublish ? handleAutoCampaignCb : handleUpgradeClick}
+            onLaunch={canPublish ? ()=>{navigate("/app/campaigns?autoLaunch=true");} : handleUpgradeClick}
             onViewProduct={handleProductClickCb}
           />
           </WidgetErrorBoundary>
