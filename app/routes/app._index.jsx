@@ -234,7 +234,7 @@ export default function Index() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [launchLoading, setLaunchLoading] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(() => { try { if(sessionStorage.getItem("returnToDashboard")){sessionStorage.removeItem("returnToDashboard");return true;} } catch(e){} return false; });
+  const [showDashboard, setShowDashboard] = useState(isPaidServer);
   if (typeof window !== "undefined") console.log("[DEBUG-BUG3] showDashboard initializer result:", showDashboard, "sessionStorage had returnToDashboard:", (() => { try { return sessionStorage.getItem("returnToDashboard"); } catch(e) { return "ERROR"; } })());
 
   const [autoStatus, setAutoStatus] = useState(null);
