@@ -395,11 +395,16 @@ export default function Index() {
     let successCount = 0;
     const toProcess = analyzedDbProducts.length > 0 ? analyzedDbProducts : allDbProducts.slice(0, 5);
     for (const prod of toProcess) {
+      if (cancelRef.current) break;
       const ai = prod.aiAnalysis||{};
+      const rawH = (ai.headlines||[]).map(h=>typeof h==="string"?h:h?.text||h).filter(Boolean);
+      const rawD = (ai.descriptions||[]).map(d=>typeof d==="string"?d:d?.text||d).filter(Boolean);
+      const headlines = rawH.length >= 3 ? rawH : [...rawH, prod.title+" - Shop Now", "Free Shipping Available", "Best Deals Online"].slice(0,Math.max(3,rawH.length));
+      const descriptions = rawD.length >= 2 ? rawD : [...rawD, "Discover "+prod.title+". Premium quality at great prices. Order today.", "Shop our collection. Fast shipping, easy returns, satisfaction guaranteed."].slice(0,Math.max(2,rawD.length));
       try {
         const form = new FormData();
-        form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(ai.headlines||[]));
-        form.append("descriptions", JSON.stringify(ai.descriptions||[])); form.append("keywords", JSON.stringify(ai.keywords||[]));
+        form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(headlines));
+        form.append("descriptions", JSON.stringify(descriptions)); form.append("keywords", JSON.stringify(ai.keywords||[]));
         form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
         const res = await fetch("/app/api/campaign", { method:"POST", body:form });
         const data = await res.json(); if (data.success) successCount++;

@@ -860,7 +860,7 @@ export default function Campaigns() {
       {showAutoLaunch && (
         <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
           {!autoLaunchDone ? (
-            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} />
+            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
           ) : (
             <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
           )}

@@ -101,7 +101,9 @@ export function ConfettiCelebration() {
           opacity: 0.9,
         }} />
       ))}
-    </div>
+    
+        {onCancel && <button onClick={onCancel} style={{marginTop:24,padding:"10px 28px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.5)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .2s"}}>✕ Cancel</button>}
+      </div>
   );
 }
 
@@ -157,7 +159,7 @@ export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
 
 
 
-export function CampaignCreatingAnimation({ onComplete }) {
+export function CampaignCreatingAnimation({ onComplete, onCancel }) {
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState(0);
   const tasks = [
