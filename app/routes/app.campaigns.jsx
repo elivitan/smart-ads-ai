@@ -1,4 +1,4 @@
-import { useLoaderData, Link, useSearchParams } from "react-router";
+import { useLoaderData, Link, useSearchParams , useNavigate} from "react-router";
 import { authenticate } from "../shopify.server";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -778,6 +778,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
 
 export default function Campaigns() {
   const { campaigns, isSimulated, marketSignal } = useLoaderData();
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id || null);
   const [viewMode, setViewMode] = useState({});
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
@@ -874,7 +875,7 @@ export default function Campaigns() {
       {showAutoLaunch && (
         <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
           {!autoLaunchDone ? (
-            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
+            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); navigate("/app"); }} />
           ) : (
             <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
           )}

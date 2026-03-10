@@ -832,7 +832,7 @@ export default function Index() {
               {analyzedCount>0 && <Link to="/app/saved" className="btn-saved" style={{textDecoration:"none"}}>📋 My Results</Link>}
               <button className="btn-secondary" style={{padding:"8px 16px",fontSize:13}} onClick={()=>setShowManualPicker(true)}>🎯 Manual Campaign</button>
               {canPublish
-                ? <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={handleAutoCampaign}>⚡ Auto Launch All</button>
+                ? <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>{navigate("/app/campaigns?autoLaunch=true");}}>⚡ Auto Launch All</button>
                 : <button className="btn-primary" style={{padding:"10px 22px",fontSize:14}} onClick={()=>doScan("review")}>🔍 Scan Products</button>}
             </div>
           </div>
@@ -1042,7 +1042,7 @@ export default function Index() {
                 <div className="auto-campaign-icon">⚡</div>
                 <div><div className="auto-campaign-title">Fully Automatic Campaign</div><div className="auto-campaign-desc">The AI handles everything — competitor research, keywords, ad copy, targeting, and launch. Zero manual work.</div></div>
               </div>
-              <button className="btn-auto-launch" onClick={handleAutoCampaign}><span>Launch All Campaigns</span><span style={{fontSize:12,opacity:0.7,display:"block"}}>AI does everything for you</span></button>
+              <button className="btn-auto-launch" onClick={()=>{navigate("/app/campaigns?autoLaunch=true");}}><span>Launch All Campaigns</span><span style={{fontSize:12,opacity:0.7,display:"block"}}>AI does everything for you</span></button>
             </div>
           ) : (
             <div className="upgrade-publish-card">
