@@ -89,6 +89,7 @@ export const loader = async ({ request }) => {
 
   const serverPlan = subscriptionInfo?.plan || planFromCookie || "free";
   const isPaidServer = !!serverPlan && serverPlan !== "free";
+  console.log("[DEBUG-BUG3] LOADER:", { isPaidServer, serverPlan, planFromCookie, shop, subscriptionPlan: subscriptionInfo?.plan });
 
   return {
     products: dbProducts,
@@ -234,6 +235,7 @@ export default function Index() {
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [launchLoading, setLaunchLoading] = useState(null);
   const [showDashboard, setShowDashboard] = useState(() => { try { if(sessionStorage.getItem("returnToDashboard")){sessionStorage.removeItem("returnToDashboard");return true;} } catch(e){} return false; });
+  if (typeof window !== "undefined") console.log("[DEBUG-BUG3] showDashboard initializer result:", showDashboard, "sessionStorage had returnToDashboard:", (() => { try { return sessionStorage.getItem("returnToDashboard"); } catch(e) { return "ERROR"; } })());
 
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
@@ -255,6 +257,7 @@ export default function Index() {
 
   const _forcePreview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'landing';
   const isPaid = !!selectedPlan;
+  console.log("[DEBUG-BUG3] RENDER:", { isPaid, selectedPlan, isPaidServer, planFromCookie, showDashboard, isHydrated });
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;
 
@@ -700,6 +703,7 @@ export default function Index() {
     const impressionsBase = liveAds.impressions;
     const clicksBase = liveAds.clicks;
 
+    console.log("[DEBUG-BUG3] BLOCK CHECK:", { isPaid, analyzedCount, justSubscribed, showDashboard, scanned, productsLen: products.length });
     // ── SUBSCRIBER HOME PAGE — shows before dashboard ──
     if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
       <>
