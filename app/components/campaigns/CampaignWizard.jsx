@@ -108,8 +108,6 @@ export function ConfettiCelebration() {
 }
 
 /* ── Campaign Success Screen (shared by auto + manual) ── */
-
-/* ── Campaign Success Screen (shared by auto + manual) ── */
 export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
   return (
     <div style={{ position:"relative",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:500,padding:40,textAlign:"center" }}>
