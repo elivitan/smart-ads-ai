@@ -1,4 +1,4 @@
-import { useLoaderData, Link, useSearchParams , useNavigate} from "react-router";
+import { useLoaderData , useNavigate} from "react-router";
 import { authenticate } from "../shopify.server";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -348,7 +348,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
           </div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <ExportButton />
-            <Link to="/app" style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
+            <button onClick={()=>navigate("/app")} style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
               {"📊"} Dashboard
             </Link>
             <button onClick={onSwitchMode} style={{ fontSize:13,fontWeight:700,color:"#fff",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit" }}>
@@ -461,7 +461,31 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
             <BudgetSlider value={budget} onChange={setBudget} />
           </div>
 
-          </>)}
+          
+      {showAutoLaunch && (
+        <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
+          {!autoLaunchDone ? (
+            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); navigate("/app"); }} />
+          ) : (
+            <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
+          )}
+        </div>
+      )}
+      {showStandaloneWizard && (
+        <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",padding:"20px" }}>
+          <div style={{ maxWidth:760,margin:"0 auto" }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
+              <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={() => navigate("/app")} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"←"} Dashboard</button>
+                <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
+              </div>
+            </div>
+            <CampaignWizard campaign={{}} onComplete={() => setShowStandaloneWizard(false)} onCancel={() => setShowStandaloneWizard(false)} />
+          </div>
+        </div>
+      )}
+</>)}
 
           {/* ═══ KEYWORDS TAB ═══ */}
           {activeTab === "keywords" && (<>
@@ -786,18 +810,21 @@ export default function Campaigns() {
   const [showAutoLaunch, setShowAutoLaunch] = useState(false);
   const [autoLaunchDone, setAutoLaunchDone] = useState(false);
 
-  // Auto-launch from Home Page: ?autoLaunch=true or ?wizard=true
-  const [searchParams, setSearchParams] = useSearchParams();
+  // Read campaign intent from sessionStorage (survives Shopify auth redirects)
   useEffect(() => {
-    const al = searchParams.get("autoLaunch");
-    const wz = searchParams.get("wizard");
-    if (al === "true") {
-      setShowAutoLaunch(true);
-      setSearchParams({}, { replace: true });
-    } else if (wz === "true") {
-      setShowStandaloneWizard(true);
-      setSearchParams({}, { replace: true });
-    }
+    try {
+      const intent = sessionStorage.getItem("campaignIntent");
+      if (intent) {
+        sessionStorage.removeItem("campaignIntent");
+        if (intent === "autoLaunch") setShowAutoLaunch(true);
+        else if (intent === "wizard") setShowStandaloneWizard(true);
+      }
+    } catch(e) {}
+  }, []);
+
+
+  // Auto-launch from Home Page: ?autoLaunch=true or ?wizard=true
+  const [searchParams, setSearchParams] =();
   }, []);
 
   const selected = campaigns.find(c => c.id === selectedId);
@@ -833,7 +860,7 @@ export default function Campaigns() {
 
       <div style={{ background:"#0a0a1a",borderBottom:"1px solid rgba(255,255,255,.08)",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <Link to="/app" style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
+          <button onClick={()=>navigate("/app")} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
             {"←"} Dashboard
           </Link>
           <div>
@@ -889,7 +916,7 @@ export default function Campaigns() {
             <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
               <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
               <div style={{ display:"flex",gap:8 }}>
-                <Link to="/app" style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</Link>
+                <button onClick={()=>navigate("/app")} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
                 <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
               </div>
             </div>
