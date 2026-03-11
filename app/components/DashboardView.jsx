@@ -49,10 +49,19 @@ export function DashboardView({
   doScan, handleProductClick, navigate,
   handlePauseCampaign, handleRemoveCampaign,
   StyleTag,
-  mockCampaigns, mockRoas, competitorThreat, threatColor,
-  googleRankStatus, competitorCount, impressionsBase, clicksBase,
-  totalKeywords, highPotential, topProduct
 }) {
+  // ── Computed values (moved from app._index.jsx) ──
+  const mockCampaigns = analyzedCount > 0 ? Math.min(Math.floor(analyzedCount * 0.6), 12) : 0;
+  const mockRoas = analyzedCount > 0 ? (1.8 + avgScore * 0.028).toFixed(1) : "0";
+  const competitorThreat = avgScore >= 70 ? "Low" : avgScore >= 50 ? "Moderate" : "High";
+  const threatColor = { Low: "#22c55e", Moderate: "#f59e0b", High: "#ef4444" }[competitorThreat];
+  const googleRankStatus = avgScore >= 70 ? "page_1" : avgScore >= 50 ? "page_2" : "page_3";
+  const competitorCount = topCompetitors.length;
+  const impressionsBase = liveAds.impressions;
+  const clicksBase = liveAds.clicks;
+  const totalKeywords = analyzedDbProducts.reduce((a, p) => a + (p.aiAnalysis?.keywords?.length || 0), 0);
+  const highPotential = analyzedDbProducts.filter(p => (p.aiAnalysis?.ad_score || 0) >= 70).length;
+  const topProduct = analyzedDbProducts.reduce((best, p) => ((p.aiAnalysis?.ad_score || 0) > (best.aiAnalysis?.ad_score || 0) ? p : best), analyzedDbProducts[0] || null);
 
   // ── Zustand Store ──
   const {

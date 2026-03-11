@@ -320,23 +320,11 @@ export default function Index() {
   // ══════════════════════════════════════════════
 
   if (hasScanAccess) {
-    const totalKeywords = analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.keywords?.length||0),0);
-    const highPotential = analyzedDbProducts.filter(p=>(p.aiAnalysis?.ad_score||0)>=70).length;
-    const topProduct = analyzedDbProducts.reduce((best,p)=>((p.aiAnalysis?.ad_score||0)>(best.aiAnalysis?.ad_score||0)?p:best),analyzedDbProducts[0]||null);
-    const mockCampaigns = canPublish&&analyzedCount>0 ? Math.min(Math.floor(analyzedCount*0.6),12) : 0;
-    const mockRoas = analyzedCount>0 ? (1.8+avgScore*0.028).toFixed(1) : "0";
-    const competitorThreat = avgScore>=70?"Low":avgScore>=50?"Moderate":"High";
-    const threatColor = {Low:"#22c55e",Moderate:"#f59e0b",High:"#ef4444"}[competitorThreat];
-    const googleRankStatus = avgScore>=70?"page_1":avgScore>=50?"page_2":"page_3";
-    const competitorCount = topCompetitors.length;
-    const impressionsBase = liveAds.impressions;
-    const clicksBase = liveAds.clicks;
 
     // ── SUBSCRIBER HOME PAGE ──
     if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
       <>
       <SubscriberHome
-        selectedPlan={selectedPlan}
         shopDomain={shopDomain}
         analyzedDbProducts={analyzedDbProducts}
         totalProducts={totalProducts}
@@ -420,11 +408,6 @@ export default function Index() {
         doScan={doScan} handleProductClick={store.handleProductClick} navigate={navigate}
         handlePauseCampaign={store.handlePauseCampaign} handleRemoveCampaign={store.handleRemoveCampaign}
         StyleTag={StyleTag}
-        mockCampaigns={mockCampaigns} mockRoas={mockRoas}
-        competitorThreat={competitorThreat} threatColor={threatColor}
-        googleRankStatus={googleRankStatus} competitorCount={competitorCount}
-        impressionsBase={impressionsBase} clicksBase={clicksBase}
-        totalKeywords={totalKeywords} highPotential={highPotential} topProduct={topProduct}
       />
       <GlobalModals navigate={navigate}/>
     </>);

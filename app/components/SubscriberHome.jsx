@@ -3,6 +3,7 @@
 // PROPS: real data from Index(), plus callbacks
 
 import React, { useState, useEffect } from "react";
+import useAppStore from "../stores/useAppStore.js";
 import {
   Target, MousePointerClick, DollarSign, BarChart3, KeyRound,
   Brain, ArrowRight, AlertTriangle, AlertCircle, Rocket,
@@ -66,11 +67,12 @@ const card = { background: "#fff", border: "1px solid #e8eaef", borderRadius: 16
 // ── Main Component ──
 
 export function SubscriberHome({
-  selectedPlan, shopDomain, analyzedDbProducts, totalProducts,
+  shopDomain, analyzedDbProducts, totalProducts,
   analyzedCount, avgScore, topCompetitors, liveAds,
   keywordGaps, totalMonthlyGapLoss,
   onOpenDashboard, onScan, onLaunch, onBuyCredits,
 }) {
+  const { selectedPlan } = useAppStore();
   const [vis, setVis] = useState(false);
   const [greet, setGreet] = useState("Good morning");
 
