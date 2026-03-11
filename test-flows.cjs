@@ -160,48 +160,6 @@ if (FILES.campaigns) {
         }
         returnBlocks.push({ line: i + 1, text: blockText });
 
-  // ═══ Phase 9b: Server/Infra TypeScript Validation ═══
-  test("Phase 9b — server/infra files are TypeScript", () => {
-    const serverTsFiles = ["redis.ts", "queue.ts", "retry.ts", "rate-limiter.ts", "request-logger.ts", "db-health.ts"];
-    const utilsDir = findUtilsDir();
-    
-    for (const tsFile of serverTsFiles) {
-      const fullPath = path.join(utilsDir, tsFile);
-      assert(fs.existsSync(fullPath), tsFile + " should exist in utils/");
-      
-      const content = fs.readFileSync(fullPath, "utf8");
-      // Verify it has TypeScript type annotations
-      assert(
-        content.includes(": ") || content.includes("interface ") || content.includes("type "),
-        tsFile + " should contain TypeScript annotations"
-      );
-      
-      // Verify old .js version is gone
-      const jsFile = tsFile.replace(".ts", ".js");
-      const jsPath = path.join(utilsDir, jsFile);
-      assert(!fs.existsSync(jsPath), jsFile + " should NOT exist (replaced by .ts)");
-    }
-  });
-
-  test("Phase 9b — server TS files import with .js extensions", () => {
-    const serverTsFiles = ["redis.ts", "queue.ts", "retry.ts", "request-logger.ts", "db-health.ts"];
-    const utilsDir = findUtilsDir();
-    
-    for (const tsFile of serverTsFiles) {
-      const fullPath = path.join(utilsDir, tsFile);
-      if (!fs.existsSync(fullPath)) continue;
-      const content = fs.readFileSync(fullPath, "utf8");
-      
-      // All imports should use .js extension (Vite/Remix resolves .js → .ts)
-      const importLines = content.match(/from\s+["'][^"']+["']/g) || [];
-      for (const imp of importLines) {
-        if (imp.includes("./") && !imp.includes(".js")) {
-          throw new Error(tsFile + " has import without .js extension: " + imp);
-        }
-      }
-    }
-  });
-
       }
     }
 
@@ -354,6 +312,57 @@ for (const key of ['index', 'campaigns']) {
 
 // SUMMARY
 console.log('\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
+
+// ═══ Phase 9b: Server/Infra TypeScript Validation ═══
+console.log('\n🔧 SECTION: Phase 9b TypeScript Validation\n');
+{
+  const utilsDir = path.join(ROOT, "app", "utils");
+  const serverTsFiles = ["redis.ts", "queue.ts", "retry.ts", "rate-limiter.ts", "request-logger.ts", "db-health.ts"];
+  
+  let phase9bOk = true;
+  for (const tsFile of serverTsFiles) {
+    const fullPath = path.join(utilsDir, tsFile);
+    if (!fs.existsSync(fullPath)) {
+      fail("Phase 9b: " + tsFile + " not found in utils/");
+      phase9bOk = false;
+      continue;
+    }
+    
+    const content = fs.readFileSync(fullPath, "utf8");
+    if (!(content.includes(": ") || content.includes("interface ") || content.includes("type "))) {
+      fail("Phase 9b: " + tsFile + " missing TypeScript annotations");
+      phase9bOk = false;
+      continue;
+    }
+    
+    // Verify old .js version is gone
+    const jsFile = tsFile.replace(".ts", ".js");
+    const jsPath = path.join(utilsDir, jsFile);
+    if (fs.existsSync(jsPath)) {
+      fail("Phase 9b: " + jsFile + " still exists (should be .ts)");
+      phase9bOk = false;
+      continue;
+    }
+  }
+  if (phase9bOk) pass("Phase 9b: All 6 server/infra files are TypeScript with annotations");
+
+  // Check imports use .js extensions (Vite resolves .js → .ts)
+  let importsOk = true;
+  for (const tsFile of ["redis.ts", "queue.ts", "retry.ts", "request-logger.ts", "db-health.ts"]) {
+    const fullPath = path.join(utilsDir, tsFile);
+    if (!fs.existsSync(fullPath)) continue;
+    const fileContent = fs.readFileSync(fullPath, "utf8");
+    const importLines = fileContent.match(/from\s+["'][^"']+["']/g) || [];
+    for (const imp of importLines) {
+      if (imp.includes("./") && !imp.includes(".js")) {
+        fail("Phase 9b: " + tsFile + " has import without .js extension: " + imp);
+        importsOk = false;
+      }
+    }
+  }
+  if (importsOk) pass("Phase 9b: All server TS files import with .js extensions");
+}
+
 console.log('  RESULTS: ' + passed + ' passed, ' + failed + ' failed, ' + warnings + ' warnings');
 console.log('\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
 
