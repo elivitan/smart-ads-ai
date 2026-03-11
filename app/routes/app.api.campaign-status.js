@@ -18,8 +18,18 @@ const statusSchema = z.object({
 });
 
 export async function loader({ request }) {
+  let session;
   try {
-    const { session } = await authenticate.admin(request);
+    ({ session } = await authenticate.admin(request));
+  } catch (authErr) {
+    logger.error("[campaign-status] Auth failed:", authErr.message);
+    return Response.json(
+      { success: false, error: "Authentication failed" },
+      { status: 401 }
+    );
+  }
+
+  try {
     const shop = session.shop;
 
     // Rate limiting — polling is frequent, allow 60/min

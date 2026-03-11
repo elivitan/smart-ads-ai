@@ -53,6 +53,7 @@
     "zustand": "5.0.11"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@shopify/api-codegen-preset": "^1.2.0",
     "@shopify/polaris-types": "^1.0.1",
     "@types/eslint": "^9.6.1",
