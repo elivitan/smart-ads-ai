@@ -1,5 +1,18 @@
 import React from "react";
-import { getStepInfo } from "../hooks/useCampaignLaunch.js";
+// getStepInfo — inlined from deleted useCampaignLaunch.js
+function getStepInfo(stepKey) {
+  const STEPS = {
+    createCampaign:   { label: "Creating campaign...",       icon: "🚀" },
+    createAdGroup:    { label: "Setting up ad group...",     icon: "📦" },
+    createAd:         { label: "Building your ad...",        icon: "✍️" },
+    setKeywords:      { label: "Adding keywords...",         icon: "🔑" },
+    setBudget:        { label: "Configuring budget...",      icon: "💰" },
+    enableCampaign:   { label: "Going live!",                icon: "✅" },
+    verifyStatus:     { label: "Verifying status...",        icon: "🔍" },
+    done:             { label: "Campaign is live!",          icon: "🎉" },
+  };
+  return STEPS[stepKey] || { label: stepKey, icon: "⏳" };
+}
 
 /**
  * LaunchProgress — Visual progress for campaign creation.
