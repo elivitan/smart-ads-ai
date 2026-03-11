@@ -251,7 +251,10 @@ if (FILES.index) {
     const exists = fs.existsSync(resolved) ||
                    fs.existsSync(resolved + '.jsx') ||
                    fs.existsSync(resolved + '.js') ||
-                   fs.existsSync(resolved.replace('.jsx', '.js'));
+                   fs.existsSync(resolved.replace('.jsx', '.js')) ||
+                   fs.existsSync(resolved + '.tsx') ||
+                   fs.existsSync(resolved + '.ts') ||
+                   fs.existsSync(resolved.replace('.jsx', '.tsx'));
     if (!exists) missing.push(importPath);
   }
   if (missing.length > 0) {

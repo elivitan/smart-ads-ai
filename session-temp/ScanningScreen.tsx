@@ -2,7 +2,14 @@ import React from "react";
 import { TipRotator, Confetti } from "./SmallComponents.jsx";
 import useAppStore from "../stores/useAppStore.js";
 
-export function ScanningScreen({ StyleTag, cancelRef, creepRef, FREE_SCAN_LIMIT }) {
+interface ScanningScreenProps {
+  StyleTag: React.ComponentType;
+  cancelRef: React.MutableRefObject<boolean>;
+  creepRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>;
+  FREE_SCAN_LIMIT: number;
+}
+
+export function ScanningScreen({ StyleTag, cancelRef, creepRef, FREE_SCAN_LIMIT }: ScanningScreenProps) {
   const {
     fakeProgress, showConfetti, scanMsg,
     showCancelConfirm, setShowCancelConfirm,

@@ -83,3 +83,24 @@ export interface ScanResult {
   competitors: CompetitorInfo[];
   scannedAt: string;
 }
+
+// ═══ Module declarations for JS/JSX files not yet converted to TS ═══
+// These allow .tsx files to import from .js/.jsx without TS errors
+// Remove these as files get converted to .ts/.tsx
+
+declare module "*/useAppStore.js" {
+  const useAppStore: () => Record<string, any>;
+  export default useAppStore;
+}
+
+declare module "*/SmallComponents.jsx" {
+  import React from "react";
+  export const Confetti: React.FC<{ active: boolean }>;
+  export const TipRotator: React.FC;
+}
+
+declare module "*/Modals.jsx" {
+  import React from "react";
+  export const OnboardModal: React.FC<Record<string, any>>;
+  export const BuyCreditsModal: React.FC<Record<string, any>>;
+}

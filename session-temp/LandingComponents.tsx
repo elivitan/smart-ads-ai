@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 
-
-function LandingBudgetTeaser() {
-  const [daily, setDaily] = useState(30);
+function LandingBudgetTeaser(): React.JSX.Element {
+  const [daily, setDaily] = useState<number>(30);
   const cpc = 0.72;
   const clicks = Math.round(daily / cpc);
   const orders = (clicks * 0.028).toFixed(1);
@@ -18,7 +17,7 @@ function LandingBudgetTeaser() {
           <span className="lp-budget-val">${daily}/day</span>
         </div>
         <input type="range" min="5" max="200" step="5" value={daily}
-          onChange={e => setDaily(Number(e.target.value))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDaily(Number(e.target.value))}
           className="budget-sim-slider" />
         <div className="budget-sim-range-labels"><span>$5</span><span>$200</span></div>
       </div>
@@ -51,8 +50,18 @@ function LandingBudgetTeaser() {
 // LANDING PAGE — WHAT YOU'RE MISSING
 // ══════════════════════════════════════════════
 
-function LandingMissingBlock({ onInstall }) {
-  const [counter, setCounter] = useState({ competitors: 38, revenue: 1840, products: 0 });
+interface LandingMissingBlockProps {
+  onInstall: () => void;
+}
+
+interface CounterState {
+  competitors: number;
+  revenue: number;
+  products: number;
+}
+
+function LandingMissingBlock({ onInstall }: LandingMissingBlockProps): React.JSX.Element {
+  const [counter, setCounter] = useState<CounterState>({ competitors: 38, revenue: 1840, products: 0 });
 
   useEffect(() => {
     const iv = setInterval(() => {

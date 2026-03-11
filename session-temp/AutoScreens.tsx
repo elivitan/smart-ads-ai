@@ -2,7 +2,12 @@ import React from "react";
 import { Confetti } from "./SmallComponents.jsx";
 import useAppStore from "../stores/useAppStore.js";
 
-export function AutoLaunchingScreen({ cancelRef, StyleTag }) {
+interface AutoLaunchingScreenProps {
+  cancelRef: React.MutableRefObject<boolean>;
+  StyleTag: React.ComponentType;
+}
+
+export function AutoLaunchingScreen({ cancelRef, StyleTag }: AutoLaunchingScreenProps) {
   const { setAutoLaunching, setShowDashboard } = useAppStore();
   return (
     <div className="sr dk"><StyleTag/>
@@ -17,7 +22,12 @@ export function AutoLaunchingScreen({ cancelRef, StyleTag }) {
   );
 }
 
-export function AutoStatusScreen({ navigate, StyleTag }) {
+interface AutoStatusScreenProps {
+  navigate: (path: string) => void;
+  StyleTag: React.ComponentType;
+}
+
+export function AutoStatusScreen({ navigate, StyleTag }: AutoStatusScreenProps) {
   const { autoStatus, setAutoStatus, showConfetti } = useAppStore();
   return (
     <div className="sr dk"><StyleTag/>

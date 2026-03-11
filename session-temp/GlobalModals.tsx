@@ -1,8 +1,12 @@
 import { OnboardModal, BuyCreditsModal } from "./Modals.jsx";
-import { LaunchChoiceDialog } from "./LaunchChoiceDialog.jsx";
+import { LaunchChoiceDialog } from "./LaunchChoiceDialog.js";
 import useAppStore from "../stores/useAppStore.js";
 
-export default function GlobalModals({ navigate }) {
+interface GlobalModalsProps {
+  navigate: (path: string) => void;
+}
+
+export default function GlobalModals({ navigate }: GlobalModalsProps) {
   const {
     showOnboard, setShowOnboard, onboardTab, setOnboardTab,
     onboardStep, setOnboardStep, selectedPlan, selectPlan,
