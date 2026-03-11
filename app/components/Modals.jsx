@@ -1,4 +1,4 @@
-import React from "react";
+import React, { startTransition } from "react";
 
 // ══════════════════════════════════════════════
 // ONBOARD MODAL — extracted from Index() to prevent remount on every re-render
@@ -144,7 +144,7 @@ export const OnboardModal = React.memo(function OnboardModal({
                 <div
                   key={plan.id}
                   className={`plan-card ${selectedPlan === plan.id ? "plan-selected" : ""}`}
-                  onClick={() => selectPlan(plan.id)}
+                  onClick={() => startTransition(() => selectPlan(plan.id))}
                 >
                   {plan.badge && (
                     <div

@@ -329,7 +329,7 @@ export default function Index() {
     </div>
   );
 
-  if (isScanning && !justSubscribed) {
+  if (isScanning) {
     return (
       <ScanningScreen StyleTag={StyleTag} cancelRef={cancelRef} creepRef={creepRef} FREE_SCAN_LIMIT={3}/>
     );

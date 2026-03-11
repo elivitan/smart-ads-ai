@@ -57,6 +57,11 @@ function CollectingDataScreen(props) {
   useEffect(function() {
     var raf;
     function animate() {
+      // Skip animation frame when paused — prevents CSS from drifting
+      if (pausedRef.current) {
+        raf = requestAnimationFrame(animate);
+        return;
+      }
       var current = progressRef.current;
       var target = targetProg;
       if (target < current) target = current; // never go backwards
