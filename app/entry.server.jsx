@@ -1,3 +1,20 @@
+import * as Sentry from "@sentry/remix";
+
+// ── Initialize Sentry (server side) ──
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || "",
+  environment: process.env.NODE_ENV || "development",
+  autoInstrumentRemix: true,
+  sampleRate: 1.0,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
+  beforeSend(event) {
+    const msg = event.exception?.values?.[0]?.value || "";
+    if (msg.includes("302") || msg.includes("redirect")) return null;
+    if (msg.includes("429") && msg.includes("rate limit")) return null;
+    return event;
+  },
+});
+
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter } from "react-router";
@@ -39,6 +56,7 @@ export default async function handleRequest(
         },
         onError(error) {
           responseStatusCode = 500;
+          Sentry.captureException(error);
           console.error(error);
         },
       },
