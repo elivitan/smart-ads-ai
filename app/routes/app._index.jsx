@@ -172,10 +172,10 @@ export default function Index() {
         if (userState.autoScanMode) u.autoScanMode = userState.autoScanMode;
         if (userState.showDashboard) u.showDashboard = userState.showDashboard;
         if (userState.lastScanProducts) {
-          try { u.products = JSON.parse(userState.lastScanProducts); } catch {}
+          try { u.products = JSON.parse(userState.lastScanProducts); } catch(err) { console.error("[SmartAds] app._index:unknown error:", err.message || err); }
         }
         if (userState.lastAiResults) {
-          try { u.aiResults = JSON.parse(userState.lastAiResults); } catch {}
+          try { u.aiResults = JSON.parse(userState.lastAiResults); } catch(err) { console.error("[SmartAds] app._index:unknown error:", err.message || err); }
         }
         if (Object.keys(u).length > 0) appStore.setState(u);
       }
@@ -267,7 +267,7 @@ export default function Index() {
           const camp = data.campaigns.find(c => String(c.id) === numId || c.resourceName === campaignId);
           if (camp) setRealSpend(parseFloat(camp.cost));
         }
-      } catch {}
+      } catch(err) { console.error("[SmartAds] app._index:camp error:", err.message || err); }
     }
     fetchSpend();
     const iv = setInterval(fetchSpend, 60000);
@@ -426,7 +426,7 @@ export default function Index() {
               const res = await fetch("/app/api/campaign", {method:"POST", body:form});
               const data = await res.json();
               if(data.success) sc++;
-            } catch{}
+            } catch(err) { console.error("[SmartAds] app._index:data error:", err.message || err); }
           }
           setAutoLaunching(false); setPickedProducts([]);
           if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }

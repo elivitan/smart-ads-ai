@@ -6,6 +6,8 @@ import { authenticate } from "../shopify.server";
 import Anthropic from "@anthropic-ai/sdk";
 import { checkLicense, useAiCredit } from "../license.server.js";
 import { checkAnthropicLimit } from "../rateLimit.server.js";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

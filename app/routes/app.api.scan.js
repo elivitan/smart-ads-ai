@@ -9,6 +9,8 @@ import { checkLicense, useScanCredit } from "../license.server.js";
 import { checkAnthropicLimit, checkSerpApiLimit } from "../rateLimit.server.js";
 import prisma from "../db.server.js";
 import crypto from "crypto";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 // Helper: create a hash of product data to detect changes
 function productHash(product) {

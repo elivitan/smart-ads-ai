@@ -6,6 +6,8 @@ import { authenticate } from "../shopify.server";
 import { launchCampaign } from "../campaignLifecycle.server.js";
 import { checkLicense } from "../license.server.js";
 import { checkGoogleAdsLimit } from "../rateLimit.server.js";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 export const action = async ({ request }) => {
   let session;

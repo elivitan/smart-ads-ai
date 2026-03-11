@@ -40,7 +40,7 @@ function CompetitorModal({ competitor, products, onClose }) {
       try {
         const res = await fetch("/app/api/competitor-intel", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({domain}), signal:AbortSignal.timeout(8000) });
         if (res.ok) { const d=await res.json(); if(d.success){ setCompData({...buildFromMentions(mentions),...d.data,source:"real"}); setLoading(false); return; } }
-      } catch {}
+      } catch(err) { console.error("[SmartAds] CompetitorComponents:enrich error:", err.message || err); }
       setCompData(buildFromMentions(mentions));
       setLoading(false);
     }

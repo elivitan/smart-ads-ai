@@ -13,6 +13,8 @@ import { fullSync, getShopProducts, getSyncStatus, saveAiAnalysis } from "../syn
 import { analyzeBatch } from "../ai.server.js";
 import prisma from "../db.server.js";
 import crypto from "crypto";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 function productHash(title, price, description) {
   return crypto.createHash("md5").update(`${title}|${price}|${(description || "").slice(0, 200)}`).digest("hex");

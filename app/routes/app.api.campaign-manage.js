@@ -1,4 +1,6 @@
 import { authenticate } from "../shopify.server";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 /**
  * Campaign Management API

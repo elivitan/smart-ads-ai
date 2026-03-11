@@ -106,12 +106,12 @@ function extractJSON(text) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   try {
     return JSON.parse(cleaned);
-  } catch {}
+  } catch(err) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err.message || err); }
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[0]);
-    } catch {}
+    } catch(err) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err.message || err); }
     let attempt = jsonMatch[0];
     const ob = (attempt.match(/\{/g) || []).length;
     const cb = (attempt.match(/\}/g) || []).length;
@@ -121,7 +121,7 @@ function extractJSON(text) {
     for (let i = 0; i < ob - cb; i++) attempt += "}";
     try {
       return JSON.parse(attempt);
-    } catch {}
+    } catch(err) { console.error("[SmartAds] competitor-intel.server:i error:", err.message || err); }
   }
   throw new Error("Could not parse JSON from AI response");
 }

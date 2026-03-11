@@ -1,5 +1,7 @@
 import { authenticate } from "../shopify.server";
 import { exploreKeywords, scanWebsite } from "../keyword-research.server";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 export const action = async ({ request }) => {
   try { await authenticate.admin(request); } catch (authErr) { console.error("[SmartAds] Auth failed:", authErr.message); return Response.json({ success: false, error: "Authentication failed" }, { status: 401 }); }

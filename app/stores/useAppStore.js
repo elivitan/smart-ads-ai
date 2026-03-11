@@ -270,7 +270,7 @@ const appStore = createStore((set, get) => ({
           form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
           const res = await fetch("/app/api/campaign", { method: "POST", body: form });
           const data = await res.json(); if (data.success) successCount++;
-        } catch {}
+        } catch(err) { console.error("[SmartAds] useAppStore:data error:", err.message || err); }
       }
       set({ autoLaunching: false, autoStatus: successCount > 0 ? "success" : "error" });
     }
@@ -353,7 +353,7 @@ const appStore = createStore((set, get) => ({
         form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
         const res = await fetch("/app/api/campaign", { method: "POST", body: form });
         const data = await res.json(); if (data.success) successCount++;
-      } catch {}
+      } catch(err) { console.error("[SmartAds] useAppStore:data error:", err.message || err); }
     }
     set({ autoLaunching: false, autoStatus: successCount > 0 ? "success" : "error" });
     if (successCount > 0) { triggerConfetti(); setTimeout(() => navigate("/app/campaigns"), 3000); }

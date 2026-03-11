@@ -15,6 +15,8 @@
 // ══════════════════════════════════════════════
 import { authenticate } from "../shopify.server";
 import { updatePlan, getSubscriptionInfo } from "../license.server.js";
+import { z } from "zod";
+import { logger } from "../utils/logger.js";
 
 const VALID_PLANS = ["free", "starter", "pro", "premium"];
 

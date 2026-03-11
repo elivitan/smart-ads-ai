@@ -827,7 +827,7 @@ export default function Campaigns() {
         if (intent === "autoLaunch") setShowAutoLaunch(true);
         else if (intent === "wizard") setShowStandaloneWizard(true);
       }
-    } catch(e) {}
+    } catch(e) { console.error("[SmartAds] app.campaigns:intent error:", e.message || e); }
   }, []);
 
 
