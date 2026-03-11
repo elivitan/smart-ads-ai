@@ -111,21 +111,7 @@ export const loader = async ({ request }) => {
   }
 };
 
-const FREE_SCAN_LIMIT = 3;
 
-const REAL_STEPS = [
-  { label: "Fetching products from your store", icon: "📦", threshold: 5 },
-  { label: "Searching Google for competitors", icon: "🔍", threshold: 20 },
-  { label: "Analyzing competitor websites", icon: "🕵️", threshold: 40 },
-  { label: "Checking your Google rankings", icon: "📍", threshold: 60 },
-  { label: "Generating AI-optimized ad copy", icon: "🤖", threshold: 80 },
-  { label: "Building your competitive strategy", icon: "📊", threshold: 98 },
-];
-const INTRO_PHASES = [
-  { label: "Connecting to your Shopify store", icon: "🔗", duration: 1400 },
-  { label: "Reading your product catalog", icon: "📦", duration: 1200 },
-  { label: "Connecting AI analysis engine", icon: "🤖", duration: 1200 },
-];
 
 export default function Index() {
   const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription } = useLoaderData();
@@ -234,135 +220,9 @@ export default function Index() {
   const cancelRef = useRef(false);
   const creepRef = useRef(null);
 
-  // ── SCAN FUNCTION ──
-  async function doScan(mode) {
-    const isAuto = mode === "auto";
-    setScanMode(mode || "review"); setIsScanning(true); setFakeProgress(0);
-    setScanMsg(hasScanAccess ? "Connecting to your Shopify store..." : "Quick preview scan starting...");
-    setAutoStatus(null); setScanError(null); cancelRef.current = false;
-    let fetchedProducts = [], allAiProducts = [];
-
-    let smoothProg = 0;
-    const smoothTimer = setInterval(() => { smoothProg = Math.min(smoothProg + 0.15, 8); setFakeProgress(Math.round(smoothProg * 10) / 10); }, 100);
-
-    try {
-      const scanAbort = new AbortController();
-      cancelRef._abort = () => scanAbort.abort();
-      const ff = new FormData(); ff.append("step", "fetch");
-      const fr = await fetch("/app/api/scan", { method:"POST", body:ff, signal:scanAbort.signal });
-      const fd = await fr.json().catch(() => { throw new Error("Server returned invalid response."); });
-      if (!fd.success) throw new Error(fd.error || "Failed to fetch products");
-      if (cancelRef.current) { clearInterval(smoothTimer); setIsScanning(false); return; }
-      clearInterval(smoothTimer);
-
-      const allFetched = fd.products, fetchedStoreUrl = fd.storeInfo?.url || "";
-      const toAnalyze = hasScanAccess ? allFetched : allFetched.slice(0, FREE_SCAN_LIMIT);
-      fetchedProducts = allFetched; setProducts(allFetched);
-
-      for (let p = Math.ceil(smoothProg); p <= 10; p++) { setFakeProgress(p); await new Promise(r => setTimeout(r, 40)); }
-      setScanMsg(hasScanAccess ? `Found ${allFetched.length} products — analyzing with AI...` : `Found ${allFetched.length} products — analyzing top ${FREE_SCAN_LIMIT} for preview...`);
-      await new Promise(r => setTimeout(r, 600));
-
-      const BATCH = 3, total = toAnalyze.length, batches = Math.ceil(total / BATCH);
-      for (let b = 0; b < batches; b++) {
-        if (cancelRef.current) { setIsScanning(false); return; }
-        const start = b * BATCH, batch = toAnalyze.slice(start, start + BATCH);
-        const batchStartPct = 10 + Math.round((b / batches) * 82);
-        const batchEndPct = 10 + Math.round(((b + 1) / batches) * 82);
-        let creepPct = batchStartPct;
-        if (creepRef.current) clearInterval(creepRef.current);
-        const creepTimer = setInterval(() => {
-          if (creepPct < batchEndPct - 0.5) creepPct += 0.3;
-          setFakeProgress(Math.round(creepPct * 10) / 10);
-          const fakeNum = Math.min(Math.round((creepPct - 10) / 82 * total), total);
-          const curPct = Math.round(creepPct);
-          if (hasScanAccess) {
-            const sn = curPct<25?"Searching Google":curPct<45?"Analyzing competitors":curPct<60?"Checking rankings":curPct<80?"Generating ad copy":"Building strategy";
-            setScanMsg(fakeNum+" of "+total+" products · "+sn);
-          } else setScanMsg("Analyzing product "+fakeNum+" of "+total+"...");
-        }, 400);
-        creepRef.current = creepTimer;
-
-        const af = new FormData(); af.append("step", "analyze-batch"); af.append("products", JSON.stringify(batch)); af.append("storeDomain", fetchedStoreUrl);
-        const ar = await fetch("/app/api/scan", { method:"POST", body:af, signal:scanAbort.signal });
-        clearInterval(creepTimer); creepRef.current = null;
-        const ad = await ar.json().catch(() => { throw new Error(`AI returned invalid response on batch ${b+1}.`); });
-        if (!ad.success) throw new Error(ad.error || `AI failed on batch ${b+1}`);
-        allAiProducts = [...allAiProducts, ...(ad.result?.products || [])];
-        setFakeProgress(batchEndPct);
-      }
-
-      if (cancelRef.current) { setIsScanning(false); return; }
-      setScanMsg(hasScanAccess ? "Almost done — putting it all together! 🚀" : "Wrapping up your preview...");
-      await new Promise(r => setTimeout(r, 600));
-
-      const topScore = allAiProducts.reduce((best,p) => ((p.ad_score||0)>(best.ad_score||0)?p:best), allAiProducts[0]||{});
-      let summary;
-      if (hasScanAccess) {
-        const opts = [`🎯 Analyzed ${allAiProducts.length} products. "${topScore.title||"Top product"}" scored ${topScore.ad_score||0}/100.`,`✨ Found ${allAiProducts.filter(p=>(p.ad_score||0)>=70).length} high-potential products!`,`🏆 Average score: ${Math.round(allAiProducts.reduce((a,p)=>a+(p.ad_score||0),0)/allAiProducts.length)}/100.`];
-        summary = opts[Math.floor(Math.random()*opts.length)];
-      } else {
-        summary = `Preview: Analyzed ${FREE_SCAN_LIMIT} of ${fetchedProducts.length} products. ${topScore.title||"Your top product"} shows real potential! Upgrade to unlock all ${fetchedProducts.length - FREE_SCAN_LIMIT} remaining.`;
-      }
-
-      setAiResults({ summary, recommended_budget:100, products:allAiProducts });
-      setFakeProgress(100); setScanMsg(hasScanAccess ? "Your store is ready to grow 🎉" : "Preview ready!");
-      triggerConfetti(); await new Promise(r => setTimeout(r, 800));
-
-    } catch (e) {
-      clearInterval(smoothTimer);
-      if (creepRef.current) { clearInterval(creepRef.current); creepRef.current = null; }
-      let msg = e.message || "Something went wrong";
-      if (msg.includes("credit balance")||msg.includes("billing")) msg = "AI credits have run out. Please top up your Anthropic API balance.";
-      else if (msg.includes("rate_limit")||msg.includes("429")) msg = "Too many requests. Please wait a minute and try again.";
-      else if (msg.includes("401")||msg.includes("api_key")) msg = "API key is invalid. Please check your ANTHROPIC_API_KEY.";
-      else if (msg.includes("overloaded")) msg = "AI service is temporarily overloaded. Please try again.";
-      setScanError(msg); setIsScanning(false); setFakeProgress(0); return;
-    }
-
-    setIsScanning(false); setFakeProgress(0);
-
-    if (isAuto && allAiProducts.length > 0 && canPublish) {
-      setAutoLaunching(true);
-      let successCount = 0;
-      for (let i = 0; i < fetchedProducts.length; i++) {
-        const prod = fetchedProducts[i], ai = allAiProducts.find(ap => ap.title===prod.title)||allAiProducts[i]||{};
-        try {
-          const form = new FormData();
-          form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(ai.headlines||[]));
-          form.append("descriptions", JSON.stringify(ai.descriptions||[])); form.append("keywords", JSON.stringify(ai.keywords||[]));
-          form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
-          const res = await fetch("/app/api/campaign", { method:"POST", body:form });
-          const data = await res.json(); if (data.success) successCount++;
-        } catch {}
-      }
-      setAutoLaunching(false); setAutoStatus(successCount > 0 ? "success" : "error");
-    }
-  }
-
-  async function handleAutoCampaign() {
-    if (!canPublish) { openUpgradeModal(); return; }
-    setAutoLaunching(true);
-    let successCount = 0;
-    const toProcess = analyzedDbProducts.length > 0 ? analyzedDbProducts : allDbProducts.slice(0, 5);
-    for (const prod of toProcess) {
-      if (cancelRef.current) break;
-      const ai = prod.aiAnalysis||{};
-      const rawH = (ai.headlines||[]).map(h=>typeof h==="string"?h:h?.text||h).filter(Boolean);
-      const rawD = (ai.descriptions||[]).map(d=>typeof d==="string"?d:d?.text||d).filter(Boolean);
-      const headlines = rawH.length >= 3 ? rawH : [...rawH, prod.title+" - Shop Now", "Free Shipping Available", "Best Deals Online"].slice(0,Math.max(3,rawH.length));
-      const descriptions = rawD.length >= 2 ? rawD : [...rawD, "Discover "+prod.title+". Premium quality at great prices. Order today.", "Shop our collection. Fast shipping, easy returns, satisfaction guaranteed."].slice(0,Math.max(2,rawD.length));
-      try {
-        const form = new FormData();
-        form.append("productTitle", prod.title); form.append("headlines", JSON.stringify(headlines));
-        form.append("descriptions", JSON.stringify(descriptions)); form.append("keywords", JSON.stringify(ai.keywords||[]));
-        form.append("finalUrl", getProductUrl(prod)); form.append("dailyBudget", "50");
-        const res = await fetch("/app/api/campaign", { method:"POST", body:form });
-        const data = await res.json(); if (data.success) successCount++;
-      } catch {}
-    }
-    setAutoLaunching(false); setAutoStatus(successCount > 0 ? "success" : "error");
-    if (successCount > 0) { triggerConfetti(); setTimeout(() => navigate("/app/campaigns"), 3000); }
+  // ── SCAN FUNCTION (delegated to store) ──
+  function doScan(mode) {
+    store.doScan(mode, { cancelRef, creepRef, getProductUrl });
   }
 
   function handleProductClick(product) {
@@ -434,13 +294,10 @@ export default function Index() {
   const handleUpgradeClick = useCallback(() => { openUpgradeModal(); }, []);
 
   const handleProductClickRef = useRef(handleProductClick);
-  const handleAutoCampaignRef = useRef(handleAutoCampaign);
   useEffect(() => {
     handleProductClickRef.current = handleProductClick;
-    handleAutoCampaignRef.current = handleAutoCampaign;
   });
   const handleProductClickCb = useCallback((p) => handleProductClickRef.current(p), []);
-  const handleAutoCampaignCb = useCallback(() => handleAutoCampaignRef.current(), []);
 
   async function handleCreateCampaign() {
     if (!selProduct||!canPublish) return;
@@ -536,7 +393,7 @@ export default function Index() {
 
   if (isScanning && !justSubscribed) {
     return (
-      <ScanningScreen StyleTag={StyleTag} cancelRef={cancelRef} creepRef={creepRef} FREE_SCAN_LIMIT={FREE_SCAN_LIMIT}/>
+      <ScanningScreen StyleTag={StyleTag} cancelRef={cancelRef} creepRef={creepRef} FREE_SCAN_LIMIT={3}/>
     );
   }
 
