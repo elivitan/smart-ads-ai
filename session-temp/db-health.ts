@@ -1,10 +1,23 @@
-// db-health.js — Database connection health monitoring
+// db-health.ts — Database connection health monitoring
 // For scale: monitors connection pool, query latency, and connection count
 // Integrates with health endpoint for monitoring dashboards
 
 import { logger } from "./logger.js";
 import { SCALE } from "./scale-config.js";
 
+// ── Types ──
+interface DbHealthStats {
+  totalQueries: number;
+  slowQueries: number;
+  errors: number;
+  poolConfig: {
+    min: number;
+    max: number;
+    timeoutMs: number;
+  };
+}
+
+// ── State ──
 let queryCount = 0;
 let slowQueryCount = 0;
 let errorCount = 0;
@@ -13,15 +26,8 @@ const SLOW_QUERY_THRESHOLD_MS = 2000;
 /**
  * Wrap a Prisma operation with monitoring.
  * Tracks latency, counts errors and slow queries.
- *
- * Usage:
- *   const products = await monitoredQuery("getProducts", () => prisma.product.findMany());
- *
- * @param {string} label - Query label for logging
- * @param {Function} queryFn - The async query function
- * @returns {Promise<any>} Query result
  */
-export async function monitoredQuery(label, queryFn) {
+export async function monitoredQuery<T>(label: string, queryFn: () => Promise<T>): Promise<T> {
   const start = Date.now();
   queryCount++;
 
@@ -31,23 +37,22 @@ export async function monitoredQuery(label, queryFn) {
 
     if (duration > SLOW_QUERY_THRESHOLD_MS) {
       slowQueryCount++;
-      logger.warn(`[DB] Slow query "${label}": ${duration}ms`);
+      logger.warn("[DB]", `Slow query "${label}": ${duration}ms`);
     }
 
     return result;
   } catch (error) {
     errorCount++;
     const duration = Date.now() - start;
-    logger.error(`[DB] Query "${label}" failed after ${duration}ms: ${error.message}`);
+    logger.error("[DB]", `Query "${label}" failed after ${duration}ms: ${(error as Error).message}`);
     throw error;
   }
 }
 
 /**
  * Get DB health stats for the health endpoint.
- * @returns {object}
  */
-export function getDbHealthStats() {
+export function getDbHealthStats(): DbHealthStats {
   return {
     totalQueries: queryCount,
     slowQueries: slowQueryCount,
@@ -63,7 +68,7 @@ export function getDbHealthStats() {
 /**
  * Reset stats (for testing).
  */
-export function resetDbStats() {
+export function resetDbStats(): void {
   queryCount = 0;
   slowQueryCount = 0;
   errorCount = 0;

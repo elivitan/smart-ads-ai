@@ -345,36 +345,36 @@ console.log("\n🏥 HEALTH CHECK:");
   }
 }
 
-// ─── CHECK 27: retry.js and request-logger.js exist ───
+// ─── CHECK 27: retry.ts and request-logger.ts exist ───
 console.log("\n🔄 MONITORING FILES:");
 {
-  const retryFile = path.join(ROOT, "app", "utils", "retry.js");
-  const reqLogFile = path.join(ROOT, "app", "utils", "request-logger.js");
+  const retryFile = path.join(ROOT, "app", "utils", "retry.ts");
+  const reqLogFile = path.join(ROOT, "app", "utils", "request-logger.ts");
   let allExist = true;
 
   if (fs.existsSync(retryFile)) {
     const content = fs.readFileSync(retryFile, "utf8");
     if (content.includes("withRetry") && content.includes("getCircuitStatus")) {
-      pass("retry.js exists with withRetry + getCircuitStatus");
+      pass("retry.ts exists with withRetry + getCircuitStatus");
     } else {
-      fail("retry.js exists but missing withRetry or getCircuitStatus");
+      fail("retry.ts exists but missing withRetry or getCircuitStatus");
       allExist = false;
     }
   } else {
-    fail("app/utils/retry.js does not exist");
+    fail("app/utils/retry.ts does not exist");
     allExist = false;
   }
 
   if (fs.existsSync(reqLogFile)) {
     const content = fs.readFileSync(reqLogFile, "utf8");
     if (content.includes("withRequestLogging")) {
-      pass("request-logger.js exists with withRequestLogging");
+      pass("request-logger.ts exists with withRequestLogging");
     } else {
-      fail("request-logger.js exists but missing withRequestLogging");
+      fail("request-logger.ts exists but missing withRequestLogging");
       allExist = false;
     }
   } else {
-    fail("app/utils/request-logger.js does not exist");
+    fail("app/utils/request-logger.ts does not exist");
     allExist = false;
   }
 }
@@ -439,7 +439,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
   const allFiles = new Set();
 
   function collectFiles(dir) {
-    if (!fs.existsSync(dir)) return;
+    if (!fs.existsSync(dir) && !fs.existsSync(dir.replace(/\.js$/, ".ts"))) return;
     fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
       if (e.name === "node_modules" || e.name.startsWith(".")) return;
       const full = path.join(dir, e.name);
@@ -459,7 +459,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
       // Skip server files
       if (serverPatterns.some(s => src.includes(s))) continue;
       const resolved = path.resolve(dir, src);
-      const tries = [resolved, resolved + ".jsx", resolved + ".js", resolved + ".ts", resolved + ".tsx", resolved + "/index.js", resolved + "/index.jsx", resolved + "/index.ts", resolved + "/index.tsx"];
+      const tries = [resolved, resolved + ".jsx", resolved + ".js", resolved + ".ts", resolved + ".tsx", resolved.replace(/\.js$/, ".ts"), resolved.replace(/\.jsx$/, ".tsx"), resolved + "/index.js", resolved + "/index.jsx", resolved + "/index.ts", resolved + "/index.tsx"];
       if (!tries.some(t => allFiles.has(t))) {
         const rel = path.relative(ROOT, filePath);
         // Only warn, don't fail — some imports may be to non-code files
@@ -496,7 +496,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
       // Count TS files
       const tsFilesList = [];
       function findTsFiles(dir) {
-        if (!fs.existsSync(dir)) return;
+        if (!fs.existsSync(dir) && !fs.existsSync(dir.replace(/\.js$/, ".ts"))) return;
         for (const f of fs.readdirSync(dir)) {
           const full = path.join(dir, f);
           if (fs.statSync(full).isDirectory() && !f.startsWith(".") && f !== "node_modules" && f !== "build") {

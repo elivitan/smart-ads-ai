@@ -1,60 +1,67 @@
-// app/utils/retry.js
-// ════════════════════════════════════════════
-// Exponential backoff retry + Circuit Breaker
+// retry.ts — Exponential backoff retry + Circuit Breaker
 // For external API calls: Google Ads, Anthropic, SerpAPI
-// ════════════════════════════════════════════
+
 import { logger } from "./logger.js";
 
-// ── Circuit Breaker state (in-memory) ──
-const circuits = new Map();
+// ── Circuit Breaker types ──
+type CircuitState = "closed" | "open" | "half-open";
 
-/**
- * Get or create a circuit breaker for a named service.
- * @param {string} name - e.g. "anthropic", "googleAds", "serpapi"
- * @returns {object} circuit state
- */
-function getCircuit(name) {
+interface CircuitBreaker {
+  failures: number;
+  lastFailure: number;
+  state: CircuitState;
+}
+
+export interface RetryOptions {
+  maxRetries?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  circuitName?: string | null;
+  circuitThreshold?: number;
+  circuitResetMs?: number;
+  retryableErrors?: ((error: Error) => boolean) | null;
+}
+
+interface CircuitStatus {
+  state: CircuitState;
+  failures: number;
+  lastFailure: number;
+}
+
+// ── Circuit Breaker state (in-memory) ──
+const circuits: Map<string, CircuitBreaker> = new Map();
+
+function getCircuit(name: string): CircuitBreaker {
   if (!circuits.has(name)) {
     circuits.set(name, {
       failures: 0,
       lastFailure: 0,
-      state: "closed", // closed = normal, open = blocked, half-open = testing
+      state: "closed",
     });
   }
-  return circuits.get(name);
+  return circuits.get(name)!;
 }
 
-/**
- * Default config for retry + circuit breaker.
- */
-const DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS: Required<RetryOptions> = {
   maxRetries: 3,
-  baseDelayMs: 1000,       // 1s, then 2s, then 4s ...
-  maxDelayMs: 30000,        // cap at 30s
-  circuitName: null,        // if set, use circuit breaker
-  circuitThreshold: 5,      // open circuit after N consecutive failures
-  circuitResetMs: 300000,   // 5 minutes cooldown before half-open
-  retryableErrors: null,    // function(error) => bool, or null = retry all
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
+  circuitName: null,
+  circuitThreshold: 5,
+  circuitResetMs: 300000,
+  retryableErrors: null,
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * Retry a function with exponential backoff.
  * Optionally uses a circuit breaker to stop calling a dead service.
- *
- * Usage:
- *   import { withRetry } from "../utils/retry.js";
- *
- *   const result = await withRetry(
- *     () => callAnthropicAPI(prompt),
- *     { circuitName: "anthropic", maxRetries: 3 }
- *   );
- *
- * @param {Function} fn - async function to call
- * @param {object} options - retry options
- * @returns {Promise<any>} result from fn
  */
-export async function withRetry(fn, options = {}) {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+  const opts: Required<RetryOptions> = { ...DEFAULT_OPTIONS, ...options };
   const { maxRetries, baseDelayMs, maxDelayMs, circuitName, circuitThreshold, circuitResetMs, retryableErrors } = opts;
 
   // ── Circuit Breaker check ──
@@ -68,13 +75,12 @@ export async function withRetry(fn, options = {}) {
         logger.warn("retry.circuit", `Circuit OPEN for "${circuitName}" — blocking call. Retry in ${waitSec}s`);
         throw new Error(`Circuit breaker OPEN for ${circuitName}. Service unavailable. Retry after ${waitSec}s.`);
       }
-      // Enough time passed → half-open (allow one attempt)
       circuit.state = "half-open";
       logger.info("retry.circuit", `Circuit HALF-OPEN for "${circuitName}" — testing one request`);
     }
   }
 
-  let lastError;
+  let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -93,19 +99,18 @@ export async function withRetry(fn, options = {}) {
       return result;
 
     } catch (error) {
-      lastError = error;
+      lastError = error as Error;
 
       // Check if this error is retryable
-      if (retryableErrors && !retryableErrors(error)) {
-        logger.warn("retry", `Non-retryable error on attempt ${attempt + 1}: ${error.message}`);
-        throw error;
+      if (retryableErrors && !retryableErrors(lastError)) {
+        logger.warn("retry", `Non-retryable error on attempt ${attempt + 1}: ${lastError.message}`);
+        throw lastError;
       }
 
       if (attempt < maxRetries) {
-        // Exponential backoff with jitter
         const delay = Math.min(baseDelayMs * Math.pow(2, attempt) + Math.random() * 500, maxDelayMs);
         logger.warn("retry", `Attempt ${attempt + 1}/${maxRetries + 1} failed for ${circuitName || "unknown"}. Retrying in ${Math.round(delay)}ms`, {
-          error: error.message,
+          error: lastError.message,
         });
         await sleep(delay);
       }
@@ -127,35 +132,27 @@ export async function withRetry(fn, options = {}) {
   logger.error("retry", `All ${maxRetries + 1} attempts failed for ${circuitName || "unknown"}`, {
     error: lastError?.message,
   });
-  throw lastError;
+  throw lastError!;
 }
 
 /**
  * Get current circuit breaker status for a service.
  * Useful for health checks.
- *
- * @param {string} name - service name
- * @returns {{ state: string, failures: number, lastFailure: number }}
  */
-export function getCircuitStatus(name) {
+export function getCircuitStatus(name: string): CircuitStatus {
   if (!circuits.has(name)) {
     return { state: "closed", failures: 0, lastFailure: 0 };
   }
-  const c = circuits.get(name);
+  const c = circuits.get(name)!;
   return { state: c.state, failures: c.failures, lastFailure: c.lastFailure };
 }
 
 /**
  * Reset a circuit breaker (e.g. after manual recovery).
- * @param {string} name
  */
-export function resetCircuit(name) {
+export function resetCircuit(name: string): void {
   if (circuits.has(name)) {
     circuits.set(name, { failures: 0, lastFailure: 0, state: "closed" });
     logger.info("retry.circuit", `Circuit manually reset for "${name}"`);
   }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
