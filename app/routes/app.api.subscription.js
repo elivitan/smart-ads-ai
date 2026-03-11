@@ -17,7 +17,12 @@ import { authenticate } from "../shopify.server";
 import { updatePlan, getSubscriptionInfo } from "../license.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
 
+// Zod schemas
+const SubscriptionSchema = z.object({
+  plan: z.enum(["free", "starter", "pro", "premium"]),
+});
 const VALID_PLANS = ["free", "starter", "pro", "premium"];
 
 export const action = async ({ request }) => {
@@ -25,26 +30,33 @@ export const action = async ({ request }) => {
   try {
     ({ session } = await authenticate.admin(request));
   } catch (authErr) {
-    console.error("[SmartAds] Auth failed:", authErr.message);
+    logger.error("subscription.action", "Auth failed", { error: authErr.message });
     return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
   }
   const shop = session.shop;
 
+  // Rate limit check
+  const rl = rateLimit.subscription(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
+
   try {
     const body = await request.json();
-    const { plan } = body;
-
-    if (!plan || !VALID_PLANS.includes(plan)) {
+    // Zod validation
+    const parsed = SubscriptionSchema.safeParse(body);
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map(i => i.path.join(".") + ": " + i.message).join("; ");
+      logger.warn("subscription.action", "Validation failed", { shop, extra: { issues } });
       return Response.json(
         { success: false, error: `Invalid plan. Must be one of: ${VALID_PLANS.join(", ")}` },
         { status: 400 }
       );
     }
+    const { plan } = parsed.data;
 
     // TODO: For paid plans, validate through Shopify Billing API first
     // For now, directly update (development mode only)
     if (plan !== "free") {
-      console.warn(`[SmartAds] WARNING: Plan "${plan}" set for ${shop} without Shopify Billing verification. Add billing flow before production!`);
+      logger.warn("subscription.action", `Plan "${plan}" set without Shopify Billing verification`, { shop });
     }
 
     await updatePlan(shop, plan, {
@@ -55,7 +67,7 @@ export const action = async ({ request }) => {
     const info = await getSubscriptionInfo(shop);
     return Response.json({ success: true, subscription: info });
   } catch (err) {
-    console.error("[SmartAds] Subscription error:", err);
+    logger.error("subscription.action", "Subscription error", { shop, error: err.message });
     return Response.json({ success: false, error: err.message }, { status: 500 });
   }
 };

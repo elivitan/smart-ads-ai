@@ -15,6 +15,7 @@ import prisma from "../db.server.js";
 import crypto from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
 
 function productHash(title, price, description) {
   return crypto.createHash("md5").update(`${title}|${price}|${(description || "").slice(0, 200)}`).digest("hex");
@@ -25,10 +26,15 @@ export const action = async ({ request }) => {
   try {
     ({ admin, session } = await authenticate.admin(request));
   } catch (authErr) {
-    console.error("[SmartAds] Auth failed:", authErr.message);
+    logger.error("sync.action", "Auth failed", { error: authErr.message });
     return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
   }
   const shop = session.shop;
+
+  // Rate limit check
+  const rl = rateLimit.sync(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
+
   const formData = await request.formData();
   const step = formData.get("step");
 
@@ -188,7 +194,7 @@ export const action = async ({ request }) => {
             }
           }
         } else {
-          console.error("Parallel batch failed:", res.reason?.message);
+          logger.error("sync.analyze", "Parallel batch failed", { shop, error: res.reason?.message });
         }
       }
 
@@ -203,7 +209,7 @@ export const action = async ({ request }) => {
     return Response.json({ success: false, error: "Unknown step" }, { status: 400 });
 
   } catch (err) {
-    console.error("Sync API error:", err);
+    logger.error("sync.action", "Sync API error", { shop, error: err.message });
     return Response.json({ success: false, error: err.message || "Sync failed" }, { status: 500 });
   }
 };

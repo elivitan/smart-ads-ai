@@ -1,6 +1,7 @@
 import { authenticate } from "../shopify.server";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
 
 /**
  * Campaign Management API
@@ -80,7 +81,7 @@ export const action = async ({ request }) => {
       default: return Response.json({ success: false, error: "Unknown action" }, { status: 400 });
     }
   } catch (error) {
-    console.error("Campaign management error (falling back to simulated):", error.message);
+    logger.error("campaign-manage.action", "Campaign management error (falling back to simulated)", { error: error.message });
     // Fallback to simulated mode when Google Ads API fails (e.g. TEST MODE token)
     return Response.json(getSimulatedResponse(action, formData));
   }
@@ -214,7 +215,7 @@ async function diagnoseCampaigns(token, customerId) {
       }));
     }
   } catch (e) {
-    console.log("Recommendations query failed (may be empty):", e.message);
+    logger.warn("campaign-manage.recommendations", "Recommendations query failed", { extra: { error: e.message } });
   }
 
   try {
@@ -237,7 +238,7 @@ async function diagnoseCampaigns(token, customerId) {
       }
     }
   } catch (e) {
-    console.log("Ad policy query failed:", e.message);
+    logger.warn("campaign-manage.adPolicy", "Ad policy query failed", { extra: { error: e.message } });
   }
 
   // Build diagnosis report

@@ -2,9 +2,21 @@ import { authenticate } from "../shopify.server";
 import { exploreKeywords, scanWebsite } from "../keyword-research.server";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
 
 export const action = async ({ request }) => {
-  try { await authenticate.admin(request); } catch (authErr) { console.error("[SmartAds] Auth failed:", authErr.message); return Response.json({ success: false, error: "Authentication failed" }, { status: 401 }); }
+  let session;
+  try {
+    ({ session } = await authenticate.admin(request));
+  } catch (authErr) {
+    logger.error("keywords.action", "Auth failed", { error: authErr.message });
+    return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
+  }
+  const shop = session.shop;
+
+  // Rate limit check
+  const rl = rateLimit.keywords(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
   const formData = await request.formData();
   const actionType = formData.get("actionType");
 
@@ -30,7 +42,7 @@ export const action = async ({ request }) => {
 
     return Response.json({ success: false, error: "Unknown action" }, { status: 400 });
   } catch (err) {
-    console.error("Keyword research error:", err);
+    logger.error("keywords.action", "Keyword research error", { shop, error: err.message });
     return Response.json(
       { success: false, error: err.message || "Something went wrong" },
       { status: 500 }

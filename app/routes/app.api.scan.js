@@ -11,6 +11,11 @@ import prisma from "../db.server.js";
 import crypto from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
+
+// Zod schemas
+const ScanStepSchema = z.enum(["fetch", "analyze-batch", "analyze"]);
+const MAX_BODY_SIZE = 102400; // 100KB
 
 // Helper: create a hash of product data to detect changes
 function productHash(product) {
@@ -20,16 +25,16 @@ function productHash(product) {
 
 // Helper: save AI analysis results to database
 async function saveAiResultsToDB(shop, products, aiProducts) {
-  console.log("[SmartAds] saveAiResultsToDB called:", products.length, "products,", aiProducts.length, "AI results");
-  console.log("[SmartAds] Product IDs:", products.map(p => p.id).slice(0,3));
-  console.log("[SmartAds] AI titles:", aiProducts.map(p => p.title).slice(0,3));
+  logger.info("scan.saveDB", "saveAiResultsToDB called", { extra: { productCount: products.length, aiCount: aiProducts.length } });
+  logger.info("scan.saveDB", "Product IDs sample", { extra: { ids: products.map(p => p.id).slice(0,3) } });
+  logger.info("scan.saveDB", "AI titles sample", { extra: { titles: aiProducts.map(p => p.title).slice(0,3) } });
   let saved = 0;
   for (const aiProduct of aiProducts) {
     // Find the matching source product
     const sourceProduct = products.find(p =>
       p.title === aiProduct.title || (p.id && String(p.id) === String(aiProduct.id))
     );
-    console.log("[SmartAds] Match attempt:", aiProduct.title, "-> found:", sourceProduct?.title, "id:", sourceProduct?.id);
+    logger.info("scan.saveDB", "Match attempt", { extra: { aiTitle: aiProduct.title, matched: sourceProduct?.title, id: sourceProduct?.id } });
     if (!sourceProduct?.id) continue;
 
     const productId = sourceProduct.id;
@@ -76,7 +81,7 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
       });
       saved++;
     } catch (err) {
-      console.error(`[SmartAds] Failed to save AI analysis for ${productId}:`, err.message);
+      logger.error("scan.saveDB", `Failed to save AI analysis for ${productId}`, { error: err.message });
     }
   }
   return saved;
@@ -87,12 +92,23 @@ export const action = async ({ request }) => {
   try {
     ({ admin, session } = await authenticate.admin(request));
   } catch (authErr) {
-    console.error("[SmartAds] Auth failed:", authErr.message);
+    logger.error("scan.action", "Auth failed", { error: authErr.message });
     return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
   }
   const shop = session.shop;
+
+  // Rate limit check
+  const rl = rateLimit.scan(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
+
   const formData = await request.formData();
   const step = formData.get("step");
+
+  // Validate step
+  const stepCheck = ScanStepSchema.safeParse(step);
+  if (!stepCheck.success) {
+    return Response.json({ success: false, error: "Invalid step. Must be: fetch, analyze-batch, or analyze" }, { status: 400 });
+  }
 
   try {
     /* ── Fetch all products (allowed for everyone) ── */
@@ -129,9 +145,9 @@ export const action = async ({ request }) => {
             create: { id: p.id, shop, title: p.title, description: p.description, handle: p.handle, image: p.image, price: p.price },
             update: { title: p.title, description: p.description, handle: p.handle, image: p.image, price: p.price, syncedAt: new Date() },
           });
-        } catch (err) { console.log("[SmartAds] Failed to save product:", p.id, err.message); }
+        } catch (err) { logger.warn("scan.fetch", "Failed to save product", { extra: { id: p.id, error: err.message } }); }
       }
-      console.log("[SmartAds] Saved", products.length, "products to DB");
+      logger.info("scan.fetch", "Saved products to DB", { shop, extra: { count: products.length } });
 
       return Response.json({ success: true, products, storeInfo });
     }
@@ -158,7 +174,7 @@ export const action = async ({ request }) => {
       // SAVE TO DATABASE
       const aiProducts = result?.products || [];
       const savedCount = await saveAiResultsToDB(shop, products, aiProducts);
-      console.log(`[SmartAds] Saved ${savedCount}/${aiProducts.length} AI analyses to DB for ${shop}`);
+      logger.info("scan.analyze-batch", "AI analyses saved to DB", { shop, extra: { saved: savedCount, total: aiProducts.length } });
 
       // DEDUCT CREDIT after successful scan
       await useScanCredit(shop);
@@ -181,7 +197,7 @@ export const action = async ({ request }) => {
       
       // SAVE TO DATABASE
       const savedCount = await saveAiResultsToDB(shop, products.slice(0, 5), aiResults?.products || []);
-      console.log(`[SmartAds] Saved ${savedCount} AI analyses to DB for ${shop}`);
+      logger.info("scan.analyze", "AI analyses saved to DB", { shop, extra: { saved: savedCount } });
       
       await useScanCredit(shop);
       return Response.json({ success: true, aiResults, savedToDb: savedCount });
@@ -189,7 +205,7 @@ export const action = async ({ request }) => {
 
     return Response.json({ success: false, error: "Unknown step" }, { status: 400 });
   } catch (err) {
-    console.error("Scan error:", err);
+    logger.error("scan.action", "Scan error", { shop, error: err.message });
     return Response.json({ success: false, error: err.message || "Scan failed" }, { status: 500 });
   }
 };

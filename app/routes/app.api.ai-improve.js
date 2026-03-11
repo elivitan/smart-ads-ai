@@ -8,6 +8,7 @@ import { checkLicense, useAiCredit } from "../license.server.js";
 import { checkAnthropicLimit } from "../rateLimit.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,10 +17,14 @@ export const action = async ({ request }) => {
   try {
     ({ session } = await authenticate.admin(request));
   } catch (authErr) {
-    console.error("[SmartAds] Auth failed:", authErr.message);
+    logger.error("ai-improve.action", "Auth failed", { error: authErr.message });
     return Response.json({ success: false, error: "Authentication failed" }, { status: 401 });
   }
   const shop = session.shop;
+
+  // Rate limit check
+  const rl = rateLimit.aiImprove(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   // ✅ LICENSE CHECK — must have AI credits
   const license = await checkLicense(shop, "ai-improve");
@@ -85,7 +90,7 @@ Rules:
       creditsRemaining: license.sub.aiCredits - 1,
     });
   } catch (e) {
-    console.error("AI improve error:", e);
+    logger.error("ai-improve.action", "AI improve error", { shop, error: e.message });
     return Response.json({ success: false, error: e.message }, { status: 500 });
   }
 };
