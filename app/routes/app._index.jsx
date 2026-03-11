@@ -18,7 +18,7 @@ import GlobalModals from "../components/GlobalModals.jsx";
 import { ScanningScreen } from "../components/ScanningScreen.jsx";
 import { AutoLaunchingScreen, AutoStatusScreen } from "../components/AutoScreens.jsx";
 import { DashboardView } from "../components/DashboardView.jsx";
-import useAppStore from "../stores/useAppStore.js";
+import useAppStore, { appStore } from "../stores/useAppStore.js";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
@@ -177,9 +177,9 @@ export default function Index() {
         if (userState.lastAiResults) {
           try { u.aiResults = JSON.parse(userState.lastAiResults); } catch {}
         }
-        if (Object.keys(u).length > 0) store.setState(u);
+        if (Object.keys(u).length > 0) appStore.setState(u);
       }
-      store.setState({ isHydrated: true });
+      appStore.setState({ isHydrated: true });
     }
   }, []);
 

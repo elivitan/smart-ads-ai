@@ -409,3 +409,6 @@ const appStore = createStore((set, get) => ({
 export default function useAppStore(selector) {
   return useStore(appStore, selector || ((s) => s));
 }
+
+// Export vanilla store for direct setState (e.g. init from DB)
+export { appStore };
