@@ -1,13 +1,16 @@
 import React from "react";
 import { TipRotator, Confetti } from "../routes/SmallComponents.jsx";
+import useAppStore from "../stores/useAppStore.js";
 
-export function ScanningScreen({
-  fakeProgress, hasScanAccess, showConfetti, scanMsg, FREE_SCAN_LIMIT,
-  showCancelConfirm, setShowCancelConfirm,
-  cancelRef, creepRef,
-  setIsScanning, setFakeProgress, setProducts, setAiResults, setShowDashboard,
-  StyleTag
-}) {
+export function ScanningScreen({ StyleTag, cancelRef, creepRef, FREE_SCAN_LIMIT }) {
+  const {
+    fakeProgress, showConfetti, scanMsg,
+    showCancelConfirm, setShowCancelConfirm,
+    setIsScanning, setFakeProgress, setProducts, setAiResults, setShowDashboard,
+    selectedPlan, scanCredits,
+  } = useAppStore();
+
+  const hasScanAccess = !!selectedPlan || scanCredits > 0;
   const pct = Math.round(fakeProgress);
   const steps = hasScanAccess ? [
     {label:"Fetching products from your store",done:pct>=10,active:pct<10},
@@ -33,17 +36,17 @@ export function ScanningScreen({
         </svg>
         <span className="ld-pct-text">{pct}%</span>
       </div>
-      <h2 className="ld-title">{hasScanAccess?(pct>=100?"Your store is ready to grow! 🎉":pct>=50?"Making great progress! ✨":"On it! Working my magic… 🤖"):(pct>=100?"Preview ready!":"Running quick preview...")}</h2>
-      <p className="ld-sub">{scanMsg||"Hang tight — your AI assistant is hard at work"}</p>
+      <h2 className="ld-title">{hasScanAccess?(pct>=100?"Your store is ready to grow! \u{1F389}":pct>=50?"Making great progress! \u2728":"On it! Working my magic\u2026 \u{1F916}"):(pct>=100?"Preview ready!":"Running quick preview...")}</h2>
+      <p className="ld-sub">{scanMsg||"Hang tight \u2014 your AI assistant is hard at work"}</p>
       <div className="ld-bar-bg"><div className="ld-bar-fill" style={{width:pct+"%",transition:"width .5s ease"}}/></div>
       {hasScanAccess && <TipRotator/>}
-      {!hasScanAccess && <div className="free-scan-note">🔓 Free preview — {FREE_SCAN_LIMIT} products only</div>}
-      <div className="ld-steps">{steps.map((s,i)=><div key={i} className={`ld-step ${s.done?"ld-step-done":""} ${s.active?"ld-step-active":""}`}><span className="ld-dot">{s.done?"✓":""}</span>{s.label}</div>)}</div>
-      <button className="btn-back" style={{marginTop:8}} onClick={()=>setShowCancelConfirm(true)}>← Cancel</button>
+      {!hasScanAccess && <div className="free-scan-note">\u{1F513} Free preview \u2014 {FREE_SCAN_LIMIT} products only</div>}
+      <div className="ld-steps">{steps.map((s,i)=><div key={i} className={"ld-step "+(s.done?"ld-step-done":"")+" "+(s.active?"ld-step-active":"")}><span className="ld-dot">{s.done?"\u2713":""}</span>{s.label}</div>)}</div>
+      <button className="btn-back" style={{marginTop:8}} onClick={()=>setShowCancelConfirm(true)}>\u2190 Cancel</button>
       {showCancelConfirm && (
         <div className="cancel-confirm-overlay">
           <div className="cancel-confirm-box">
-            <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
+            <div style={{fontSize:36,marginBottom:12}}>\u26A0\uFE0F</div>
             <h3 style={{fontSize:17,fontWeight:700,marginBottom:8}}>Stop Scanning?</h3>
             <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:20}}>All progress will be lost.</p>
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>

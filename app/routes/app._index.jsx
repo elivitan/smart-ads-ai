@@ -536,24 +536,16 @@ export default function Index() {
 
   if (isScanning && !justSubscribed) {
     return (
-      <ScanningScreen
-        fakeProgress={fakeProgress} hasScanAccess={hasScanAccess}
-        showConfetti={showConfetti} scanMsg={scanMsg} FREE_SCAN_LIMIT={FREE_SCAN_LIMIT}
-        showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm}
-        cancelRef={cancelRef} creepRef={creepRef}
-        setIsScanning={setIsScanning} setFakeProgress={setFakeProgress}
-        setProducts={setProducts} setAiResults={setAiResults} setShowDashboard={setShowDashboard}
-        StyleTag={StyleTag}
-      />
+      <ScanningScreen StyleTag={StyleTag} cancelRef={cancelRef} creepRef={creepRef} FREE_SCAN_LIMIT={FREE_SCAN_LIMIT}/>
     );
   }
 
   if (autoLaunching) return (
-    <AutoLaunchingScreen cancelRef={cancelRef} setAutoLaunching={setAutoLaunching} setShowDashboard={setShowDashboard} StyleTag={StyleTag}/>
+    <AutoLaunchingScreen cancelRef={cancelRef} StyleTag={StyleTag}/>
   );
 
   if (autoStatus==="success"||autoStatus==="error") return (
-    <AutoStatusScreen autoStatus={autoStatus} setAutoStatus={setAutoStatus} showConfetti={showConfetti} navigate={navigate} StyleTag={StyleTag}/>
+    <AutoStatusScreen navigate={navigate} StyleTag={StyleTag}/>
   );
 
   // ══════════════════════════════════════════════
