@@ -1,5 +1,5 @@
 import React from "react";
-import { TipRotator, Confetti } from "../routes/SmallComponents.jsx";
+import { TipRotator, Confetti } from "./SmallComponents.jsx";
 import useAppStore from "../stores/useAppStore.js";
 
 export function ScanningScreen({ StyleTag, cancelRef, creepRef, FREE_SCAN_LIMIT }) {

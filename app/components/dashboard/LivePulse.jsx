@@ -9,6 +9,7 @@ const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, cl
   const canvasRef = useRef(null);
   const dataRef = useRef(Array.from({ length: 30 }, () => Math.random() * 0.4 + 0.1));
   const animRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const events = [
     "New impression — 'luxury bedding set'",
@@ -37,7 +38,7 @@ const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, cl
     };
     tick();
     const iv = setInterval(() => { if (document.visibilityState !== "hidden") tick(); }, 2200 + Math.random() * 1800);
-    return () => clearInterval(iv);
+    return () => { clearInterval(iv); mountedRef.current = false; };
   }, [campaigns]);
 
   // Canvas animation

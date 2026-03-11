@@ -5,6 +5,11 @@
 // Future: replace Map with Redis for multi-instance deployments.
 // ════════════════════════════════════════════
 
+
+// ── Redis integration (Phase 3 activation) ──
+// When USE_REDIS=true, rate limiting will use Redis instead of in-memory Map.
+// This enables multi-instance deployments with shared rate limit state.
+// For now, falls back to in-memory if Redis is not available.
 const buckets = new Map();
 
 // Auto-cleanup: remove expired entries every 5 minutes

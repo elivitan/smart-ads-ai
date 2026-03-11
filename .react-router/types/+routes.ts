@@ -23,28 +23,7 @@ type Pages = {
   "/webhooks/products-delete": {
     params: {};
   };
-  "/CollectingDataScreen": {
-    params: {};
-  };
-  "/CompetitorComponents": {
-    params: {};
-  };
-  "/LandingComponents": {
-    params: {};
-  };
   "/webhooks/products": {
-    params: {};
-  };
-  "/DashboardWidgets": {
-    params: {};
-  };
-  "/SmallComponents": {
-    params: {};
-  };
-  "/AdPreviewPanel": {
-    params: {};
-  };
-  "/StoreAnalytics": {
     params: {};
   };
   "/styles/index": {
@@ -54,9 +33,6 @@ type Pages = {
     params: {};
   };
   "/api/credits": {
-    params: {};
-  };
-  "/MarketAlert": {
     params: {};
   };
   "/auth/login": {
@@ -129,7 +105,7 @@ type Pages = {
 type RouteFiles = {
   "root.jsx": {
     id: "root";
-    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/CollectingDataScreen" | "/CompetitorComponents" | "/LandingComponents" | "/webhooks/products" | "/DashboardWidgets" | "/SmallComponents" | "/AdPreviewPanel" | "/StoreAnalytics" | "/styles/index" | "/api/analyze" | "/api/credits" | "/MarketAlert" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/webhooks.app.scopes_update.jsx": {
     id: "routes/webhooks.app.scopes_update";
@@ -143,37 +119,9 @@ type RouteFiles = {
     id: "routes/webhooks.products-delete";
     page: "/webhooks/products-delete";
   };
-  "routes/CollectingDataScreen.jsx": {
-    id: "routes/CollectingDataScreen";
-    page: "/CollectingDataScreen";
-  };
-  "routes/CompetitorComponents.jsx": {
-    id: "routes/CompetitorComponents";
-    page: "/CompetitorComponents";
-  };
-  "routes/LandingComponents.jsx": {
-    id: "routes/LandingComponents";
-    page: "/LandingComponents";
-  };
   "routes/webhooks.products.jsx": {
     id: "routes/webhooks.products";
     page: "/webhooks/products";
-  };
-  "routes/DashboardWidgets.jsx": {
-    id: "routes/DashboardWidgets";
-    page: "/DashboardWidgets";
-  };
-  "routes/SmallComponents.jsx": {
-    id: "routes/SmallComponents";
-    page: "/SmallComponents";
-  };
-  "routes/AdPreviewPanel.jsx": {
-    id: "routes/AdPreviewPanel";
-    page: "/AdPreviewPanel";
-  };
-  "routes/StoreAnalytics.jsx": {
-    id: "routes/StoreAnalytics";
-    page: "/StoreAnalytics";
   };
   "routes/styles.index.js": {
     id: "routes/styles.index";
@@ -186,10 +134,6 @@ type RouteFiles = {
   "routes/api.credits.jsx": {
     id: "routes/api.credits";
     page: "/api/credits";
-  };
-  "routes/MarketAlert.jsx": {
-    id: "routes/MarketAlert";
-    page: "/MarketAlert";
   };
   "routes/auth.login/route.jsx": {
     id: "routes/auth.login";
@@ -290,18 +234,10 @@ type RouteModules = {
   "routes/webhooks.app.scopes_update": typeof import("./app/routes/webhooks.app.scopes_update.jsx");
   "routes/webhooks.app.uninstalled": typeof import("./app/routes/webhooks.app.uninstalled.jsx");
   "routes/webhooks.products-delete": typeof import("./app/routes/webhooks.products-delete.jsx");
-  "routes/CollectingDataScreen": typeof import("./app/routes/CollectingDataScreen.jsx");
-  "routes/CompetitorComponents": typeof import("./app/routes/CompetitorComponents.jsx");
-  "routes/LandingComponents": typeof import("./app/routes/LandingComponents.jsx");
   "routes/webhooks.products": typeof import("./app/routes/webhooks.products.jsx");
-  "routes/DashboardWidgets": typeof import("./app/routes/DashboardWidgets.jsx");
-  "routes/SmallComponents": typeof import("./app/routes/SmallComponents.jsx");
-  "routes/AdPreviewPanel": typeof import("./app/routes/AdPreviewPanel.jsx");
-  "routes/StoreAnalytics": typeof import("./app/routes/StoreAnalytics.jsx");
   "routes/styles.index": typeof import("./app/routes/styles.index.js");
   "routes/api.analyze": typeof import("./app/routes/api.analyze.js");
   "routes/api.credits": typeof import("./app/routes/api.credits.jsx");
-  "routes/MarketAlert": typeof import("./app/routes/MarketAlert.jsx");
   "routes/auth.login": typeof import("./app/routes/auth.login/route.jsx");
   "routes/auth.$": typeof import("./app/routes/auth.$.jsx");
   "routes/_index": typeof import("./app/routes/_index/route.jsx");

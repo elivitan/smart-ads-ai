@@ -11,30 +11,58 @@ import { getCampaignStatus } from "../campaignLifecycle.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
+import { authenticate } from "../shopify.server";
+
+const statusSchema = z.object({
+  launchId: z.string().min(1, "Missing launchId"),
+});
 
 export async function loader({ request }) {
-  const url = new URL(request.url);
-  const launchId = url.searchParams.get("launchId");
+  try {
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
 
-  if (!launchId) {
-    return Response.json({ success: false, error: "Missing launchId" }, { status: 400 });
+    // Rate limiting — polling is frequent, allow 60/min
+    const limit = rateLimit.campaignStatus(shop);
+    if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
+
+    const url = new URL(request.url);
+    const parsed = statusSchema.safeParse({
+      launchId: url.searchParams.get("launchId"),
+    });
+
+    if (!parsed.success) {
+      return Response.json(
+        { success: false, error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
+    }
+
+    const status = await getCampaignStatus(parsed.data.launchId);
+
+    if (!status) {
+      return Response.json(
+        { success: false, error: "Launch not found" },
+        { status: 404 }
+      );
+    }
+
+    return Response.json({
+      success: true,
+      launchId: status.launchId,
+      state: status.state,
+      steps: status.steps,
+      attempts: status.attempts,
+      campaignId: status.steps?.find(s => s.campaignId)?.campaignId || null,
+      error: status.steps?.find(s => s.error)?.error || null,
+      createdAt: status.createdAt,
+      updatedAt: status.updatedAt,
+    });
+  } catch (error) {
+    logger.error("[campaign-status] Error:", error.message);
+    return Response.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const status = await getCampaignStatus(launchId);
-
-  if (!status) {
-    return Response.json({ success: false, error: "Launch not found" }, { status: 404 });
-  }
-
-  return Response.json({
-    success: true,
-    launchId: status.launchId,
-    state: status.state,
-    steps: status.steps,
-    attempts: status.attempts,
-    campaignId: status.steps?.find(s => s.campaignId)?.campaignId || null,
-    error: status.steps?.find(s => s.error)?.error || null,
-    createdAt: status.createdAt,
-    updatedAt: status.updatedAt,
-  });
 }

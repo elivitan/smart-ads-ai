@@ -1,5 +1,5 @@
 import React from "react";
-import { Confetti } from "../routes/SmallComponents.jsx";
+import { Confetti } from "./SmallComponents.jsx";
 import useAppStore from "../stores/useAppStore.js";
 
 export function AutoLaunchingScreen({ cancelRef, StyleTag }) {

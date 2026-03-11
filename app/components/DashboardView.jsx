@@ -1,15 +1,15 @@
 import React, { useState, useCallback } from "react";
 import { Link } from "react-router";
-import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
-import { Confetti } from "../routes/SmallComponents.jsx";
-import { AdPreviewPanel } from "../routes/AdPreviewPanel.jsx";
-import { CompetitorModal } from "../routes/CompetitorComponents.jsx";
-import { CompetitorGapFinder } from "../routes/CompetitorComponents.jsx";
-import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "../routes/DashboardWidgets.jsx";
-import { LivePulse } from "../components/dashboard/LivePulse.jsx";
-import { ProductModal } from "../components/ProductModal.jsx";
-import { MarketAlert } from "../routes/MarketAlert.jsx";
-import { StoreAnalyticsWidget } from "../routes/StoreAnalytics.jsx";
+import { Counter, ScoreRing, Speedometer } from "./ui/SmallWidgets.jsx";
+import { Confetti } from "./SmallComponents.jsx";
+import { AdPreviewPanel } from "./AdPreviewPanel.jsx";
+import { CompetitorModal } from "./CompetitorComponents.jsx";
+import { CompetitorGapFinder } from "./CompetitorComponents.jsx";
+import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "./DashboardWidgets.jsx";
+import { LivePulse } from "./dashboard/LivePulse.jsx";
+import { ProductModal } from "./ProductModal.jsx";
+import { MarketAlert } from "./MarketAlert.jsx";
+import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 import useAppStore from "../stores/useAppStore.js";
 
 function LockedOverlay({ isPaid, onUpgrade, title, children }) {
