@@ -1,14 +1,17 @@
 import { OnboardModal, BuyCreditsModal } from "./Modals.jsx";
 import { LaunchChoiceDialog } from "./LaunchChoiceDialog.jsx";
+import useAppStore from "../stores/useAppStore.js";
 
-export default function GlobalModals({
-  showOnboard, setShowOnboard, onboardTab, setOnboardTab,
-  onboardStep, setOnboardStep, selectedPlan, selectPlan,
-  googleConnected, setGoogleConnected, scanCredits, setScanCredits,
-  justSubscribed, setAutoScanMode, showLaunchChoice, setShowLaunchChoice,
-  launchLoading, setLaunchLoading, navigate,
-  showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits
-}) {
+export default function GlobalModals({ navigate }) {
+  const {
+    showOnboard, setShowOnboard, onboardTab, setOnboardTab,
+    onboardStep, setOnboardStep, selectedPlan, selectPlan,
+    googleConnected, setGoogleConnected, scanCredits, setScanCredits,
+    justSubscribed, setAutoScanMode,
+    showLaunchChoice, setShowLaunchChoice, launchLoading, setLaunchLoading,
+    showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits,
+  } = useAppStore();
+
   return (
     <>
       {showOnboard && <OnboardModal

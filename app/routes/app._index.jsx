@@ -1,29 +1,23 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { useLoaderData, useLocation, useRevalidator, useNavigate, Link } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
 import { getSubscriptionInfo } from "../license.server.js";
-import { OnboardModal, BuyCreditsModal } from "../components/Modals.jsx";
 import { CSS } from "./styles.index.js";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
 import { TipRotator, Confetti, SuccessTicker } from "./SmallComponents.jsx";
 import { CollectingDataScreen } from "./CollectingDataScreen.jsx";
-import { AdPreviewPanel } from "./AdPreviewPanel.jsx";
-import { CompetitorModal } from "../components/CompetitorModal.jsx";
 import { CompetitorGapFinder } from "./CompetitorComponents.jsx";
 import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "./DashboardWidgets.jsx";
-import { LivePulse } from "../components/dashboard/LivePulse.jsx";
 import { LandingBudgetTeaser, LandingMissingBlock } from "./LandingComponents.jsx";
 import { ProductModal } from "../components/ProductModal.jsx";
-import { MarketAlert } from "./MarketAlert.jsx";
-import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
 import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
 import { SubscriberHome } from "../components/SubscriberHome.jsx";
-import { LaunchChoiceDialog } from "../components/LaunchChoiceDialog.jsx";
 import GlobalModals from "../components/GlobalModals.jsx";
 import { ScanningScreen } from "../components/ScanningScreen.jsx";
 import { AutoLaunchingScreen, AutoStatusScreen } from "../components/AutoScreens.jsx";
 import { DashboardView } from "../components/DashboardView.jsx";
+import useAppStore from "../stores/useAppStore.js";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
@@ -137,18 +131,57 @@ export default function Index() {
   const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription } = useLoaderData();
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
 
-  // Enterprise: trigger initial sync on client side (never block server render)
+  // ── Zustand Store ──
+  const store = useAppStore();
+  const {
+    // UI
+    showOnboard, setShowOnboard, onboardStep, setOnboardStep, onboardTab, setOnboardTab,
+    showBuyCredits, setShowBuyCredits, showLaunchChoice, setShowLaunchChoice,
+    launchLoading, setLaunchLoading, showConfetti, showDashboard, setShowDashboard,
+    showCancelConfirm, setShowCancelConfirm, vis, setVis, triggerConfetti,
+    openUpgradeModal, openCreditsTab,
+    // Subscription
+    selectedPlan, scanCredits, setScanCredits, aiCredits, setAiCredits,
+    googleConnected, setGoogleConnected, justSubscribed, setJustSubscribed,
+    autoScanMode, setAutoScanMode, isHydrated,
+    initSubscription, hydrateFromSession, selectPlan,
+    // Scanning
+    isScanning, setIsScanning, fakeProgress, setFakeProgress, scanMode, setScanMode,
+    scanMsg, setScanMsg, scanError, setScanError,
+    products, setProducts, aiResults, setAiResults,
+    // Campaign
+    campaignId, setCampaignId, campaignStatus, setCampaignStatus,
+    campaignControlStatus, setCampaignControlStatus,
+    realSpend, setRealSpend, confirmRemove, setConfirmRemove,
+    autoStatus, setAutoStatus, autoLaunching, setAutoLaunching,
+    selProduct, setSelProduct, selCompetitor, setSelCompetitor,
+    editHeadlines, setEditHeadlines, editDescriptions, setEditDescriptions,
+    improvingIdx, setImprovingIdx, pickedProducts, setPickedProducts,
+    hydrateCampaign,
+  } = store;
+
+  // ── Initialize store from server data (once) ──
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (!didInit.current) {
+      didInit.current = true;
+      initSubscription({ isPaidServer, planFromCookie, serverSubscription });
+      hydrateFromSession({ isPaidServer, serverSubscription });
+      hydrateCampaign();
+    }
+  }, []);
+
+  // Enterprise: trigger initial sync on client side
   useEffect(() => {
     if (needsInitialSync) {
-      fetch("/app/api/sync", { method: "POST" })
-        .catch(() => {}); // silent — UI will update via webhook
+      fetch("/app/api/sync", { method: "POST" }).catch(() => {});
     }
   }, [needsInitialSync]);
 
   const location = useLocation();
   const navigate = useNavigate();
-  const scrollRef = React.useRef(0);
-  React.useEffect(() => { const s = scrollRef.current; if (s > 0) window.scrollTo(0, s); const h = () => { scrollRef.current = window.scrollY; }; window.addEventListener("scroll", h, { passive: true }); return () => window.removeEventListener("scroll", h); });
+  const scrollRef = useRef(0);
+  useEffect(() => { const s = scrollRef.current; if (s > 0) window.scrollTo(0, s); const h = () => { scrollRef.current = window.scrollY; }; window.addEventListener("scroll", h, { passive: true }); return () => window.removeEventListener("scroll", h); });
   useEffect(() => {
     if (location.hash === "#launch") {
       setShowLaunchChoice(true);
@@ -158,7 +191,6 @@ export default function Index() {
 
   const revalidator = useRevalidator();
 
-  // Build product-specific URL for campaigns
   function getProductUrl(product) {
     const base = storeUrl;
     if (product?.handle) return `${base}/products/${product.handle}`;
@@ -168,11 +200,11 @@ export default function Index() {
     }
     return base;
   }
+
   const allDbProducts = dbProducts || [];
   const analyzedDbProducts = allDbProducts.filter(p => p.hasAiAnalysis);
   const totalDbProducts = allDbProducts.length;
 
-  // Enterprise: O(1) lookup maps instead of O(n) find() on every render
   const productById = useMemo(() => {
     const map = new Map();
     allDbProducts.forEach(p => { if (p.id) map.set(p.id, p); });
@@ -185,117 +217,24 @@ export default function Index() {
     return map;
   }, [allDbProducts]);
 
-  const [products, setProductsRaw] = useState([]);
-  const [aiResults, setAiResultsRaw] = useState(null);
-  function setProducts(v) { setProductsRaw(v); try { sessionStorage.setItem("sai_products", JSON.stringify(v)); } catch {} }
-  function setAiResults(v) { setAiResultsRaw(v); try { sessionStorage.setItem("sai_aiResults", JSON.stringify(v)); } catch {} }
-
   const scanned = products.length > 0;
-  const [isScanning, setIsScanning] = useState(false);
-  const [fakeProgress, setFakeProgress] = useState(0);
-  const [scanMode, setScanMode] = useState(null);
-  const [vis, setVis] = useState(false);
-  const [selProduct, setSelProduct] = useState(null);
-  const [selCompetitor, setSelCompetitor] = useState(null);
-  const [showOnboard, setShowOnboard] = useState(false);
-  const [onboardStep, setOnboardStep] = useState(1);
-  const [onboardTab, setOnboardTab] = useState("subscription");
-
-  // Plan — cookie is source of truth (set server-side, no flash)
-  const [selectedPlan, setSelectedPlan] = useState(isPaidServer ? planFromCookie : null);
-  useEffect(() => {
-    if (!isPaidServer) {
-      try { const stored = sessionStorage.getItem("sai_plan"); if (stored) setSelectedPlan(stored); } catch {}
-    }
-  }, []);
-  const [isHydrated, setIsHydrated] = useState(isPaidServer); // if server knows isPaid, already hydrated
-  useEffect(() => { setIsHydrated(true); }, []);
-
-  const [scanCredits, setScanCreditsRaw] = useState(serverSubscription?.scanCredits ?? 0);
-  useEffect(() => {
-    if (serverSubscription?.scanCredits == null) {
-      try { const c = sessionStorage.getItem("sai_scan_credits"); if (c) setScanCreditsRaw(parseInt(c)); } catch {}
-    }
-  }, []);
-  const [aiCredits, setAiCreditsRaw] = useState(serverSubscription?.aiCredits ?? 0);
-  useEffect(() => {
-    if (serverSubscription?.aiCredits == null) {
-      try { const c = sessionStorage.getItem("sai_credits"); if (c) setAiCreditsRaw(parseInt(c)); } catch {}
-    }
-  }, []);
-  function setScanCredits(v) { setScanCreditsRaw(v); try { sessionStorage.setItem("sai_scan_credits", String(v)); } catch {} }
-  function setAiCredits(v) { setAiCreditsRaw(v); try { sessionStorage.setItem("sai_credits", String(v)); } catch {} }
-
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [campaignStatus, setCampaignStatus] = useState(null);
-  const [campaignId, setCampaignId] = useState("sim_001");
-  useEffect(() => {
-    try { const c = sessionStorage.getItem("sai_campaign_id"); if (c) setCampaignId(c); } catch {}
-  }, []);
-  const [campaignControlStatus, setCampaignControlStatus] = useState(null); // 'pausing'|'removing'|'paused'|'removed'|'error'
-  const [realSpend, setRealSpend] = useState(null); // live spend from Google Ads API
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  const [showLaunchChoice, setShowLaunchChoice] = useState(false);
-  const [launchLoading, setLaunchLoading] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(false);
-
-  const [autoStatus, setAutoStatus] = useState(null);
-  const [editHeadlines, setEditHeadlines] = useState([]);
-  const [editDescriptions, setEditDescriptions] = useState([]);
-  const [improvingIdx, setImprovingIdx] = useState(null);
-  const [showBuyCredits, setShowBuyCredits] = useState(false);
-  const [scanError, setScanError] = useState(null);
-  const [scanMsg, setScanMsg] = useState("");
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [showManualPicker, setShowManualPicker] = useState(false);
-  const [pickedProducts, setPickedProducts] = useState([]);
-  const [autoLaunching, setAutoLaunching] = useState(false);
-  const [autoScanMode, setAutoScanMode] = useState(null);
-  const [justSubscribed, setJustSubscribed] = useState(false); // true after selectPlan until scan starts // "auto"|"review"|null — set by Launch Choice after subscription
-
-  const cancelRef = useRef(false);
-  const creepRef = useRef(null);
-
   const _forcePreview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'landing';
   const isPaid = !!selectedPlan;
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;
 
-  // LockedOverlay — moved outside Index() to prevent remount loops
-
-  // marketIntel removed — MarketAlert component handles its own data fetching
-
-  // ⚠️ ALL HOOKS MUST BE CALLED HERE — before any early returns
   // Pre-compute values for the Google Ads hook
   const _analyzedCount = analyzedDbProducts.length;
   const _avgScore = _analyzedCount > 0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/_analyzedCount) : 0;
   const _mockCampaigns = isPaid && _analyzedCount > 0 ? Math.min(Math.floor(_analyzedCount * 0.6), 12) : 0;
   const liveAds = useGoogleAdsData(_mockCampaigns, _avgScore);
 
-  function triggerConfetti() { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3500); }
   useEffect(() => { setVis(true); }, []);
 
-  function selectPlan(plan) {
-    // Wrap state updates in startTransition to prevent "Rendered more hooks" error
-    React.startTransition(() => {
-      setSelectedPlan(plan);
-      setJustSubscribed(true); // Mark: show scanning flow, not dashboard
-      setScanMsg(""); // Clear stale scan messages from previous sessions
-      setAiCredits({ starter: 10, pro: 200, premium: 1000 }[plan] || 0);
-    });
-    // Save as cookie (1 year) — survives tab close, cache clear
-    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
-    try { sessionStorage.setItem("sai_plan", plan); } catch {}
-    // Also save to server API (best effort)
-    fetch("/app/api/subscription", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
-    }).catch(() => {});
-  }
+  const cancelRef = useRef(false);
+  const creepRef = useRef(null);
 
+  // ── SCAN FUNCTION ──
   async function doScan(mode) {
     const isAuto = mode === "auto";
     setScanMode(mode || "review"); setIsScanning(true); setFakeProgress(0);
@@ -316,7 +255,7 @@ export default function Index() {
       if (cancelRef.current) { clearInterval(smoothTimer); setIsScanning(false); return; }
       clearInterval(smoothTimer);
 
-      const allFetched = fd.products, storeUrl = fd.storeInfo?.url || "";
+      const allFetched = fd.products, fetchedStoreUrl = fd.storeInfo?.url || "";
       const toAnalyze = hasScanAccess ? allFetched : allFetched.slice(0, FREE_SCAN_LIMIT);
       fetchedProducts = allFetched; setProducts(allFetched);
 
@@ -344,7 +283,7 @@ export default function Index() {
         }, 400);
         creepRef.current = creepTimer;
 
-        const af = new FormData(); af.append("step", "analyze-batch"); af.append("products", JSON.stringify(batch)); af.append("storeDomain", storeUrl);
+        const af = new FormData(); af.append("step", "analyze-batch"); af.append("products", JSON.stringify(batch)); af.append("storeDomain", fetchedStoreUrl);
         const ar = await fetch("/app/api/scan", { method:"POST", body:af, signal:scanAbort.signal });
         clearInterval(creepTimer); creepRef.current = null;
         const ad = await ar.json().catch(() => { throw new Error(`AI returned invalid response on batch ${b+1}.`); });
@@ -402,7 +341,7 @@ export default function Index() {
   }
 
   async function handleAutoCampaign() {
-    if (!canPublish) { setShowOnboard(true); setOnboardTab("subscription"); setOnboardStep(1); return; }
+    if (!canPublish) { openUpgradeModal(); return; }
     setAutoLaunching(true);
     let successCount = 0;
     const toProcess = analyzedDbProducts.length > 0 ? analyzedDbProducts : allDbProducts.slice(0, 5);
@@ -427,7 +366,7 @@ export default function Index() {
   }
 
   function handleProductClick(product) {
-    if (!hasScanAccess) { setShowOnboard(true); setOnboardStep(1); return; }
+    if (!hasScanAccess) { openUpgradeModal(); return; }
     setSelProduct(product); setCampaignStatus(null);
     const isDb = !!product.hasAiAnalysis;
     const ai = isDb ? (product.aiAnalysis||{}) : (aiResults?.products?.find(ap => ap.title===product.title)||{});
@@ -447,7 +386,6 @@ export default function Index() {
         if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); return; }
         const data = await res.json();
         if (!cancelled && data.campaigns) {
-          // Find our campaign by id
           const numId = String(campaignId).split("/").pop();
           const camp = data.campaigns.find(c => String(c.id) === numId || c.resourceName === campaignId);
           if (camp) setRealSpend(parseFloat(camp.cost));
@@ -455,7 +393,7 @@ export default function Index() {
       } catch {}
     }
     fetchSpend();
-    const iv = setInterval(fetchSpend, 60000); // refresh every minute
+    const iv = setInterval(fetchSpend, 60000);
     return () => { cancelled = true; clearInterval(iv); };
   }, [campaignId]);
 
@@ -487,28 +425,22 @@ export default function Index() {
       if (data.success) {
         setCampaignControlStatus("removed");
         setCampaignId(null);
-        try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
       } else {
         setCampaignControlStatus("error");
       }
     } catch { setCampaignControlStatus("error"); }
   }
 
-  const handleUpgradeClick = React.useCallback(() => {
-    setShowOnboard(true);
-    setOnboardTab("subscription");
-    setOnboardStep(1);
-  }, []);
+  const handleUpgradeClick = useCallback(() => { openUpgradeModal(); }, []);
 
-  // useLatest pattern — פונקציות יציבות שתמיד קוראות לנתונים המעודכנים
   const handleProductClickRef = useRef(handleProductClick);
   const handleAutoCampaignRef = useRef(handleAutoCampaign);
   useEffect(() => {
     handleProductClickRef.current = handleProductClick;
     handleAutoCampaignRef.current = handleAutoCampaign;
   });
-  const handleProductClickCb = React.useCallback((p) => handleProductClickRef.current(p), []);
-  const handleAutoCampaignCb = React.useCallback(() => handleAutoCampaignRef.current(), []);
+  const handleProductClickCb = useCallback((p) => handleProductClickRef.current(p), []);
+  const handleAutoCampaignCb = useCallback(() => handleAutoCampaignRef.current(), []);
 
   async function handleCreateCampaign() {
     if (!selProduct||!canPublish) return;
@@ -526,7 +458,7 @@ export default function Index() {
       if (data.success) {
         triggerConfetti();
         const cid = data.campaignId || data.campaign_id || data.resourceName || null;
-        if (cid) { setCampaignId(cid); try { sessionStorage.setItem("sai_campaign_id", cid); } catch {} }
+        if (cid) setCampaignId(cid);
       }
     } catch { setCampaignStatus("error"); }
   }
@@ -549,50 +481,43 @@ export default function Index() {
     setImprovingIdx(null);
   }
 
-  // ── ONBOARD MODAL ──
-
-  // ── Computed values + useMemo hooks (MUST be before any early returns) ──
-    const totalProducts = totalDbProducts;
-    const analyzedCount = analyzedDbProducts.length;
-    const avgScore = analyzedCount>0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/analyzedCount) : 0;
-  // ── These useMemo hooks were inside if(hasScanAccess) — moved out to fix React hooks rule ──
-    const sortedProducts = useMemo(() =>
-      [...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0)),
-    [allDbProducts]);
-    const topCompetitors = useMemo(() => {
-      const allCompetitors = analyzedDbProducts.flatMap(p=>p.aiAnalysis?.competitor_intel?.top_competitors||[]);
-      const competitorMap = {};
-      allCompetitors.forEach(c => { if (!c.domain) return; if (!competitorMap[c.domain]) competitorMap[c.domain]={count:0,strength:c.strength||"unknown"}; competitorMap[c.domain].count++; });
-      return Object.entries(competitorMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
-    }, [analyzedDbProducts]);
-    const { keywordGaps, totalMonthlyGapLoss } = useMemo(() => {
-      const myKeywords = new Set(
-        analyzedDbProducts.flatMap(p => (p.aiAnalysis?.keywords||[]).map(k => (typeof k==="string"?k:k?.text||"").toLowerCase().trim()))
-          .filter(Boolean)
-      );
-      const competitorKeywords = analyzedDbProducts.flatMap(p => p.aiAnalysis?.competitor_intel?.keyword_gaps||[])
-        .map(k => (typeof k==="string"?k:k?.text||k).toLowerCase().trim())
-        .filter(Boolean);
-      const gapKeywordCounts = {};
-      competitorKeywords.forEach(k => { gapKeywordCounts[k] = (gapKeywordCounts[k]||0)+1; });
-      const gaps = Object.entries(gapKeywordCounts)
-        .filter(([k]) => !myKeywords.has(k) && k.length > 3)
-        .sort((a,b) => b[1]-a[1])
-        .slice(0, 8)
-        .map(([keyword, freq]) => ({
-          keyword,
-          freq,
-          estMonthlyLoss: Math.round((freq * 280) * (avgScore < 60 ? 1.4 : 1)),
-          estClicks: Math.round(freq * 22),
-          difficulty: freq >= 3 ? "High" : freq === 2 ? "Medium" : "Low",
-          diffColor: freq >= 3 ? "#ef4444" : freq === 2 ? "#f59e0b" : "#22c55e",
-        }));
-      return { keywordGaps: gaps, totalMonthlyGapLoss: gaps.reduce((a,g) => a+g.estMonthlyLoss, 0) };
-    }, [analyzedDbProducts, avgScore]);
-
-  // OnboardModal — now imported from ../components/Modals.jsx
-
-  // BuyCreditsModal — now imported from ../components/Modals.jsx
+  // ── Computed values (MUST be before any early returns) ──
+  const totalProducts = totalDbProducts;
+  const analyzedCount = analyzedDbProducts.length;
+  const avgScore = analyzedCount>0 ? Math.round(analyzedDbProducts.reduce((a,p)=>a+(p.aiAnalysis?.ad_score||0),0)/analyzedCount) : 0;
+  const sortedProducts = useMemo(() =>
+    [...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0)),
+  [allDbProducts]);
+  const topCompetitors = useMemo(() => {
+    const allCompetitors = analyzedDbProducts.flatMap(p=>p.aiAnalysis?.competitor_intel?.top_competitors||[]);
+    const competitorMap = {};
+    allCompetitors.forEach(c => { if (!c.domain) return; if (!competitorMap[c.domain]) competitorMap[c.domain]={count:0,strength:c.strength||"unknown"}; competitorMap[c.domain].count++; });
+    return Object.entries(competitorMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
+  }, [analyzedDbProducts]);
+  const { keywordGaps, totalMonthlyGapLoss } = useMemo(() => {
+    const myKeywords = new Set(
+      analyzedDbProducts.flatMap(p => (p.aiAnalysis?.keywords||[]).map(k => (typeof k==="string"?k:k?.text||"").toLowerCase().trim()))
+        .filter(Boolean)
+    );
+    const competitorKeywords = analyzedDbProducts.flatMap(p => p.aiAnalysis?.competitor_intel?.keyword_gaps||[])
+      .map(k => (typeof k==="string"?k:k?.text||k).toLowerCase().trim())
+      .filter(Boolean);
+    const gapKeywordCounts = {};
+    competitorKeywords.forEach(k => { gapKeywordCounts[k] = (gapKeywordCounts[k]||0)+1; });
+    const gaps = Object.entries(gapKeywordCounts)
+      .filter(([k]) => !myKeywords.has(k) && k.length > 3)
+      .sort((a,b) => b[1]-a[1])
+      .slice(0, 8)
+      .map(([keyword, freq]) => ({
+        keyword,
+        freq,
+        estMonthlyLoss: Math.round((freq * 280) * (avgScore < 60 ? 1.4 : 1)),
+        estClicks: Math.round(freq * 22),
+        difficulty: freq >= 3 ? "High" : freq === 2 ? "Medium" : "Low",
+        diffColor: freq >= 3 ? "#ef4444" : freq === 2 ? "#f59e0b" : "#22c55e",
+      }));
+    return { keywordGaps: gaps, totalMonthlyGapLoss: gaps.reduce((a,g) => a+g.estMonthlyLoss, 0) };
+  }, [analyzedDbProducts, avgScore]);
 
   // ── ERROR / LOADING SCREENS ──
   if (scanError) return (
@@ -642,17 +567,11 @@ export default function Index() {
     const competitorThreat = avgScore>=70?"Low":avgScore>=50?"Moderate":"High";
     const threatColor = {Low:"#22c55e",Moderate:"#f59e0b",High:"#ef4444"}[competitorThreat];
     const googleRankStatus = avgScore>=70?"page_1":avgScore>=50?"page_2":"page_3";
-
-    // Competitor aggregation — sorted by count
     const competitorCount = topCompetitors.length;
-
-    // Competitor Gap Finder — keywords competitors use that we don't
-
-    // Live Google Ads data — from top-level hook
     const impressionsBase = liveAds.impressions;
     const clicksBase = liveAds.clicks;
 
-    // ── SUBSCRIBER HOME PAGE — shows before dashboard ──
+    // ── SUBSCRIBER HOME PAGE ──
     if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
       <>
       <SubscriberHome
@@ -669,13 +588,13 @@ export default function Index() {
         onOpenDashboard={() => setShowDashboard(true)}
         onScan={() => doScan("review")}
         onLaunch={() => setShowLaunchChoice(true)}
-        onBuyCredits={() => { setShowOnboard(true); setOnboardTab("credits"); }}
+        onBuyCredits={() => openCreditsTab()}
       />
-      <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+      <GlobalModals navigate={navigate}/>
       </>
     );
 
-    // ── Fresh paid subscriber — never scanned yet ──
+    // ── Fresh paid subscriber ──
     if (isPaid && (analyzedCount === 0 || justSubscribed)) return (
       <div className="sr dk"><StyleTag/><div className="bg-m"/>
         <div className="status-bar"><div className="status-bar-inner">
@@ -702,31 +621,17 @@ export default function Index() {
             </div>
           )}
         </div>
-        <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+        <GlobalModals navigate={navigate}/>
       </div>
     );
 
     return (<>
       <DashboardView
-        showConfetti={showConfetti} showDashboard={showDashboard} setShowDashboard={setShowDashboard}
         analyzedDbProducts={analyzedDbProducts} totalProducts={totalProducts}
         analyzedCount={analyzedCount} avgScore={avgScore}
         topCompetitors={topCompetitors} liveAds={liveAds}
         keywordGaps={keywordGaps} totalMonthlyGapLoss={totalMonthlyGapLoss}
-        shopDomain={shopDomain} selectedPlan={selectedPlan}
-        isPaid={isPaid} canPublish={canPublish} aiResults={aiResults}
-        selCompetitor={selCompetitor} setSelCompetitor={setSelCompetitor}
-        selProduct={selProduct} setSelProduct={setSelProduct}
-        pickedProducts={pickedProducts} setPickedProducts={setPickedProducts}
-        allDbProducts={allDbProducts}
-        storeUrl={storeUrl}
-        campaignId={campaignId}
-        realSpend={realSpend}
-        campaignControlStatus={campaignControlStatus}
-        confirmRemove={confirmRemove}
-        setConfirmRemove={setConfirmRemove}
-        handlePauseCampaign={handlePauseCampaign}
-        handleRemoveCampaign={handleRemoveCampaign}
+        shopDomain={shopDomain} allDbProducts={allDbProducts} storeUrl={storeUrl}
         sortedProducts={sortedProducts}
         onManualLaunch={async (productIds) => {
           setAutoLaunching(true);
@@ -752,17 +657,7 @@ export default function Index() {
           if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }
         }}
         doScan={doScan} handleProductClick={handleProductClick} navigate={navigate}
-        showOnboard={showOnboard} setShowOnboard={setShowOnboard}
-        onboardTab={onboardTab} setOnboardTab={setOnboardTab}
-        onboardStep={onboardStep} setOnboardStep={setOnboardStep}
-        selectPlan={selectPlan}
-        googleConnected={googleConnected} setGoogleConnected={setGoogleConnected}
-        scanCredits={scanCredits} setScanCredits={setScanCredits}
-        justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode}
-        showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice}
-        launchLoading={launchLoading} setLaunchLoading={setLaunchLoading}
-        showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits}
-        aiCredits={aiCredits} setAiCredits={setAiCredits}
+        handlePauseCampaign={handlePauseCampaign} handleRemoveCampaign={handleRemoveCampaign}
         StyleTag={StyleTag}
         mockCampaigns={mockCampaigns} mockRoas={mockRoas}
         competitorThreat={competitorThreat} threatColor={threatColor}
@@ -770,37 +665,37 @@ export default function Index() {
         impressionsBase={impressionsBase} clicksBase={clicksBase}
         totalKeywords={totalKeywords} highPotential={highPotential} topProduct={topProduct}
       />
-      <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+      <GlobalModals navigate={navigate}/>
     </>);
   }
 
   // ── FREE DEMO RESULTS ──
   if (scanned && products.length > 0) {
-    const analyzedCount = aiResults?.products?.length||0, totalProducts = products.length;
-    const avgScore = aiResults?.products?.length ? Math.round(aiResults.products.reduce((a,p)=>a+(p.ad_score||0),0)/aiResults.products.length) : 0;
-    const highPotential = aiResults?.products?.filter(p=>p.ad_score>=70).length||0;
+    const demoAnalyzedCount = aiResults?.products?.length||0, demoTotalProducts = products.length;
+    const demoAvgScore = aiResults?.products?.length ? Math.round(aiResults.products.reduce((a,p)=>a+(p.ad_score||0),0)/aiResults.products.length) : 0;
+    const demoHighPotential = aiResults?.products?.filter(p=>p.ad_score>=70).length||0;
     return (
       <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/><div className="bg-m"/>
-        {isHydrated && !isPaid && scanCredits === 0 && <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>}
+        {isHydrated && !isPaid && scanCredits === 0 && <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={openUpgradeModal}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>}
         <div className="da">
           <div className="da-header">
             <div>
               <button className="btn-back-home" onClick={()=>{setProducts([]);setAiResults(null);}}>← Back</button>
               <h1 className="da-title">Free Preview</h1>
-              <p className="da-sub">{analyzedCount} of {totalProducts} products analyzed · Upgrade to unlock all {totalProducts-analyzedCount} remaining</p>
+              <p className="da-sub">{demoAnalyzedCount} of {demoTotalProducts} products analyzed · Upgrade to unlock all {demoTotalProducts-demoAnalyzedCount} remaining</p>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <button className="btn-rescan" onClick={()=>doScan("review")}>↻ Scan Again</button>
-              <button className="btn-secondary" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}>⚡ Buy Scan Credits</button>
-              <button className="btn-primary" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Subscribe & Publish</button>
+              <button className="btn-secondary" onClick={openCreditsTab}>⚡ Buy Scan Credits</button>
+              <button className="btn-primary" onClick={openUpgradeModal}>🚀 Subscribe & Publish</button>
             </div>
           </div>
           <div className="stats-row">
-            <div className="stat-card"><div className="stat-icon">📦</div><div className="stat-val"><Counter end={totalProducts}/></div><div className="stat-lbl">Products Found</div></div>
-            <div className="stat-card"><div className="stat-icon">🎯</div><div className="stat-val"><Counter end={avgScore} suffix="/100"/></div><div className="stat-lbl">Avg Score</div></div>
-            <div className="stat-card"><div className="stat-icon">⚡</div><div className="stat-val"><Counter end={highPotential}/></div><div className="stat-lbl">High-Potential</div></div>
-            <div className="stat-card"><div className="stat-icon">✅</div><div className="stat-val"><Counter end={analyzedCount}/><span style={{fontSize:13,color:"rgba(255,255,255,.3)"}}> / {totalProducts}</span></div><div className="stat-lbl">Analyzed</div></div>
+            <div className="stat-card"><div className="stat-icon">📦</div><div className="stat-val"><Counter end={demoTotalProducts}/></div><div className="stat-lbl">Products Found</div></div>
+            <div className="stat-card"><div className="stat-icon">🎯</div><div className="stat-val"><Counter end={demoAvgScore} suffix="/100"/></div><div className="stat-lbl">Avg Score</div></div>
+            <div className="stat-card"><div className="stat-icon">⚡</div><div className="stat-val"><Counter end={demoHighPotential}/></div><div className="stat-lbl">High-Potential</div></div>
+            <div className="stat-card"><div className="stat-icon">✅</div><div className="stat-val"><Counter end={demoAnalyzedCount}/><span style={{fontSize:13,color:"rgba(255,255,255,.3)"}}> / {demoTotalProducts}</span></div><div className="stat-lbl">Analyzed</div></div>
           </div>
           <div className="ai-summary-card ai-summary-free"><span className="ai-summary-icon">🔒</span><div><div className="free-badge">Free Preview</div><div>{aiResults?.summary}</div></div></div>
           <div className="p-grid">
@@ -823,7 +718,7 @@ export default function Index() {
               );
             })}
           </div>
-          <div className="free-upgrade-cta" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>
+          <div className="free-upgrade-cta" onClick={openUpgradeModal}>
             <div className="free-upgrade-icon">🚀</div>
             <div><div className="free-upgrade-title">Unlock All {totalProducts} Products + Full Campaigns</div><div className="free-upgrade-desc">Get competitor intelligence, ad copy, keywords & one-click Google Ads campaigns for every product</div></div>
             <div className="free-upgrade-arrow">→</div>
@@ -833,7 +728,7 @@ export default function Index() {
           aiResults={aiResults}
           shop={shopDomain}
         />}
-        <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+        <GlobalModals navigate={navigate}/>
       </div>
     );
   }
@@ -842,17 +737,17 @@ export default function Index() {
   return (
     <div className="sr dk"><StyleTag/>
       <div className="bg-m"/>
-      <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>
+      <div className="top-bar"><div className="top-bar-inner"><span className="top-bar-fire">🔥</span><span className="top-bar-txt"><strong>Limited Offer:</strong> Get <span className="top-bar-highlight">7 days FREE</span> — AI campaigns that bring <strong>3x more sales</strong></span><button className="top-bar-btn" onClick={openUpgradeModal}>Start Free Trial →</button><span className="top-bar-fire">🔥</span></div></div>
       <div className={`la ${vis?"la-v":""}`}>
         <section className="hero">
           <div className="hero-badge">🤖 AI-Powered Google Ads for Shopify</div>
           <h1 className="hero-h">Stop guessing.<br/><span className="hero-grad">Start selling.</span></h1>
           <p className="hero-p">Smart Ads AI scans your competitors, checks your Google rankings, writes killer ad copy, and launches campaigns that convert — in 60 seconds.</p>
           <div className="hero-btns">
-            <button className="btn-primary btn-lg" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Start My Campaign</button>
+            <button className="btn-primary btn-lg" onClick={openUpgradeModal}>🚀 Start My Campaign</button>
             <button className="btn-secondary" onClick={()=>doScan("review")}>Try Free Preview</button>
           </div>
-          <div className="hero-nudge" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}><span className="nudge-lock">⚡</span> No subscription? <strong>Buy scan credits</strong> — from $0.60/scan <span className="nudge-arrow">→</span></div>
+          <div className="hero-nudge" onClick={openCreditsTab}><span className="nudge-lock">⚡</span> No subscription? <strong>Buy scan credits</strong> — from $0.60/scan <span className="nudge-arrow">→</span></div>
           <div className="hero-metrics">
             <div className="hm"><span className="hm-val">+340%</span><span className="hm-lbl">Avg ROAS</span></div>
             <div className="hm"><span className="hm-val">47hrs</span><span className="hm-lbl">Saved/month</span></div>
@@ -860,20 +755,16 @@ export default function Index() {
           </div>
           <SuccessTicker/>
         </section>
-        {/* ── BUDGET TEASER ── */}
         <section className="section lp-budget-section">
           <h2 className="sec-h">See your numbers before you commit</h2>
           <p className="sec-sub">Move the slider — watch your projected results update instantly.</p>
           <LandingBudgetTeaser />
         </section>
-
-        {/* ── WHAT YOU'RE MISSING ── */}
         <section className="section lp-missing-section">
           <h2 className="sec-h">What's happening while you wait</h2>
           <p className="sec-sub">Every day without Smart Ads AI, your competitors are pulling ahead.</p>
-          <LandingMissingBlock onInstall={() => { setShowOnboard(true); setOnboardStep(1); setOnboardTab("subscription"); }} />
+          <LandingMissingBlock onInstall={openUpgradeModal} />
         </section>
-
         <section className="section"><h2 className="sec-h">Sound familiar?</h2><div className="pain-grid">{[{ic:"💸",t:"Wasted Ad Spend",d:"Thousands spent on agencies with nothing to show for it."},{ic:"😵",t:"Google Ads Confusion",d:"The interface is overwhelming. You don't know where to start."},{ic:"📝",t:"Generic Ad Copy",d:"Your ads sound like everyone else's. No personality, no conversions."},{ic:"⏰",t:"Weeks of Setup",d:"By the time your campaign launches, the trend is already over."}].map((p,i)=><div key={i} className="pain-card"><span className="pain-ic">{p.ic}</span><h3 className="pain-t">{p.t}</h3><p className="pain-d">{p.d}</p></div>)}</div></section>
         <section className="section"><h2 className="sec-h">What if AI could do it all — better?</h2><div className="sol-grid">{[{n:"60",s:"seconds",d:"Full competitor scan + campaign-ready ads"},{n:"Top 10",s:"competitors",d:"Scraped and analyzed for every product"},{n:"Real",s:"data",d:"Keywords from Google, not guesses from a robot"}].map((s,i)=><div key={i} className="sol-card"><div className="sol-n">{s.n}</div><div className="sol-s">{s.s}</div><p className="sol-d">{s.d}</p></div>)}</div></section>
         <section className="section"><h2 className="sec-h">Stupidly simple. Seriously powerful.</h2><div className="steps-grid">{[{n:"1",t:"Scan",d:"AI scans your products and searches Google for your competitors."},{n:"2",t:"Analyze",d:"See competitor keywords, your rankings, and AI-optimized ad copy."},{n:"3",t:"Launch",d:"One click to launch campaigns built on real competitive data."}].map((s,i)=><div key={i} className="step-card"><div className="step-n">{s.n}</div><h3 className="step-t">{s.t}</h3><p className="step-d">{s.d}</p></div>)}</div></section>
@@ -882,15 +773,14 @@ export default function Index() {
         <section className="section cta-section">
           <h2 className="cta-h">Your products deserve better ads.</h2>
           <p className="cta-p">Join 2,000+ Shopify merchants who stopped guessing and started growing.</p>
-          <button className="btn-primary btn-lg" onClick={()=>{setShowOnboard(true);setOnboardStep(1);setOnboardTab("subscription");}}>🚀 Start My Campaign →</button>
+          <button className="btn-primary btn-lg" onClick={openUpgradeModal}>🚀 Start My Campaign →</button>
           <div style={{marginTop:12,display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
             <button className="btn-secondary" onClick={()=>doScan("review")}>🔍 Try Free Preview</button>
-            <button className="btn-secondary" onClick={()=>{setShowOnboard(true);setOnboardTab("credits");}}>⚡ Buy Scan Credits</button>
+            <button className="btn-secondary" onClick={openCreditsTab}>⚡ Buy Scan Credits</button>
           </div>
         </section>
       </div>
-      <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+      <GlobalModals navigate={navigate}/>
     </div>
   );
 }
-

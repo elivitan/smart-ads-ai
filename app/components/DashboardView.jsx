@@ -10,6 +10,7 @@ import { LivePulse } from "../components/dashboard/LivePulse.jsx";
 import { ProductModal } from "../components/ProductModal.jsx";
 import { MarketAlert } from "../routes/MarketAlert.jsx";
 import { StoreAnalyticsWidget } from "../routes/StoreAnalytics.jsx";
+import useAppStore from "../stores/useAppStore.js";
 
 function LockedOverlay({ isPaid, onUpgrade, title, children }) {
   if (isPaid) return children || null;
@@ -41,28 +42,34 @@ class WidgetErrorBoundary extends React.Component {
 }
 
 export function DashboardView({
-  showConfetti, showDashboard, setShowDashboard,
   analyzedDbProducts, totalProducts, analyzedCount, avgScore,
   topCompetitors, liveAds, keywordGaps, totalMonthlyGapLoss,
-  shopDomain, selectedPlan, isPaid, canPublish, aiResults,
-  selCompetitor, setSelCompetitor, selProduct, setSelProduct,
-  pickedProducts, setPickedProducts,
+  shopDomain, allDbProducts, storeUrl, sortedProducts,
+  onManualLaunch,
   doScan, handleProductClick, navigate,
-  allDbProducts, storeUrl, onManualLaunch,
-  campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove,
-  handlePauseCampaign, handleRemoveCampaign, sortedProducts,
-  showOnboard, setShowOnboard, onboardTab, setOnboardTab,
-  onboardStep, setOnboardStep, selectPlan,
-  googleConnected, setGoogleConnected, scanCredits, setScanCredits,
-  justSubscribed, setAutoScanMode,
-  showLaunchChoice, setShowLaunchChoice, launchLoading, setLaunchLoading,
-  showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits,
+  handlePauseCampaign, handleRemoveCampaign,
   StyleTag,
   mockCampaigns, mockRoas, competitorThreat, threatColor,
   googleRankStatus, competitorCount, impressionsBase, clicksBase,
   totalKeywords, highPotential, topProduct
 }) {
-  const [showManualPicker, setShowManualPicker] = useState(false);
+
+  // ── Zustand Store ──
+  const {
+    showConfetti, showDashboard, setShowDashboard,
+    selectedPlan, aiResults, 
+    selCompetitor, setSelCompetitor, selProduct, setSelProduct,
+    pickedProducts, setPickedProducts,
+    campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove,
+    showOnboard, setShowOnboard, onboardTab, setOnboardTab,
+    onboardStep, setOnboardStep, selectPlan,
+    googleConnected, setGoogleConnected, scanCredits, setScanCredits,
+    justSubscribed, setAutoScanMode,
+    showLaunchChoice, setShowLaunchChoice, launchLoading, setLaunchLoading,
+    showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits,
+  } = useAppStore();
+  const isPaid = !!selectedPlan;
+  const canPublish = isPaid;  const [showManualPicker, setShowManualPicker] = useState(false);
   const hasScanAccess = isPaid || scanCredits > 0;
   const handleUpgradeClick = useCallback(() => {
     setShowOnboard(true); setOnboardTab("subscription"); setOnboardStep(1);
