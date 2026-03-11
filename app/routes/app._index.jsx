@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { useLoaderData, useLocation, useRevalidator, useNavigate, Link } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
+import prisma from "../db.server.js";
 import { getSubscriptionInfo } from "../license.server.js";
 import { CSS } from "./styles.index.js";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
@@ -88,6 +89,14 @@ export const loader = async ({ request }) => {
   const serverPlan = subscriptionInfo?.plan || planFromCookie || "free";
   const isPaidServer = !!serverPlan && serverPlan !== "free";
 
+  // Load persistent user state from DB
+  let userState = null;
+  try {
+    userState = await prisma.userState.findUnique({ where: { shop } });
+  } catch (e) {
+    console.error("[SmartAds] Failed to load UserState:", e.message);
+  }
+
   return {
     products: dbProducts,
     syncStatus,
@@ -96,6 +105,7 @@ export const loader = async ({ request }) => {
     isPaidServer,
     needsInitialSync,
     subscription: subscriptionInfo || { plan: serverPlan, scanCredits: 0, aiCredits: 0, canPublish: isPaidServer },
+    userState,
   };
   } catch (loaderErr) {
     console.error("[SmartAds] Loader error:", loaderErr.message);
@@ -107,6 +117,7 @@ export const loader = async ({ request }) => {
       isPaidServer: false,
       needsInitialSync: true,
       subscription: { plan: "free", scanCredits: 0, aiCredits: 0, canPublish: false },
+      userState: null,
     };
   }
 };
@@ -114,7 +125,7 @@ export const loader = async ({ request }) => {
 
 
 export default function Index() {
-  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription } = useLoaderData();
+  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription, userState } = useLoaderData();
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
 
   // ── Zustand Store ──
@@ -154,6 +165,23 @@ export default function Index() {
       initSubscription({ isPaidServer, planFromCookie, serverSubscription });
       hydrateFromSession({ isPaidServer, serverSubscription });
       hydrateCampaign();
+      // DB state overrides sessionStorage if available (more reliable)
+      if (userState) {
+        const u = {};
+        if (userState.selectedPlan) u.selectedPlan = userState.selectedPlan;
+        if (userState.scanCredits) u.scanCredits = userState.scanCredits;
+        if (userState.aiCredits) u.aiCredits = userState.aiCredits;
+        if (userState.campaignId) u.campaignId = userState.campaignId;
+        if (userState.autoScanMode) u.autoScanMode = userState.autoScanMode;
+        if (userState.showDashboard) u.showDashboard = userState.showDashboard;
+        if (userState.lastScanProducts) {
+          try { u.products = JSON.parse(userState.lastScanProducts); } catch {}
+        }
+        if (userState.lastAiResults) {
+          try { u.aiResults = JSON.parse(userState.lastAiResults); } catch {}
+        }
+        if (Object.keys(u).length > 0) store.setState(u);
+      }
     }
   }, []);
 

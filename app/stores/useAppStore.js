@@ -49,10 +49,12 @@ const appStore = createStore((set, get) => ({
   setScanCredits: (v) => {
     set({ scanCredits: v });
     try { sessionStorage.setItem("sai_scan_credits", String(v)); } catch {}
+    get()._saveToDb({ scanCredits: v });
   },
   setAiCredits: (v) => {
     set({ aiCredits: v });
     try { sessionStorage.setItem("sai_credits", String(v)); } catch {}
+    get()._saveToDb({ aiCredits: v });
   },
   setGoogleConnected: (v) => set({ googleConnected: v }),
   setJustSubscribed: (v) => set({ justSubscribed: v }),
@@ -102,6 +104,7 @@ const appStore = createStore((set, get) => ({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan }),
     }).catch(() => {});
+    get()._saveToDb({ selectedPlan: plan, justSubscribed: true, aiCredits: { starter: 10, pro: 200, premium: 1000 }[plan] || 0 });
   },
 
   // ── Scanning Slice ──
@@ -121,10 +124,12 @@ const appStore = createStore((set, get) => ({
   setProducts: (v) => {
     set({ products: v });
     try { sessionStorage.setItem("sai_products", JSON.stringify(v)); } catch {}
+    get()._saveToDb({ lastScanProducts: v });
   },
   setAiResults: (v) => {
     set({ aiResults: v });
     try { sessionStorage.setItem("sai_aiResults", JSON.stringify(v)); } catch {}
+    get()._saveToDb({ lastAiResults: v });
   },
 
   // ── Campaign Slice ──
@@ -147,6 +152,7 @@ const appStore = createStore((set, get) => ({
     set({ campaignId: v });
     if (v) { try { sessionStorage.setItem("sai_campaign_id", v); } catch {} }
     else { try { sessionStorage.removeItem("sai_campaign_id"); } catch {} }
+    get()._saveToDb({ campaignId: v || null });
   },
   setCampaignStatus: (v) => set({ campaignStatus: v }),
   setCampaignControlStatus: (v) => set({ campaignControlStatus: v }),
@@ -208,6 +214,7 @@ const appStore = createStore((set, get) => ({
       fetchedProducts = allFetched;
       set({ products: allFetched });
       try { sessionStorage.setItem("sai_products", JSON.stringify(allFetched)); } catch {}
+      get()._saveToDb({ lastScanProducts: allFetched });
 
       for (let p = Math.ceil(smoothProg); p <= 10; p++) { set({ fakeProgress: p }); await new Promise(r => setTimeout(r, 40)); }
       set({ scanMsg: hasScanAccess ? `Found ${allFetched.length} products — analyzing with AI...` : `Found ${allFetched.length} products — analyzing top ${FREE_SCAN_LIMIT} for preview...` });
@@ -258,6 +265,7 @@ const appStore = createStore((set, get) => ({
       const aiResultsData = { summary, recommended_budget: 100, products: allAiProducts };
       set({ aiResults: aiResultsData, fakeProgress: 100, scanMsg: hasScanAccess ? "Your store is ready to grow 🎉" : "Preview ready!" });
       try { sessionStorage.setItem("sai_aiResults", JSON.stringify(aiResultsData)); } catch {}
+      get()._saveToDb({ lastAiResults: aiResultsData });
       triggerConfetti();
       await new Promise(r => setTimeout(r, 800));
 
@@ -339,6 +347,7 @@ const appStore = createStore((set, get) => ({
       if (data.success) {
         set({ campaignControlStatus: "removed", campaignId: null });
         try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
+        get()._saveToDb({ campaignId: null });
       } else {
         set({ campaignControlStatus: "error" });
       }
@@ -381,6 +390,49 @@ const appStore = createStore((set, get) => ({
       const c = sessionStorage.getItem("sai_campaign_id");
       if (c) set({ campaignId: c });
     } catch {}
+  },
+
+  // ── DB persistence (runs alongside sessionStorage) ──
+  _saveTimer: null,
+  _savePending: {},
+  _saveToDb: (fields) => {
+    const store = get();
+    store._savePending = { ...store._savePending, ...fields };
+    if (store._saveTimer) clearTimeout(store._saveTimer);
+    const timer = setTimeout(() => {
+      const pending = get()._savePending;
+      set({ _savePending: {}, _saveTimer: null });
+      if (Object.keys(pending).length === 0) return;
+      fetch("/app/api/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pending),
+      }).catch((e) => console.warn("[SmartAds] saveToDb failed:", e.message));
+    }, 300);
+    set({ _saveTimer: timer });
+  },
+
+  loadFromDb: async () => {
+    try {
+      const res = await fetch("/app/api/state");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.state) {
+        const s = data.state;
+        const updates = {};
+        if (s.selectedPlan) updates.selectedPlan = s.selectedPlan;
+        if (s.scanCredits) updates.scanCredits = s.scanCredits;
+        if (s.aiCredits) updates.aiCredits = s.aiCredits;
+        if (s.campaignId) updates.campaignId = s.campaignId;
+        if (s.lastScanProducts) updates.products = s.lastScanProducts;
+        if (s.lastAiResults) updates.aiResults = s.lastAiResults;
+        if (s.autoScanMode) updates.autoScanMode = s.autoScanMode;
+        if (s.showDashboard) updates.showDashboard = s.showDashboard;
+        if (Object.keys(updates).length > 0) set(updates);
+      }
+    } catch (e) {
+      console.warn("[SmartAds] loadFromDb failed:", e.message);
+    }
   },
 }));
 
