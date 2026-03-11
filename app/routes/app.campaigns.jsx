@@ -883,6 +883,7 @@ export default function Campaigns() {
 
   return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif",minHeight:"100vh",height:"auto",display:"flex",flexDirection:"column",background:"#0a0a1a" }}>
+      {navOverlay}
       <style>{`
         @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -900,7 +901,7 @@ export default function Campaigns() {
       <div style={{ background:"#0a0a1a",borderBottom:"1px solid rgba(255,255,255,.08)",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
           <button onClick={goToDashboard} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
-            {"←"} Dashboard
+            {navLoading ? "⏳ Loading..." : "← Dashboard"}
           </button>
           <div>
             <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0,letterSpacing:"-0.5px" }}>Campaigns</h1>
