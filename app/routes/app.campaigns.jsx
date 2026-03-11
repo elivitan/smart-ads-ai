@@ -348,7 +348,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
           </div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <ExportButton />
-            <button onClick={()=>{navigate("/app");}} style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
+            <button onClick={goToDashboard} style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>
               {"📊"} Dashboard
             </button>
             <button onClick={onSwitchMode} style={{ fontSize:13,fontWeight:700,color:"#fff",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit" }}>
@@ -465,7 +465,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
       {showAutoLaunch && (
         <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
           {!autoLaunchDone ? (
-            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); navigate("/app"); }} />
+            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); goToDashboard(); }} />
           ) : (
             <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
           )}
@@ -477,7 +477,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
             <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
               <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
               <div style={{ display:"flex",gap:8 }}>
-                <button onClick={()=>{navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"←"} Dashboard</button>
+                <button onClick={goToDashboard} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{navLoading ? "⏳ Loading..." : "← Dashboard"}</button>
                 <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
               </div>
             </div>
@@ -809,6 +809,9 @@ export default function Campaigns() {
   const [showStandaloneWizard, setShowStandaloneWizard] = useState(false);
   const [showAutoLaunch, setShowAutoLaunch] = useState(false);
   const [autoLaunchDone, setAutoLaunchDone] = useState(false);
+  const [navLoading, setNavLoading] = useState(false);
+
+  function goToDashboard() { setNavLoading(true); navigate("/app"); }
 
   // Read campaign intent from sessionStorage (survives Shopify auth redirects)
   useEffect(() => {
@@ -824,15 +827,26 @@ export default function Campaigns() {
 
 
 
+  // Full-screen loading overlay for Dashboard navigation
+  const navOverlay = navLoading ? (
+    <div style={{position:"fixed",inset:0,background:"rgba(10,10,26,0.85)",zIndex:99999,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+      <div style={{width:48,height:48,border:"3px solid rgba(99,102,241,.2)",borderTop:"3px solid #6366f1",borderRadius:"50%",animation:"spin 1s linear infinite",marginBottom:20}}/>
+      <div style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:8}}>Loading Dashboard...</div>
+      <div style={{fontSize:13,color:"rgba(255,255,255,.4)"}}>This may take a few seconds</div>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+    </div>
+  ) : null;
+
   const selected = campaigns.find(c => c.id === selectedId);
   const currentMode = viewMode[selectedId] !== undefined ? viewMode[selectedId] : (selected?.type || "auto");
 
   if (!campaigns || campaigns.length === 0) {
     return (
       <>
+      {navOverlay}
         <div style={{ padding:"40px",maxWidth:600,margin:"0 auto",fontFamily:"'DM Sans',system-ui,sans-serif",textAlign:"center",background:"#0a0a1a",minHeight:"100vh" }}>
           <div style={{ textAlign:"left",marginBottom:24 }}>
-            <button onClick={()=>{navigate("/app");}} style={{ display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",fontFamily:"inherit",transition:"all .15s" }}>{"←"} Dashboard</button>
+            <button onClick={goToDashboard} style={{ display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",fontFamily:"inherit",transition:"all .15s" }}>{navLoading ? "⏳ Loading..." : "← Dashboard"}</button>
           </div>
           <div style={{ width:72,height:72,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 20px" }}>{"🚀"}</div>
           <h1 style={{ fontSize:28,fontWeight:800,color:"#fff",marginBottom:8 }}>No campaigns yet</h1>
@@ -843,7 +857,7 @@ export default function Campaigns() {
         {showAutoLaunch && (
           <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
             {!autoLaunchDone ? (
-              <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); navigate("/app"); }} />
+              <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); goToDashboard(); }} />
             ) : (
               <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
             )}
@@ -855,7 +869,7 @@ export default function Campaigns() {
               <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
                 <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
                 <div style={{ display:"flex",gap:8 }}>
-                  <button onClick={()=>{navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
+                  <button onClick={goToDashboard} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{navLoading ? "⏳ Loading..." : "← Dashboard"}</button>
                   <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
                 </div>
               </div>
@@ -885,7 +899,7 @@ export default function Campaigns() {
 
       <div style={{ background:"#0a0a1a",borderBottom:"1px solid rgba(255,255,255,.08)",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <button onClick={()=>{navigate("/app");}} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
+          <button onClick={goToDashboard} style={{ display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"8px 14px",cursor:"pointer",textDecoration:"none",transition:"all .15s" }}>
             {"←"} Dashboard
           </button>
           <div>
@@ -927,7 +941,7 @@ export default function Campaigns() {
       {showAutoLaunch && (
         <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
           {!autoLaunchDone ? (
-            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); navigate("/app"); }} />
+            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); goToDashboard(); }} />
           ) : (
             <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
           )}
@@ -941,7 +955,7 @@ export default function Campaigns() {
             <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
               <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
               <div style={{ display:"flex",gap:8 }}>
-                <button onClick={()=>{navigate("/app");}} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{"←"} Dashboard</button>
+                <button onClick={goToDashboard} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6 }}>{navLoading ? "⏳ Loading..." : "← Dashboard"}</button>
                 <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
               </div>
             </div>
