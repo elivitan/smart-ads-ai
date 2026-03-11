@@ -1,8 +1,10 @@
 // useAppStore.js — Zustand centralized state for Smart Ads AI
 // Phase 2: replaces 39 useState hooks in app._index.jsx
-import { create } from "zustand";
+// NOTE: Uses createStore (vanilla) + useStore (react) to avoid SSR issues
+import { createStore } from "zustand/vanilla";
+import { useStore } from "zustand/react";
 
-const useAppStore = create((set, get) => ({
+const appStore = createStore((set, get) => ({
 
   // ── UI Slice ──
   showOnboard: false,
@@ -92,7 +94,7 @@ const useAppStore = create((set, get) => ({
       aiCredits: { starter: 10, pro: 200, premium: 1000 }[plan] || 0,
     });
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
+    document.cookie = "sai_plan=" + encodeURIComponent(plan) + "; expires=" + expires + "; path=/; SameSite=None; Secure";
     try { sessionStorage.setItem("sai_plan", plan); } catch {}
     try { sessionStorage.setItem("sai_credits", String({ starter: 10, pro: 200, premium: 1000 }[plan] || 0)); } catch {}
     fetch("/app/api/subscription", {
@@ -168,4 +170,7 @@ const useAppStore = create((set, get) => ({
   },
 }));
 
-export default useAppStore;
+// React hook wrapper — only uses React when called inside a component
+export default function useAppStore(selector) {
+  return useStore(appStore, selector || ((s) => s));
+}
