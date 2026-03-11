@@ -269,6 +269,9 @@ function CampaignSidebar({ campaigns, selectedId, onSelect, onNew }) {
 
 /* ── Campaign Detail (main panel) ── */
 function CampaignDetail({ campaign, onSwitchMode, mode }) {
+  const navigate = useNavigate();
+  const [navLoading, setNavLoading] = useState(false);
+  function goToDashboard() { setNavLoading(true); navigate("/app"); }
   const p = campaign.performance;
   const rc = roasColor(p.roas);
   const [paused, setPaused] = useState(campaign.status === "PAUSED");

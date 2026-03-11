@@ -233,7 +233,7 @@ export default function Index() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [launchLoading, setLaunchLoading] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(isPaidServer);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
