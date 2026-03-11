@@ -48,12 +48,10 @@ const appStore = createStore((set, get) => ({
   setSelectedPlan: (v) => set({ selectedPlan: v }),
   setScanCredits: (v) => {
     set({ scanCredits: v });
-    try { sessionStorage.setItem("sai_scan_credits", String(v)); } catch {}
     get()._saveToDb({ scanCredits: v });
   },
   setAiCredits: (v) => {
     set({ aiCredits: v });
-    try { sessionStorage.setItem("sai_credits", String(v)); } catch {}
     get()._saveToDb({ aiCredits: v });
   },
   setGoogleConnected: (v) => set({ googleConnected: v }),
@@ -70,23 +68,7 @@ const appStore = createStore((set, get) => ({
     });
   },
 
-  hydrateFromSession: ({ isPaidServer, serverSubscription }) => {
-    try {
-      if (!isPaidServer) {
-        const stored = sessionStorage.getItem("sai_plan");
-        if (stored) set({ selectedPlan: stored });
-      }
-      if (serverSubscription?.scanCredits == null) {
-        const sc = sessionStorage.getItem("sai_scan_credits");
-        if (sc) set({ scanCredits: parseInt(sc) });
-      }
-      if (serverSubscription?.aiCredits == null) {
-        const ac = sessionStorage.getItem("sai_credits");
-        if (ac) set({ aiCredits: parseInt(ac) });
-      }
-    } catch {}
-    set({ isHydrated: true });
-  },
+  // hydrateFromSession REMOVED — DB is the only source of truth
 
   selectPlan: (plan) => {
     set({
@@ -97,8 +79,7 @@ const appStore = createStore((set, get) => ({
     });
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
     document.cookie = "sai_plan=" + encodeURIComponent(plan) + "; expires=" + expires + "; path=/; SameSite=None; Secure";
-    try { sessionStorage.setItem("sai_plan", plan); } catch {}
-    try { sessionStorage.setItem("sai_credits", String({ starter: 10, pro: 200, premium: 1000 }[plan] || 0)); } catch {}
+    // sessionStorage REMOVED — DB is the only source of truth
     fetch("/app/api/subscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -123,12 +104,10 @@ const appStore = createStore((set, get) => ({
   setScanError: (v) => set({ scanError: v }),
   setProducts: (v) => {
     set({ products: v });
-    try { sessionStorage.setItem("sai_products", JSON.stringify(v)); } catch {}
     get()._saveToDb({ lastScanProducts: v });
   },
   setAiResults: (v) => {
     set({ aiResults: v });
-    try { sessionStorage.setItem("sai_aiResults", JSON.stringify(v)); } catch {}
     get()._saveToDb({ lastAiResults: v });
   },
 
@@ -150,8 +129,6 @@ const appStore = createStore((set, get) => ({
 
   setCampaignId: (v) => {
     set({ campaignId: v });
-    if (v) { try { sessionStorage.setItem("sai_campaign_id", v); } catch {} }
-    else { try { sessionStorage.removeItem("sai_campaign_id"); } catch {} }
     get()._saveToDb({ campaignId: v || null });
   },
   setCampaignStatus: (v) => set({ campaignStatus: v }),
@@ -213,7 +190,6 @@ const appStore = createStore((set, get) => ({
       const toAnalyze = hasScanAccess ? allFetched : allFetched.slice(0, FREE_SCAN_LIMIT);
       fetchedProducts = allFetched;
       set({ products: allFetched });
-      try { sessionStorage.setItem("sai_products", JSON.stringify(allFetched)); } catch {}
       get()._saveToDb({ lastScanProducts: allFetched });
 
       for (let p = Math.ceil(smoothProg); p <= 10; p++) { set({ fakeProgress: p }); await new Promise(r => setTimeout(r, 40)); }
@@ -264,7 +240,6 @@ const appStore = createStore((set, get) => ({
 
       const aiResultsData = { summary, recommended_budget: 100, products: allAiProducts };
       set({ aiResults: aiResultsData, fakeProgress: 100, scanMsg: hasScanAccess ? "Your store is ready to grow 🎉" : "Preview ready!" });
-      try { sessionStorage.setItem("sai_aiResults", JSON.stringify(aiResultsData)); } catch {}
       get()._saveToDb({ lastAiResults: aiResultsData });
       triggerConfetti();
       await new Promise(r => setTimeout(r, 800));
@@ -346,7 +321,6 @@ const appStore = createStore((set, get) => ({
       const data = await res.json();
       if (data.success) {
         set({ campaignControlStatus: "removed", campaignId: null });
-        try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
         get()._saveToDb({ campaignId: null });
       } else {
         set({ campaignControlStatus: "error" });
@@ -385,14 +359,9 @@ const appStore = createStore((set, get) => ({
     if (successCount > 0) { triggerConfetti(); setTimeout(() => navigate("/app/campaigns"), 3000); }
   },
 
-  hydrateCampaign: () => {
-    try {
-      const c = sessionStorage.getItem("sai_campaign_id");
-      if (c) set({ campaignId: c });
-    } catch {}
-  },
+  // hydrateCampaign REMOVED — DB is the only source of truth
 
-  // ── DB persistence (runs alongside sessionStorage) ──
+  // ── DB persistence (primary source of truth) ──
   _saveTimer: null,
   _savePending: {},
   _saveToDb: (fields) => {

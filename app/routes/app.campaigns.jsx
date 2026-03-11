@@ -816,12 +816,14 @@ export default function Campaigns() {
 
   function goToDashboard() { setNavLoading(true); navigate("/app"); }
 
-  // Read campaign intent from sessionStorage (survives Shopify auth redirects)
+  // Read campaign intent from URL params
   useEffect(() => {
     try {
-      const intent = sessionStorage.getItem("campaignIntent");
+      const params = new URLSearchParams(window.location.search);
+      const intent = params.get("intent");
       if (intent) {
-        sessionStorage.removeItem("campaignIntent");
+        // Clean URL after reading
+        window.history.replaceState({}, "", window.location.pathname);
         if (intent === "autoLaunch") setShowAutoLaunch(true);
         else if (intent === "wizard") setShowStandaloneWizard(true);
       }

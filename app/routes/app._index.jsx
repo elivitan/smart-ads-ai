@@ -141,7 +141,7 @@ export default function Index() {
     selectedPlan, scanCredits, setScanCredits, aiCredits, setAiCredits,
     googleConnected, setGoogleConnected, justSubscribed, setJustSubscribed,
     autoScanMode, setAutoScanMode, isHydrated,
-    initSubscription, hydrateFromSession, selectPlan,
+    initSubscription, selectPlan,
     // Scanning
     isScanning, setIsScanning, fakeProgress, setFakeProgress, scanMode, setScanMode,
     scanMsg, setScanMsg, scanError, setScanError,
@@ -154,7 +154,6 @@ export default function Index() {
     selProduct, setSelProduct, selCompetitor, setSelCompetitor,
     editHeadlines, setEditHeadlines, editDescriptions, setEditDescriptions,
     improvingIdx, setImprovingIdx, pickedProducts, setPickedProducts,
-    hydrateCampaign,
   } = store;
 
   // ── Initialize store from server data (once) ──
@@ -163,9 +162,7 @@ export default function Index() {
     if (!didInit.current) {
       didInit.current = true;
       initSubscription({ isPaidServer, planFromCookie, serverSubscription });
-      hydrateFromSession({ isPaidServer, serverSubscription });
-      hydrateCampaign();
-      // DB state overrides sessionStorage if available (more reliable)
+      // Apply DB state (primary source of truth)
       if (userState) {
         const u = {};
         if (userState.selectedPlan) u.selectedPlan = userState.selectedPlan;
@@ -182,6 +179,7 @@ export default function Index() {
         }
         if (Object.keys(u).length > 0) store.setState(u);
       }
+      store.setState({ isHydrated: true });
     }
   }, []);
 

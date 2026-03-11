@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { authenticate } from "../shopify.server";
+import useAppStore from "../stores/useAppStore.js";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -22,23 +23,14 @@ function ScoreRing({ score, size = 54 }) {
 }
 
 export default function SavedCampaigns() {
-  const [products, setProducts] = useState([]);
-  const [aiResults, setAiResults] = useState(null);
+  const storeProducts = useAppStore((s) => s.products);
+  const storeAiResults = useAppStore((s) => s.aiResults);
+  const [products] = useState(() => storeProducts || []);
+  const [aiResults] = useState(() => storeAiResults || null);
   const [selProduct, setSelProduct] = useState(null);
   const [filter, setFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score");
-  const [lastScan, setLastScan] = useState(null);
-
-  useEffect(() => {
-    try {
-      const p = sessionStorage.getItem("sai_products");
-      const a = sessionStorage.getItem("sai_aiResults");
-      const t = sessionStorage.getItem("sai_lastScan");
-      if (p) setProducts(JSON.parse(p));
-      if (a) setAiResults(JSON.parse(a));
-      if (t) setLastScan(t);
-    } catch {}
-  }, []);
+  const [lastScan] = useState(() => new Date().toISOString());
 
   const aiProds = aiResults?.products || [];
 

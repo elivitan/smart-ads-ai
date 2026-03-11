@@ -4,8 +4,7 @@ export function LaunchChoiceDialog({ show, onClose, launchLoading, setLaunchLoad
   if (!show) return null;
   const handleLaunch = (mode, intent) => {
     setLaunchLoading(mode);
-    sessionStorage.setItem("campaignIntent", intent);
-    timerRef.current = setTimeout(() => { navigate("/app/campaigns"); }, 600);
+    timerRef.current = setTimeout(() => { navigate("/app/campaigns?intent=" + intent); }, 600);
   };
   const handleCancel = () => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
