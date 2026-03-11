@@ -142,3 +142,20 @@ model CampaignJob {
   @@index([idempotencyKey])
   @@index([state, createdAt])
 }
+
+model UserState {
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  selectedPlan    String?
+  scanCredits     Int      @default(0)
+  aiCredits       Int      @default(0)
+  campaignId      String?
+  campaignIntent  String?  @db.Text
+  lastScanProducts String? @db.Text
+  lastAiResults   String?  @db.Text
+  autoScanMode    String?
+  showDashboard   Boolean  @default(false)
+  justSubscribed  Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+}
