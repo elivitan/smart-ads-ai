@@ -4,7 +4,7 @@
 // Captures API errors, loader/action failures, and slow queries
 // ═══════════════════════════════════════════════════
 
-import * as Sentry from "@sentry/remix";
+import * as Sentry from "@sentry/node";
 
 let initialized = false;
 

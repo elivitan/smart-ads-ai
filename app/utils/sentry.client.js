@@ -4,7 +4,7 @@
 // Captures browser errors, performance, and session replays
 // ═══════════════════════════════════════════════════
 
-import * as Sentry from "@sentry/remix";
+import * as Sentry from "@sentry/react-router";
 import { useLocation, useMatches } from "@remix-run/react";
 import { useEffect } from "react";
 

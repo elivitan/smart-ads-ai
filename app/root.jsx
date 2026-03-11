@@ -1,7 +1,6 @@
-import { withSentry } from "@sentry/remix";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
-function App() {
+export default function App() {
   return (
     <html lang="en">
       <head>
@@ -23,5 +22,3 @@ function App() {
     </html>
   );
 }
-
-export default withSentry(App);

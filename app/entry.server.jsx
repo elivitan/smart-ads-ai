@@ -1,10 +1,15 @@
-import * as Sentry from "@sentry/remix";
+import { PassThrough } from "stream";
+import { renderToPipeableStream } from "react-dom/server";
+import { ServerRouter } from "react-router";
+import { createReadableStreamFromReadable } from "@react-router/node";
+import { isbot } from "isbot";
+import { addDocumentResponseHeaders } from "./shopify.server";
+import * as Sentry from "@sentry/node";
 
 // ── Initialize Sentry (server side) ──
 Sentry.init({
   dsn: process.env.SENTRY_DSN || "",
   environment: process.env.NODE_ENV || "development",
-  autoInstrumentRemix: true,
   sampleRate: 1.0,
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
   beforeSend(event) {
@@ -15,14 +20,14 @@ Sentry.init({
   },
 });
 
-import { PassThrough } from "stream";
-import { renderToPipeableStream } from "react-dom/server";
-import { ServerRouter } from "react-router";
-import { createReadableStreamFromReadable } from "@react-router/node";
-import { isbot } from "isbot";
-import { addDocumentResponseHeaders } from "./shopify.server";
-
 export const streamTimeout = 5000;
+
+export const handleError = (error, { request }) => {
+  if (!request.signal.aborted) {
+    Sentry.captureException(error);
+    console.error(error);
+  }
+};
 
 export default async function handleRequest(
   request,
@@ -41,7 +46,6 @@ export default async function handleRequest(
         [callbackName]: () => {
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
-
           responseHeaders.set("Content-Type", "text/html");
           resolve(
             new Response(stream, {
@@ -61,9 +65,6 @@ export default async function handleRequest(
         },
       },
     );
-
-    // Automatically timeout the React renderer after 6 seconds, which ensures
-    // React has enough time to flush down the rejected boundary contents
     setTimeout(abort, streamTimeout + 1000);
   });
 }
