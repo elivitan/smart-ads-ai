@@ -49,6 +49,8 @@ export function DashboardView({
   pickedProducts, setPickedProducts,
   doScan, handleProductClick, navigate,
   allDbProducts, storeUrl, onManualLaunch,
+  campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove,
+  handlePauseCampaign, handleRemoveCampaign, sortedProducts,
   showOnboard, setShowOnboard, onboardTab, setOnboardTab,
   onboardStep, setOnboardStep, selectPlan,
   googleConnected, setGoogleConnected, scanCredits, setScanCredits,

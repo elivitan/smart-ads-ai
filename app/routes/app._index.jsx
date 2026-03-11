@@ -720,6 +720,14 @@ export default function Index() {
         pickedProducts={pickedProducts} setPickedProducts={setPickedProducts}
         allDbProducts={allDbProducts}
         storeUrl={storeUrl}
+        campaignId={campaignId}
+        realSpend={realSpend}
+        campaignControlStatus={campaignControlStatus}
+        confirmRemove={confirmRemove}
+        setConfirmRemove={setConfirmRemove}
+        handlePauseCampaign={handlePauseCampaign}
+        handleRemoveCampaign={handleRemoveCampaign}
+        sortedProducts={sortedProducts}
         onManualLaunch={async (productIds) => {
           setAutoLaunching(true);
           let sc = 0;
