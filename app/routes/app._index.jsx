@@ -225,15 +225,6 @@ export default function Index() {
     store.doScan(mode, { cancelRef, creepRef, getProductUrl });
   }
 
-  function handleProductClick(product) {
-    if (!hasScanAccess) { openUpgradeModal(); return; }
-    setSelProduct(product); setCampaignStatus(null);
-    const isDb = !!product.hasAiAnalysis;
-    const ai = isDb ? (product.aiAnalysis||{}) : (aiResults?.products?.find(ap => ap.title===product.title)||{});
-    setEditHeadlines((ai.headlines||[]).map(h => typeof h==="string"?h:h.text||h));
-    setEditDescriptions((ai.descriptions||[]).map(d => typeof d==="string"?d:d.text||d));
-  }
-
   // ── Fetch real spend from Google Ads API ──
   useEffect(() => {
     if (!campaignId) return;
@@ -257,86 +248,7 @@ export default function Index() {
     return () => { cancelled = true; clearInterval(iv); };
   }, [campaignId]);
 
-  async function handlePauseCampaign() {
-    if (!campaignId) return;
-    setCampaignControlStatus("pausing");
-    try {
-      const form = new FormData();
-      form.append("action", "pause");
-      form.append("campaignId", campaignId);
-      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
-      if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); setCampaignControlStatus("error"); return; }
-      const data = await res.json();
-      setCampaignControlStatus(data.success ? "paused" : "error");
-    } catch { setCampaignControlStatus("error"); }
-  }
 
-  async function handleRemoveCampaign() {
-    if (!campaignId) return;
-    setCampaignControlStatus("removing");
-    setConfirmRemove(false);
-    try {
-      const form = new FormData();
-      form.append("action", "remove");
-      form.append("campaignId", campaignId);
-      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
-      if (!res.ok || !(res.headers.get("content-type")||"").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); setCampaignControlStatus("error"); return; }
-      const data = await res.json();
-      if (data.success) {
-        setCampaignControlStatus("removed");
-        setCampaignId(null);
-      } else {
-        setCampaignControlStatus("error");
-      }
-    } catch { setCampaignControlStatus("error"); }
-  }
-
-  const handleUpgradeClick = useCallback(() => { openUpgradeModal(); }, []);
-
-  const handleProductClickRef = useRef(handleProductClick);
-  useEffect(() => {
-    handleProductClickRef.current = handleProductClick;
-  });
-  const handleProductClickCb = useCallback((p) => handleProductClickRef.current(p), []);
-
-  async function handleCreateCampaign() {
-    if (!selProduct||!canPublish) return;
-    setCampaignStatus("creating");
-    try {
-      const isDb = !!selProduct.hasAiAnalysis;
-      const ai = isDb ? (selProduct.aiAnalysis||{}) : (aiResults?.products?.find(ap => ap.title===selProduct.title)||{});
-      const form = new FormData();
-      form.append("productTitle", selProduct.title); form.append("headlines", JSON.stringify(editHeadlines));
-      form.append("descriptions", JSON.stringify(editDescriptions)); form.append("keywords", JSON.stringify(ai.keywords||[]));
-      form.append("finalUrl", getProductUrl(selProduct)); form.append("dailyBudget", "50");
-      const campAbort = new AbortController();
-      const res = await fetch("/app/api/campaign", { method:"POST", body:form, signal:campAbort.signal });
-      const data = await res.json(); setCampaignStatus(data.success ? "success" : "error");
-      if (data.success) {
-        triggerConfetti();
-        const cid = data.campaignId || data.campaign_id || data.resourceName || null;
-        if (cid) setCampaignId(cid);
-      }
-    } catch { setCampaignStatus("error"); }
-  }
-
-  async function handleAiImprove(type, index) {
-    if (aiCredits <= 0) { setShowBuyCredits(true); return; }
-    const key = `${type}-${index}`; setImprovingIdx(key);
-    const text = type==="h" ? editHeadlines[index] : editDescriptions[index];
-    try {
-      const form = new FormData(); form.append("text", text); form.append("type", type==="h"?"headline":"description"); form.append("productTitle", selProduct?.title||"");
-      const improveAbort = new AbortController();
-      const res = await fetch("/app/api/ai-improve", { method:"POST", body:form, signal:improveAbort.signal });
-      const data = await res.json();
-      if (data.success && data.improved) {
-        if (type==="h") { const n=[...editHeadlines]; n[index]=data.improved; setEditHeadlines(n); }
-        else { const n=[...editDescriptions]; n[index]=data.improved; setEditDescriptions(n); }
-        setAiCredits(aiCredits - 1);
-      }
-    } catch {}
-    setImprovingIdx(null);
-  }
 
   // ── Computed values (MUST be before any early returns) ──
   const totalProducts = totalDbProducts;
@@ -505,8 +417,8 @@ export default function Index() {
           setAutoLaunching(false); setPickedProducts([]);
           if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }
         }}
-        doScan={doScan} handleProductClick={handleProductClick} navigate={navigate}
-        handlePauseCampaign={handlePauseCampaign} handleRemoveCampaign={handleRemoveCampaign}
+        doScan={doScan} handleProductClick={store.handleProductClick} navigate={navigate}
+        handlePauseCampaign={store.handlePauseCampaign} handleRemoveCampaign={store.handleRemoveCampaign}
         StyleTag={StyleTag}
         mockCampaigns={mockCampaigns} mockRoas={mockRoas}
         competitorThreat={competitorThreat} threatColor={threatColor}
@@ -552,7 +464,7 @@ export default function Index() {
               const ai=aiResults?.products?.find(ap=>ap.title===product.title), hasAi=!!ai, score=hasAi?ai.ad_score||0:0;
               const eI=hasAi?Math.round(score*46+500):0, eC=hasAi?Math.round(score*3.8+20):0, eCo=hasAi?Math.round(score*0.45+10):0;
               return (
-                <div key={product.id} className={`p-card ${!hasAi?"p-card-locked":""}`} onClick={()=>hasAi?handleProductClick({...product,aiAnalysis:ai}):null}>
+                <div key={product.id} className={`p-card ${!hasAi?"p-card-locked":""}`} onClick={()=>hasAi?store.handleProductClick({...product,aiAnalysis:ai}):null}>
                   <div className="p-card-img-wrap">
                     {product.image?<img src={product.image} alt={product.title} className="p-card-img"/>:<div className="p-card-noimg">📦</div>}
                     {hasAi && <div className="p-card-score"><ScoreRing score={score}/></div>}

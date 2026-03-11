@@ -293,7 +293,59 @@ const appStore = createStore((set, get) => ({
     }
   },
 
-  // ── handleAutoCampaign action ──
+  // ── handleProductClick action ──
+  handleProductClick: (product) => {
+    const { selectedPlan, scanCredits, openUpgradeModal, aiResults } = get();
+    const hasScanAccess = !!selectedPlan || scanCredits > 0;
+    if (!hasScanAccess) { openUpgradeModal(); return; }
+    const isDb = !!product.hasAiAnalysis;
+    const ai = isDb ? (product.aiAnalysis || {}) : (aiResults?.products?.find(ap => ap.title === product.title) || {});
+    set({
+      selProduct: product,
+      campaignStatus: null,
+      editHeadlines: (ai.headlines || []).map(h => typeof h === "string" ? h : h.text || h),
+      editDescriptions: (ai.descriptions || []).map(d => typeof d === "string" ? d : d.text || d),
+    });
+  },
+
+  // ── handlePauseCampaign action ──
+  handlePauseCampaign: async () => {
+    const { campaignId } = get();
+    if (!campaignId) return;
+    set({ campaignControlStatus: "pausing" });
+    try {
+      const form = new FormData();
+      form.append("action", "pause");
+      form.append("campaignId", campaignId);
+      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+      if (!res.ok || !(res.headers.get("content-type") || "").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); set({ campaignControlStatus: "error" }); return; }
+      const data = await res.json();
+      set({ campaignControlStatus: data.success ? "paused" : "error" });
+    } catch { set({ campaignControlStatus: "error" }); }
+  },
+
+  // ── handleRemoveCampaign action ──
+  handleRemoveCampaign: async () => {
+    const { campaignId } = get();
+    if (!campaignId) return;
+    set({ campaignControlStatus: "removing", confirmRemove: false });
+    try {
+      const form = new FormData();
+      form.append("action", "remove");
+      form.append("campaignId", campaignId);
+      const res = await fetch("/app/api/campaign-manage", { method: "POST", body: form });
+      if (!res.ok || !(res.headers.get("content-type") || "").includes("json")) { console.warn("[campaign-manage] non-JSON response:", res.status); set({ campaignControlStatus: "error" }); return; }
+      const data = await res.json();
+      if (data.success) {
+        set({ campaignControlStatus: "removed", campaignId: null });
+        try { sessionStorage.removeItem("sai_campaign_id"); } catch {}
+      } else {
+        set({ campaignControlStatus: "error" });
+      }
+    } catch { set({ campaignControlStatus: "error" }); }
+  },
+
+    // ── handleAutoCampaign action ──
   // deps = { analyzedDbProducts, allDbProducts, getProductUrl, navigate, cancelRef }
   handleAutoCampaign: async (deps) => {
     const { analyzedDbProducts, allDbProducts, getProductUrl, navigate, cancelRef } = deps;
