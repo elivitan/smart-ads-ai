@@ -89,7 +89,6 @@ export const loader = async ({ request }) => {
 
   const serverPlan = subscriptionInfo?.plan || planFromCookie || "free";
   const isPaidServer = !!serverPlan && serverPlan !== "free";
-  console.log("[DEBUG-BUG3] LOADER:", { isPaidServer, serverPlan, planFromCookie, shop, subscriptionPlan: subscriptionInfo?.plan });
 
   return {
     products: dbProducts,
@@ -235,7 +234,6 @@ export default function Index() {
   const [showLaunchChoice, setShowLaunchChoice] = useState(false);
   const [launchLoading, setLaunchLoading] = useState(null);
   const [showDashboard, setShowDashboard] = useState(isPaidServer);
-  if (typeof window !== "undefined") console.log("[DEBUG-BUG3] showDashboard initializer result:", showDashboard, "sessionStorage had returnToDashboard:", (() => { try { return sessionStorage.getItem("returnToDashboard"); } catch(e) { return "ERROR"; } })());
 
   const [autoStatus, setAutoStatus] = useState(null);
   const [editHeadlines, setEditHeadlines] = useState([]);
@@ -257,7 +255,6 @@ export default function Index() {
 
   const _forcePreview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'landing';
   const isPaid = !!selectedPlan;
-  console.log("[DEBUG-BUG3] RENDER:", { isPaid, selectedPlan, isPaidServer, planFromCookie, showDashboard, isHydrated });
   const hasScanAccess = isPaid || scanCredits > 0;
   const canPublish = isPaid;
 
@@ -276,14 +273,17 @@ export default function Index() {
   useEffect(() => { setVis(true); }, []);
 
   function selectPlan(plan) {
-    setSelectedPlan(plan);
-    setJustSubscribed(true); // Mark: show scanning flow, not dashboard
-    setScanMsg(""); // Clear stale scan messages from previous sessions
+    // Wrap state updates in startTransition to prevent "Rendered more hooks" error
+    React.startTransition(() => {
+      setSelectedPlan(plan);
+      setJustSubscribed(true); // Mark: show scanning flow, not dashboard
+      setScanMsg(""); // Clear stale scan messages from previous sessions
+      setAiCredits({ starter: 10, pro: 200, premium: 1000 }[plan] || 0);
+    });
     // Save as cookie (1 year) — survives tab close, cache clear
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
     document.cookie = `sai_plan=${encodeURIComponent(plan)}; expires=${expires}; path=/; SameSite=None; Secure`;
     try { sessionStorage.setItem("sai_plan", plan); } catch {}
-    setAiCredits({ starter: 10, pro: 200, premium: 1000 }[plan] || 0);
     // Also save to server API (best effort)
     fetch("/app/api/subscription", {
       method: "POST",
@@ -703,7 +703,6 @@ export default function Index() {
     const impressionsBase = liveAds.impressions;
     const clicksBase = liveAds.clicks;
 
-    console.log("[DEBUG-BUG3] BLOCK CHECK:", { isPaid, analyzedCount, justSubscribed, showDashboard, scanned, productsLen: products.length });
     // ── SUBSCRIBER HOME PAGE — shows before dashboard ──
     if (isPaid && analyzedCount > 0 && !justSubscribed && !showDashboard) return (
       <>
