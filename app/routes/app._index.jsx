@@ -706,7 +706,7 @@ export default function Index() {
       </div>
     );
 
-    return (
+    return (<>
       <DashboardView
         showConfetti={showConfetti} showDashboard={showDashboard} setShowDashboard={setShowDashboard}
         analyzedDbProducts={analyzedDbProducts} totalProducts={totalProducts}
@@ -717,8 +717,32 @@ export default function Index() {
         isPaid={isPaid} canPublish={canPublish} aiResults={aiResults}
         selCompetitor={selCompetitor} setSelCompetitor={setSelCompetitor}
         selProduct={selProduct} setSelProduct={setSelProduct}
-        pickerOpen={pickerOpen} setPickerOpen={setPickerOpen}
         pickedProducts={pickedProducts} setPickedProducts={setPickedProducts}
+        allDbProducts={allDbProducts}
+        storeUrl={storeUrl}
+        onManualLaunch={async (productIds) => {
+          setAutoLaunching(true);
+          let sc = 0;
+          const sorted = [...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0));
+          for (const id of productIds) {
+            const prod = sorted.find(p=>p.id===id); if(!prod) continue;
+            const ai = prod.aiAnalysis||{};
+            try {
+              const form = new FormData();
+              form.append("productTitle", prod.title);
+              form.append("headlines", JSON.stringify((ai.headlines||[]).map(h=>typeof h==="string"?h:h.text||h)));
+              form.append("descriptions", JSON.stringify((ai.descriptions||[]).map(d=>typeof d==="string"?d:d.text||d)));
+              form.append("keywords", JSON.stringify(ai.keywords||[]));
+              form.append("finalUrl", getProductUrl(prod));
+              form.append("dailyBudget", "50");
+              const res = await fetch("/app/api/campaign", {method:"POST", body:form});
+              const data = await res.json();
+              if(data.success) sc++;
+            } catch{}
+          }
+          setAutoLaunching(false); setPickedProducts([]);
+          if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }
+        }}
         doScan={doScan} handleProductClick={handleProductClick} navigate={navigate}
         showOnboard={showOnboard} setShowOnboard={setShowOnboard}
         onboardTab={onboardTab} setOnboardTab={setOnboardTab}
@@ -738,7 +762,8 @@ export default function Index() {
         impressionsBase={impressionsBase} clicksBase={clicksBase}
         totalKeywords={totalKeywords} highPotential={highPotential} topProduct={topProduct}
       />
-    );
+      <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
+    </>);
   }
 
   // ── FREE DEMO RESULTS ──

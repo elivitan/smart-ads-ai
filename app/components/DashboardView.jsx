@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
+import { Link } from "react-router";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
 import { Confetti } from "../routes/SmallComponents.jsx";
 import { AdPreviewPanel } from "../routes/AdPreviewPanel.jsx";
@@ -9,7 +10,21 @@ import { LivePulse } from "../components/dashboard/LivePulse.jsx";
 import { ProductModal } from "../components/ProductModal.jsx";
 import { MarketAlert } from "../routes/MarketAlert.jsx";
 import { StoreAnalyticsWidget } from "../routes/StoreAnalytics.jsx";
-import GlobalModals from "../components/GlobalModals.jsx";
+
+function LockedOverlay({ isPaid, onUpgrade, title, children }) {
+  if (isPaid) return children || null;
+  return (
+    <div style={{position:"relative"}}>
+      <div style={{filter:"blur(3px)",opacity:0.5,pointerEvents:"none"}}>{children}</div>
+      <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(10,10,26,.7)",borderRadius:16,zIndex:10,cursor:"pointer"}} onClick={onUpgrade}>
+        <div style={{fontSize:36,marginBottom:8}}>🔒</div>
+        <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:4}}>{title || "Premium Feature"}</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:12}}>Subscribe to unlock this section</div>
+        <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600}}>Upgrade Now →</div>
+      </div>
+    </div>
+  );
+}
 
 class WidgetErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -31,8 +46,9 @@ export function DashboardView({
   topCompetitors, liveAds, keywordGaps, totalMonthlyGapLoss,
   shopDomain, selectedPlan, isPaid, canPublish, aiResults,
   selCompetitor, setSelCompetitor, selProduct, setSelProduct,
-  pickerOpen, setPickerOpen, pickedProducts, setPickedProducts,
+  pickedProducts, setPickedProducts,
   doScan, handleProductClick, navigate,
+  allDbProducts, storeUrl, onManualLaunch,
   showOnboard, setShowOnboard, onboardTab, setOnboardTab,
   onboardStep, setOnboardStep, selectPlan,
   googleConnected, setGoogleConnected, scanCredits, setScanCredits,
@@ -44,6 +60,20 @@ export function DashboardView({
   googleRankStatus, competitorCount, impressionsBase, clicksBase,
   totalKeywords, highPotential, topProduct
 }) {
+  const [showManualPicker, setShowManualPicker] = useState(false);
+  const hasScanAccess = isPaid || scanCredits > 0;
+  const handleUpgradeClick = useCallback(() => {
+    setShowOnboard(true); setOnboardTab("subscription"); setOnboardStep(1);
+  }, [setShowOnboard, setOnboardTab, setOnboardStep]);
+  const handleProductClickCb = useCallback((p) => {
+    if (handleProductClick) handleProductClick(p);
+  }, [handleProductClick]);
+  function getProductUrl(product) {
+    const base = storeUrl || "https://your-store.myshopify.com";
+    if (product?.handle) return base + "/products/" + product.handle;
+    if (product?.title) return base + "/products/" + product.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return base;
+  }
   return (
       <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/>
@@ -407,17 +437,10 @@ export function DashboardView({
               {analyzedDbProducts.length===0 && <p style={{textAlign:"center",color:"rgba(255,255,255,.4)",fontSize:13}}>No analyzed products yet. Run AI analysis first.</p>}
               <div style={{display:"flex",gap:10}}>
                 <button className="btn-secondary" style={{flex:1}} onClick={()=>setShowManualPicker(false)}>Cancel</button>
-                <button className="btn-primary" style={{flex:2}} disabled={pickedProducts.length===0||!canPublish} onClick={async()=>{
-                  if(!canPublish){setShowManualPicker(false);setShowOnboard(true);setOnboardTab("subscription");setOnboardStep(1);return;}
-                  setShowManualPicker(false);setAutoLaunching(true);
-                  let sc=0;
-                  const sorted=[...allDbProducts].sort((a,b)=>(b.aiAnalysis?.ad_score||0)-(a.aiAnalysis?.ad_score||0));
-                  for(const id of pickedProducts){
-                    const prod=sorted.find(p=>p.id===id);if(!prod)continue;
-                    const ai=prod.aiAnalysis||{};
-                    try{const form=new FormData();form.append("productTitle",prod.title);form.append("headlines",JSON.stringify((ai.headlines||[]).map(h=>typeof h==="string"?h:h.text||h)));form.append("descriptions",JSON.stringify((ai.descriptions||[]).map(d=>typeof d==="string"?d:d.text||d)));form.append("keywords",JSON.stringify(ai.keywords||[]));form.append("finalUrl",getProductUrl(prod));form.append("dailyBudget","50");const res=await fetch("/app/api/campaign",{method:"POST",body:form});const data=await res.json();if(data.success)sc++;}catch{}
-                  }
-                  setAutoLaunching(false);setPickedProducts([]);setAutoStatus(sc>0?"success":"error");if(sc>0)triggerConfetti();
+                <button className="btn-primary" style={{flex:2}} disabled={pickedProducts.length===0||!canPublish} onClick={()=>{
+                  if(!canPublish){setShowManualPicker(false);handleUpgradeClick();return;}
+                  setShowManualPicker(false);
+                  if(onManualLaunch) onManualLaunch(pickedProducts);
                 }}>{canPublish?`🚀 Launch ${pickedProducts.length>0?pickedProducts.length+" ":""}Campaign${pickedProducts.length!==1?"s":""}` :"🔒 Subscribe to Launch"}</button>
               </div>
             </div>
@@ -429,7 +452,6 @@ export function DashboardView({
           shop={shopDomain}
         />}
         {selCompetitor && <CompetitorModal competitor={selCompetitor} products={analyzedDbProducts} onClose={()=>setSelCompetitor(null)}/>}
-        <GlobalModals showOnboard={showOnboard} setShowOnboard={setShowOnboard} onboardTab={onboardTab} setOnboardTab={setOnboardTab} onboardStep={onboardStep} setOnboardStep={setOnboardStep} selectedPlan={selectedPlan} selectPlan={selectPlan} googleConnected={googleConnected} setGoogleConnected={setGoogleConnected} scanCredits={scanCredits} setScanCredits={setScanCredits} justSubscribed={justSubscribed} setAutoScanMode={setAutoScanMode} showLaunchChoice={showLaunchChoice} setShowLaunchChoice={setShowLaunchChoice} launchLoading={launchLoading} setLaunchLoading={setLaunchLoading} navigate={navigate} showBuyCredits={showBuyCredits} setShowBuyCredits={setShowBuyCredits} aiCredits={aiCredits} setAiCredits={setAiCredits}/>
       </div>
   );
 }
