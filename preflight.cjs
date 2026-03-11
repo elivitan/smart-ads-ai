@@ -459,7 +459,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
       // Skip server files
       if (serverPatterns.some(s => src.includes(s))) continue;
       const resolved = path.resolve(dir, src);
-      const tries = [resolved, resolved + ".jsx", resolved + ".js", resolved + "/index.js", resolved + "/index.jsx"];
+      const tries = [resolved, resolved + ".jsx", resolved + ".js", resolved + ".ts", resolved + ".tsx", resolved + "/index.js", resolved + "/index.jsx", resolved + "/index.ts", resolved + "/index.tsx"];
       if (!tries.some(t => allFiles.has(t))) {
         const rel = path.relative(ROOT, filePath);
         // Only warn, don't fail — some imports may be to non-code files
@@ -473,6 +473,47 @@ console.log("\n🔗 IMPORT RESOLUTION:");
 
   if (resolveFail === 0) pass("All " + resolveOk + " local imports resolve correctly");
   else warn(resolveFail + " imports could not be resolved (see warnings above)");
+}
+
+
+// ─── TYPESCRIPT CONFIG ───
+{
+  const tsconfigPath = path.join(ROOT, "tsconfig.json");
+  if (fs.existsSync(tsconfigPath)) {
+    try {
+      const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
+      const co = tsconfig.compilerOptions || {};
+      if (co.strict !== true) {
+        fail("TypeScript: strict mode not enabled in tsconfig.json");
+      } else {
+        pass("TypeScript: strict mode enabled");
+      }
+      if (!co.allowJs) {
+        fail("TypeScript: allowJs not enabled (needed for gradual migration)");
+      } else {
+        pass("TypeScript: allowJs enabled for gradual migration");
+      }
+      // Count TS files
+      const tsFilesList = [];
+      function findTsFiles(dir) {
+        if (!fs.existsSync(dir)) return;
+        for (const f of fs.readdirSync(dir)) {
+          const full = path.join(dir, f);
+          if (fs.statSync(full).isDirectory() && !f.startsWith(".") && f !== "node_modules" && f !== "build") {
+            findTsFiles(full);
+          } else if (f.endsWith(".ts") || f.endsWith(".tsx")) {
+            tsFilesList.push(full);
+          }
+        }
+      }
+      findTsFiles(path.join(ROOT, "app"));
+      pass("TypeScript: " + tsFilesList.length + " .ts/.tsx files found");
+    } catch (e) {
+      fail("TypeScript: tsconfig.json parse error — " + e.message);
+    }
+  } else {
+    pass("TypeScript: No tsconfig.json yet (optional)");
+  }
 }
 
 // ─── SUMMARY ───

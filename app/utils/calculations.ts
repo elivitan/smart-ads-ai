@@ -1,26 +1,50 @@
 /**
- * calculations.js
+ * calculations.ts
  * Pure utility functions — no React, no side effects.
  * Easy to unit test.
  */
 
-export function calcROAS(revenue, spend) {
+export interface BudgetProjections {
+  cpc: number;
+  dailyClicks: number;
+  dailyOrders: number;
+  dailyRevenue: number;
+  dailyProfit: number;
+  roas: number;
+  breakEvenDays: number | null;
+}
+
+export interface HealthScoreInput {
+  analyzedCount: number;
+  totalProducts: number;
+  avgScore: number;
+  competitorCount: number;
+  keywordGapCount: number;
+}
+
+export interface Product {
+  handle?: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+export function calcROAS(revenue: number, spend: number): number {
   if (!spend || spend === 0) return 0;
   return parseFloat((revenue / spend).toFixed(1));
 }
 
 export function calcBudgetProjections(
-  dailyBudget,
-  avgOrderValue,
-  convRate,
-  avgScore,
-) {
+  dailyBudget: number,
+  avgOrderValue: number,
+  convRate: number,
+  avgScore: number,
+): BudgetProjections {
   const cpc = Math.max(0.25, 1.2 - avgScore * 0.006);
   const dailyClicks = Math.round(dailyBudget / cpc);
   const dailyOrders = (dailyClicks * convRate) / 100;
   const dailyRevenue = dailyOrders * avgOrderValue;
   const dailyProfit = dailyRevenue - dailyBudget;
-  const roas = dailyBudget > 0 ? (dailyRevenue / dailyBudget).toFixed(1) : "0";
+  const roas = dailyBudget > 0 ? parseFloat((dailyRevenue / dailyBudget).toFixed(1)) : 0;
   const breakEvenDays =
     dailyProfit > 0 ? Math.ceil((dailyBudget * 30) / dailyProfit) : null;
   return {
@@ -29,7 +53,7 @@ export function calcBudgetProjections(
     dailyOrders,
     dailyRevenue,
     dailyProfit,
-    roas: parseFloat(roas),
+    roas,
     breakEvenDays,
   };
 }
@@ -40,7 +64,7 @@ export function calcHealthScore({
   avgScore,
   competitorCount,
   keywordGapCount,
-}) {
+}: HealthScoreInput): number {
   if (analyzedCount === 0) return 0;
   const coverage = totalProducts > 0 ? (analyzedCount / totalProducts) * 25 : 0;
   const scoreComp = avgScore * 0.4;
@@ -52,7 +76,7 @@ export function calcHealthScore({
   );
 }
 
-export function getProductUrl(product, storeUrl) {
+export function getProductUrl(product: Product | null | undefined, storeUrl?: string): string {
   if (!storeUrl) storeUrl = "https://your-store.myshopify.com";
   if (product?.handle) return `${storeUrl}/products/${product.handle}`;
   if (product?.title) {
@@ -65,30 +89,30 @@ export function getProductUrl(product, storeUrl) {
   return storeUrl;
 }
 
-export function formatCurrency(amount) {
+export function formatCurrency(amount: number): string {
   if (amount >= 1000) return `$${(amount / 1000).toFixed(1)}k`;
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
-export function getRoasColor(roas) {
+export function getRoasColor(roas: number): string {
   if (roas >= 4) return "#22c55e";
   if (roas >= 2) return "#f59e0b";
   return "#ef4444";
 }
 
-export function getRoasLabel(roas) {
+export function getRoasLabel(roas: number): string {
   if (roas >= 4) return "Excellent";
   if (roas >= 2) return "Good";
   return "Low";
 }
 
-export function getScoreColor(score) {
+export function getScoreColor(score: number): string {
   if (score >= 70) return "#22c55e";
   if (score >= 50) return "#f59e0b";
   return "#ef4444";
 }
 
-export function getStrategyLabel(score) {
+export function getStrategyLabel(score: number): string {
   if (score >= 75) return "Dominate";
   if (score >= 55) return "Aggressive";
   if (score >= 40) return "Defensive";

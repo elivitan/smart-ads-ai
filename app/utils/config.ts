@@ -1,9 +1,107 @@
 /**
- * config.js
+ * config.ts
  * Central configuration for Smart Ads AI.
  * All tunable values in one place.
  */
-export const CONFIG = {
+
+export interface GradeConfig {
+  min: number;
+  color: string;
+  label: string;
+}
+
+export interface PlanCredits {
+  scanCredits: number;
+  aiCredits: number;
+  campaignsPerDay: number;
+}
+
+export interface AppConfig {
+  ai: {
+    models: { fast: string; smart: string };
+    maxRetries: number;
+    retryDelays: number[];
+    batchSize: number;
+    maxTokens: number;
+    temperature: number;
+  };
+  healthScore: {
+    weights: {
+      adQuality: number;
+      productCoverage: number;
+      competitorIntel: number;
+      budgetEfficiency: number;
+    };
+    curve: { power: number };
+    decay: Record<string, { days: number; factor: number }>;
+    confidence: Record<string, { products: number; factor: number }>;
+    criticalPenaltyPerIssue: number;
+    maxCriticalPenalty: number;
+    industryBaseline: number;
+    grades: Record<string, GradeConfig>;
+  };
+  livePulse: {
+    targetFps: number;
+    defaultCpc: number;
+    pollIntervalLive: number;
+    pollIntervalDemo: number;
+  };
+  launch: {
+    pollInterval: number;
+    pollMaxAttempts: number;
+    submitTimeout: number;
+    fetchTimeout: number;
+    maxRetries: number;
+    retryDelays: number[];
+  };
+  campaignControl: {
+    verifyDelay: number;
+    verifyMaxAttempts: number;
+    maxRetries: number;
+    retryDelays: number[];
+  };
+  googleAds: {
+    maxHeadlines: number;
+    maxDescriptions: number;
+    headlineMaxChars: number;
+    descriptionMaxChars: number;
+    maxImagesPerPMax: number;
+    maxVideosPerPMax: number;
+    budgetMin: number;
+    budgetMax: number;
+    defaultBudget: number;
+    supportedCampaignTypes: string[];
+    supportedBidding: string[];
+  };
+  competitor: {
+    maxCompetitors: number;
+    maxKeywordGaps: number;
+    serpApiMaxResults: number;
+    scrapeTimeout: number;
+  };
+  credits: {
+    plans: Record<string, PlanCredits>;
+    trialDays: number;
+  };
+  rateLimits: {
+    aiCallsPerMinute: number;
+    googleAdsCallsPerMinute: number;
+    serpApiCallsPerDay: number;
+    campaignCreationsPerHour: number;
+  };
+  features: {
+    enablePMaxImages: boolean;
+    enablePMaxVideos: boolean;
+    enableCompetitorScraping: boolean;
+    enableLaunchPolling: boolean;
+    enableHealthDecay: boolean;
+    enableNonLinearScoring: boolean;
+    showConfidenceInHealthScore: boolean;
+    showIndustryBaseline: boolean;
+  };
+}
+
+export const CONFIG: AppConfig = {
   ai: {
     models: {
       fast: "claude-haiku-4-5-20251001",

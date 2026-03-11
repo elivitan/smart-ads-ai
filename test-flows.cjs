@@ -288,6 +288,27 @@ for (const key of ['index', 'campaigns']) {
   }
 }
 
+
+// ─── TYPESCRIPT CONFIG VALIDATION ───
+{
+  const tsconfigPath = path.join(ROOT, "tsconfig.json");
+  if (!fs.existsSync(tsconfigPath)) {
+    fail("TypeScript: tsconfig.json missing");
+  } else {
+    try {
+      const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
+      const co = tsconfig.compilerOptions;
+      if (co.strict !== true) throw new Error("strict must be true");
+      if (co.allowJs !== true) throw new Error("allowJs must be true");
+      if (co.jsx !== "react-jsx") throw new Error("jsx must be react-jsx");
+      if (co.moduleResolution !== "bundler") throw new Error("moduleResolution must be bundler");
+      pass("TypeScript: tsconfig.json valid (strict + allowJs + react-jsx + bundler)");
+    } catch (e) {
+      fail("TypeScript: tsconfig.json invalid — " + e.message);
+    }
+  }
+}
+
 // SUMMARY
 console.log('\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
 console.log('  RESULTS: ' + passed + ' passed, ' + failed + ' failed, ' + warnings + ' warnings');

@@ -1,14 +1,11 @@
-// input-sanitizer.js — Input sanitization for safe processing
+// input-sanitizer.ts — Input sanitization for safe processing
 // Prevents XSS, SQL injection, and oversized payloads
 // Used alongside Zod validation for defense-in-depth
 
 /**
  * Sanitize a string: trim, remove null bytes, limit length.
- * @param {string} input
- * @param {number} maxLength (default 1000)
- * @returns {string}
  */
-export function sanitizeString(input, maxLength = 1000) {
+export function sanitizeString(input: unknown, maxLength: number = 1000): string {
   if (typeof input !== "string") return "";
   return input
     .replace(/\0/g, "")           // Remove null bytes
@@ -19,21 +16,20 @@ export function sanitizeString(input, maxLength = 1000) {
 
 /**
  * Sanitize HTML to prevent XSS (basic — strips all tags).
- * @param {string} input
- * @returns {string}
  */
-export function stripHtml(input) {
+export function stripHtml(input: unknown): string {
   if (typeof input !== "string") return "";
   return input.replace(/<[^>]*>/g, "").trim();
 }
 
 /**
  * Validate and limit JSON payload size.
- * @param {Request} request
- * @param {number} maxBytes (default 1MB)
- * @returns {Promise<object|null>} Parsed JSON or null if too large/invalid
+ * Returns parsed JSON or null if too large/invalid.
  */
-export async function safeParseJson(request, maxBytes = 1024 * 1024) {
+export async function safeParseJson<T = unknown>(
+  request: Request,
+  maxBytes: number = 1024 * 1024
+): Promise<T | null> {
   try {
     const contentLength = parseInt(request.headers.get("content-length") || "0");
     if (contentLength > maxBytes) return null;
@@ -41,7 +37,7 @@ export async function safeParseJson(request, maxBytes = 1024 * 1024) {
     const text = await request.text();
     if (text.length > maxBytes) return null;
 
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }
@@ -49,10 +45,8 @@ export async function safeParseJson(request, maxBytes = 1024 * 1024) {
 
 /**
  * Sanitize a shop domain for safe use in queries.
- * @param {string} shop
- * @returns {string|null}
  */
-export function sanitizeShopDomain(shop) {
+export function sanitizeShopDomain(shop: unknown): string | null {
   if (typeof shop !== "string") return null;
   const cleaned = shop.trim().toLowerCase();
   // Must match Shopify shop domain pattern

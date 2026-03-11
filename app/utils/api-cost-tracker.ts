@@ -1,30 +1,41 @@
-// api-cost-tracker.js — Track API costs in real-time
+// api-cost-tracker.ts — Track API costs in real-time
 // Critical for scale: prevents runaway API costs from sinking the business
 // Integrates with SCALE.COST_ALERTS thresholds
 
 import { logger } from "./logger.js";
 import { SCALE } from "./scale-config.js";
 
-// In-memory cost tracking (resets on restart — use Redis for persistence)
-const dailyCosts = new Map(); // key: "YYYY-MM-DD:service" → value: cost
+export type ApiService = "anthropic" | "serper" | "google_ads";
 
-function todayKey(service) {
+export interface CostResult {
+  totalToday: number;
+  limitReached: boolean;
+}
+
+export interface ServiceCostInfo {
+  spent: string;
+  limit: number | null;
+}
+
+export type CostSummary = Record<string, ServiceCostInfo>;
+
+// In-memory cost tracking (resets on restart — use Redis for persistence)
+const dailyCosts = new Map<string, number>();
+
+function todayKey(service: ApiService): string {
   return new Date().toISOString().split("T")[0] + ":" + service;
 }
 
 /**
  * Record an API cost.
- * @param {"anthropic"|"serper"|"google_ads"} service
- * @param {number} costUsd
- * @returns {{ totalToday: number, limitReached: boolean }}
  */
-export function recordCost(service, costUsd) {
+export function recordCost(service: ApiService, costUsd: number): CostResult {
   const key = todayKey(service);
   const current = dailyCosts.get(key) || 0;
   const newTotal = current + costUsd;
   dailyCosts.set(key, newTotal);
 
-  const limits = {
+  const limits: Record<ApiService, number> = {
     anthropic: SCALE.COST_ALERTS.ANTHROPIC_DAILY_MAX,
     serper: SCALE.COST_ALERTS.SERPER_DAILY_MAX,
     google_ads: SCALE.COST_ALERTS.GOOGLE_ADS_DAILY_MAX,
@@ -34,9 +45,9 @@ export function recordCost(service, costUsd) {
   const limitReached = newTotal >= limit;
 
   if (limitReached) {
-    logger.error(`[Cost Alert] ${service} daily cost $${newTotal.toFixed(2)} exceeded limit $${limit}`);
+    logger.error("cost.alert", `${service} daily cost $${newTotal.toFixed(2)} exceeded limit $${limit}`);
   } else if (newTotal >= limit * 0.8) {
-    logger.warn(`[Cost Warning] ${service} at $${newTotal.toFixed(2)} / $${limit} (80% threshold)`);
+    logger.warn("cost.warning", `${service} at $${newTotal.toFixed(2)} / $${limit} (80% threshold)`);
   }
 
   return { totalToday: newTotal, limitReached };
@@ -45,13 +56,11 @@ export function recordCost(service, costUsd) {
 /**
  * Check if a service has reached its daily cost limit.
  * Use before making expensive API calls.
- * @param {"anthropic"|"serper"|"google_ads"} service
- * @returns {boolean}
  */
-export function isCostLimitReached(service) {
+export function isCostLimitReached(service: ApiService): boolean {
   const key = todayKey(service);
   const current = dailyCosts.get(key) || 0;
-  const limits = {
+  const limits: Record<ApiService, number> = {
     anthropic: SCALE.COST_ALERTS.ANTHROPIC_DAILY_MAX,
     serper: SCALE.COST_ALERTS.SERPER_DAILY_MAX,
     google_ads: SCALE.COST_ALERTS.GOOGLE_ADS_DAILY_MAX,
@@ -61,11 +70,10 @@ export function isCostLimitReached(service) {
 
 /**
  * Get cost summary for health endpoint / dashboard.
- * @returns {object}
  */
-export function getCostSummary() {
+export function getCostSummary(): CostSummary {
   const today = new Date().toISOString().split("T")[0];
-  const summary = {};
+  const summary: CostSummary = {};
   for (const [key, val] of dailyCosts) {
     if (key.startsWith(today)) {
       const service = key.split(":")[1];
