@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
 import { Confetti } from "../routes/SmallComponents.jsx";
 import { AdPreviewPanel } from "../routes/AdPreviewPanel.jsx";
-import { CompetitorModal } from "../components/CompetitorModal.jsx";
+import { CompetitorModal } from "../routes/CompetitorComponents.jsx";
 import { CompetitorGapFinder } from "../routes/CompetitorComponents.jsx";
 import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "../routes/DashboardWidgets.jsx";
 import { LivePulse } from "../components/dashboard/LivePulse.jsx";
