@@ -23,6 +23,8 @@ interface BullMQQueue {
 }
 
 interface BullMQWorker {
+  on(event: "completed", listener: (job: BullMQJob) => void): this;
+  on(event: "failed", listener: (job: BullMQJob, err: Error) => void): this;
   on(event: string, listener: (...args: unknown[]) => void): this;
   close(): Promise<void>;
 }
