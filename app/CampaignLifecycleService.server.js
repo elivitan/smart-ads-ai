@@ -30,6 +30,7 @@ import {
 } from "./google-ads.server.js";
 import { withRetry } from "./retry.server.js";
 import prisma from "./db.server.js";
+import { withDbRetry } from "./utils/db-health";
 
 // ══════════════════════════════════════════════════════════════════════════
 // STATES
@@ -145,14 +146,14 @@ async function createJob(shop, payload, idempotencyKey) {
 
   // Idempotency check — reject duplicate within 60s
   try {
-    const existing = await prisma.campaignJob.findFirst({
+    const existing = await withDbRetry("lifecycle-idem-check", () => prisma.campaignJob.findFirst({
       where: {
         shop,
         idempotencyKey,
         createdAt: { gte: new Date(Date.now() - 60000) },
         state: { notIn: [STATES.FAILED, STATES.CANCELLED] },
       },
-    });
+    }));
     if (existing) {
       return { duplicate: true, jobId: existing.id, state: existing.state };
     }
@@ -162,7 +163,7 @@ async function createJob(shop, payload, idempotencyKey) {
 
   // Concurrency check — only 1 active job per shop
   try {
-    const active = await prisma.campaignJob.findFirst({
+    const active = await withDbRetry("lifecycle-concurrency", () => prisma.campaignJob.findFirst({
       where: {
         shop,
         state: {
@@ -175,7 +176,7 @@ async function createJob(shop, payload, idempotencyKey) {
           ],
         },
       },
-    });
+    }));
     if (active) {
       return { concurrent: true, jobId: active.id, state: active.state };
     }
@@ -184,7 +185,7 @@ async function createJob(shop, payload, idempotencyKey) {
   }
 
   try {
-    await prisma.campaignJob.create({
+    await withDbRetry("lifecycle-create-job", () => prisma.campaignJob.create({
       data: {
         id: jobId,
         shop,
@@ -195,7 +196,7 @@ async function createJob(shop, payload, idempotencyKey) {
         stepsJson: "[]",
         lastStepAt: new Date(),
       },
-    });
+    }));
   } catch (err) {
     console.warn("[SmartAds] CampaignJob table missing:", err.message);
     // Fallback: proceed without DB tracking
@@ -206,7 +207,7 @@ async function createJob(shop, payload, idempotencyKey) {
 
 async function updateJob(jobId, state, meta = {}) {
   try {
-    const job = await prisma.campaignJob.findUnique({ where: { id: jobId } });
+    const job = await withDbRetry("lifecycle-update-find", () => prisma.campaignJob.findUnique({ where: { id: jobId } }));
     if (!job) return;
 
     const steps = JSON.parse(job.stepsJson || "[]");
@@ -216,7 +217,7 @@ async function updateJob(jobId, state, meta = {}) {
       ...meta,
     });
 
-    await prisma.campaignJob.update({
+    await withDbRetry("lifecycle-update-state", () => prisma.campaignJob.update({
       where: { id: jobId },
       data: {
         state,
@@ -226,7 +227,7 @@ async function updateJob(jobId, state, meta = {}) {
         ...(meta.error ? { lastError: meta.error } : {}),
         ...(state === STATES.RETRYING ? { attempts: { increment: 1 } } : {}),
       },
-    });
+    }));
   } catch {
     /* ignore if table missing */
   }
@@ -234,7 +235,7 @@ async function updateJob(jobId, state, meta = {}) {
 
 async function getJob(jobId) {
   try {
-    const job = await prisma.campaignJob.findUnique({ where: { id: jobId } });
+    const job = await withDbRetry("lifecycle-get-job", () => prisma.campaignJob.findUnique({ where: { id: jobId } }));
     if (!job) return null;
     return {
       jobId: job.id,
@@ -558,11 +559,11 @@ export async function getJobStatus(jobId) {
  */
 export async function getShopJobs(shop, limit = 10) {
   try {
-    const jobs = await prisma.campaignJob.findMany({
+    const jobs = await withDbRetry("lifecycle-shop-jobs", () => prisma.campaignJob.findMany({
       where: { shop },
       orderBy: { createdAt: "desc" },
       take: limit,
-    });
+    }));
     return jobs.map((j) => ({
       jobId: j.id,
       state: j.state,

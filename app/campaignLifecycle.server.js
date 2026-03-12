@@ -20,6 +20,7 @@
 import { createCampaign } from "./google-ads.server.js";
 import { withRetry } from "./retry.server.js";
 import prisma from "./db.server.js";
+import { withDbRetry } from "./utils/db-health";
 
 // ── Campaign States ──────────────────────────────────────────────────────
 export const CAMPAIGN_STATES = {
@@ -95,13 +96,13 @@ export async function launchCampaign(shop, payload) {
   // ── Check idempotency (prevent duplicate launches) ─────────────────
   let launchRecord;
   try {
-    const existing = await prisma.campaignJob.findFirst({
+    const existing = await withDbRetry("launch-idem-check", () => prisma.campaignJob.findFirst({
       where: {
         shop,
         idempotencyKey,
         createdAt: { gte: new Date(Date.now() - 60000) },
       },
-    });
+    }));
     if (existing && existing.state !== CAMPAIGN_STATES.FAILED) {
       return {
         success: false,
@@ -112,7 +113,7 @@ export async function launchCampaign(shop, payload) {
       };
     }
 
-    launchRecord = await prisma.campaignJob.create({
+    launchRecord = await withDbRetry("launch-create-record", () => prisma.campaignJob.create({
       data: {
         id: launchId,
         shop,
@@ -121,7 +122,7 @@ export async function launchCampaign(shop, payload) {
         idempotencyKey,
         attempts: 1,
       },
-    });
+    }));
   } catch (err) {
     console.warn(
       "[SmartAds] CampaignJob table not available, proceeding without lifecycle tracking:",
@@ -135,10 +136,10 @@ export async function launchCampaign(shop, payload) {
     steps.push({ state, timestamp: new Date().toISOString(), ...meta });
     if (launchRecord) {
       try {
-        await prisma.campaignJob.update({
+        await withDbRetry("launch-update-state", () => prisma.campaignJob.update({
           where: { id: launchId },
           data: { state, stepsJson: JSON.stringify(steps) },
-        });
+        }));
       } catch {
         /* ignore if table missing */
       }
@@ -271,7 +272,7 @@ export async function launchCampaign(shop, payload) {
 export async function retryCampaign(launchId) {
   let record;
   try {
-    record = await prisma.campaignJob.findUnique({ where: { id: launchId } });
+    record = await withDbRetry("launch-retry-find", () => prisma.campaignJob.findUnique({ where: { id: launchId } }));
   } catch {
     return { success: false, error: "CampaignJob table not available" };
   }
@@ -291,10 +292,10 @@ export async function retryCampaign(launchId) {
     };
   }
 
-  await prisma.campaignJob.update({
+  await withDbRetry("launch-retry-increment", () => prisma.campaignJob.update({
     where: { id: launchId },
     data: { attempts: { increment: 1 } },
-  });
+  }));
 
   const payload = JSON.parse(record.payload);
   return await launchCampaign(record.shop, payload);
@@ -309,7 +310,7 @@ export async function retryCampaign(launchId) {
 export async function rollbackCampaign(launchId) {
   let record;
   try {
-    record = await prisma.campaignJob.findUnique({ where: { id: launchId } });
+    record = await withDbRetry("launch-rollback-find", () => prisma.campaignJob.findUnique({ where: { id: launchId } }));
   } catch {
     return { success: false, error: "CampaignJob table not available" };
   }
@@ -329,10 +330,10 @@ export async function rollbackCampaign(launchId) {
   const campaignId = steps.find((s) => s.campaignId)?.campaignId;
 
   if (!campaignId) {
-    await prisma.campaignJob.update({
+    await withDbRetry("launch-rollback-no-campaign", () => prisma.campaignJob.update({
       where: { id: launchId },
       data: { state: CAMPAIGN_STATES.ROLLBACK },
-    });
+    }));
     return {
       success: true,
       message: "No campaign was created. Marked as rolled back.",
@@ -364,10 +365,10 @@ export async function rollbackCampaign(launchId) {
       { label: "Rollback", maxRetries: 2 },
     );
 
-    await prisma.campaignJob.update({
+    await withDbRetry("launch-rollback-done", () => prisma.campaignJob.update({
       where: { id: launchId },
       data: { state: CAMPAIGN_STATES.ROLLBACK },
-    });
+    }));
 
     return {
       success: true,
@@ -390,9 +391,9 @@ export async function rollbackCampaign(launchId) {
  */
 export async function getCampaignStatus(launchId) {
   try {
-    const record = await prisma.campaignJob.findUnique({
+    const record = await withDbRetry("launch-status-find", () => prisma.campaignJob.findUnique({
       where: { id: launchId },
-    });
+    }));
     if (!record) return null;
     return {
       launchId: record.id,
