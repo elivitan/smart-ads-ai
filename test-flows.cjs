@@ -29,8 +29,8 @@ function warn(msg) { console.log('  \u26A0\uFE0F  ' + msg); warnings++; }
 // Load files
 const FILES = {};
 const fileList = [
-  ['index',      'app/routes/app._index.jsx'],
-  ['campaigns',  'app/routes/app.campaigns.jsx'],
+  ['index',      resolvePath('app/routes/app._index.jsx')],
+  ['campaigns',  resolvePath('app/routes/app.campaigns.jsx')],
   ['subscriber', resolvePath('app/components/SubscriberHome.jsx')],
   ['wizard',     resolvePath('app/components/campaigns/CampaignWizard.jsx')],
   ['styles',     'app/routes/styles.index.js'],

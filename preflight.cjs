@@ -9,7 +9,10 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = process.cwd();
-const INDEX_FILE = path.join(ROOT, "app", "routes", "app._index.jsx");
+const INDEX_FILE_JSX = path.join(ROOT, "app", "routes", "app._index.jsx");
+const INDEX_FILE_TSX = path.join(ROOT, "app", "routes", "app._index.tsx");
+const INDEX_FILE = fs.existsSync(INDEX_FILE_JSX) ? INDEX_FILE_JSX : INDEX_FILE_TSX;
+const INDEX_EXT = INDEX_FILE.endsWith(".tsx") ? ".tsx" : ".jsx";
 const STYLES_FILE = path.join(ROOT, "app", "routes", "styles.index.js");
 
 let passed = 0;
@@ -27,9 +30,9 @@ console.log("══════════════════════�
 // ─── CHECK 1: File exists ───
 console.log("📁 FILE STRUCTURE:");
 if (!fs.existsSync(INDEX_FILE)) {
-  fail("app._index.jsx NOT FOUND"); process.exit(1);
+  fail("app._index.jsx/.tsx NOT FOUND"); process.exit(1);
 }
-pass("app._index.jsx exists");
+pass("app._index" + INDEX_EXT + " exists");
 
 // ─── CHECK 2: Line count ───
 console.log("\n📏 LINE COUNT:");
@@ -37,9 +40,9 @@ const code = fs.readFileSync(INDEX_FILE, "utf8");
 const lines = code.split("\n");
 const lineCount = lines.length;
 
-if (lineCount > 1300) fail(`app._index.jsx is ${lineCount} lines — EXCEEDS 1,300 LIMIT! Something was inlined!`);
-else if (lineCount > 1260) warn(`app._index.jsx is ${lineCount} lines — getting close to 1,300 limit`);
-else pass(`app._index.jsx is ${lineCount} lines (limit: 1,300)`);
+if (lineCount > 1300) fail(`app._index${INDEX_EXT} is ${lineCount} lines — EXCEEDS 1,300 LIMIT! Something was inlined!`);
+else if (lineCount > 1260) warn(`app._index${INDEX_EXT} is ${lineCount} lines — getting close to 1,300 limit`);
+else pass(`app._index${INDEX_EXT} is ${lineCount} lines (limit: 1,300)`);
 
 // ─── CHECK 3: All 20 imports ───
 console.log("\n📦 IMPORTS:");
