@@ -1,7 +1,27 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { isCostLimitReached } from "./utils/api-cost-tracker.js";
+import { isCostLimitReached } from "./utils/api-cost-tracker";
 import { withRetry } from "./retry.server";
-import { analyzeWithCompetitorIntel } from "./competitor-intel.server.js";
+import { analyzeWithCompetitorIntel } from "./competitor-intel.server";
+
+interface AiProduct {
+  title: string;
+  price: string | number;
+  description?: string;
+}
+
+interface AnalysisResult {
+  products: Array<{
+    title: string;
+    ad_score: number;
+    ad_strength: string;
+    headlines?: string[];
+    descriptions?: string[];
+    [key: string]: unknown;
+  }>;
+  error?: string;
+  [key: string]: unknown;
+}
+
 
 
 // ── Timeout for Anthropic SDK calls (Session 56) ──
@@ -12,7 +32,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: A
  * Analyze a batch of products with competitor intelligence.
  * Flow: Google search → scrape competitors → check store ranking → Claude AI analysis
  */
-export async function analyzeBatch(products, storeDomain = "") {
+export async function analyzeBatch(products: AiProduct[], storeDomain: string = ""): Promise<AnalysisResult> {
   // Cost guard — block if daily Anthropic limit reached
   if (isCostLimitReached("anthropic")) {
     console.warn("[AI] Daily Anthropic cost limit reached — blocking scan");
@@ -28,10 +48,10 @@ export async function analyzeBatch(products, storeDomain = "") {
   if (storeDomain) {
     try {
       return await analyzeWithCompetitorIntel(products, storeDomain);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(
         "Competitor intel failed, falling back to basic analysis:",
-        err.message,
+        (err instanceof Error ? err.message : String(err)),
       );
       // Fall back to basic analysis
       return await analyzeBatchBasic(products);
@@ -43,7 +63,7 @@ export async function analyzeBatch(products, storeDomain = "") {
 /**
  * Basic analysis without competitor data (fallback)
  */
-async function analyzeBatchBasic(products) {
+async function analyzeBatchBasic(products: AiProduct[]): Promise<AnalysisResult> {
   const productList = products
     .map(
       (p, i) =>
@@ -100,7 +120,7 @@ Return:
     { label: "Claude" },
   );
 
-  const text = response.content[0].text.trim();
+  const text = (response.content[0] as { type: string; text: string }).text.trim();
   const cleaned = text.startsWith("```")
     ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
     : text;
@@ -108,11 +128,12 @@ Return:
   const parsed = JSON.parse(cleaned);
 
   if (parsed.products) {
-    parsed.products.forEach((p) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    parsed.products.forEach((p: any) => {
       if (p.headlines)
-        p.headlines = p.headlines.map((h) => h.trim().slice(0, 30));
+        p.headlines = p.headlines.map((h: string) => h.trim().slice(0, 30));
       if (p.descriptions)
-        p.descriptions = p.descriptions.map((d) => d.trim().slice(0, 90));
+        p.descriptions = p.descriptions.map((d: string) => d.trim().slice(0, 90));
       if (!p.ad_strength) {
         const s = p.ad_score || 0;
         p.ad_strength =
@@ -132,14 +153,14 @@ Return:
 }
 
 // Legacy export
-export async function analyzeProducts(products) {
+export async function analyzeProducts(products: AiProduct[]): Promise<AnalysisResult> {
   return analyzeBatch(products.slice(0, 3));
 }
 
 /**
  * Smart product selection for large stores (50+ products).
  */
-export async function selectBestProducts(products, maxProducts = 20) {
+export async function selectBestProducts(products: AiProduct[], maxProducts: number = 20): Promise<AiProduct[]> {
   if (products.length <= maxProducts) return products;
 
   const productList = products
@@ -167,24 +188,24 @@ Return ONLY JSON array of selected indices (0-based):
     { label: "Claude" },
   );
 
-  const text = response.content[0].text.trim();
+  const text = (response.content[0] as { type: string; text: string }).text.trim();
   const cleaned = text.startsWith("```")
     ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
     : text;
 
   const parsed = JSON.parse(cleaned);
-  return (parsed.selected || []).map((i) => products[i]).filter(Boolean);
+  return (parsed.selected || []).map((i: number) => products[i]).filter(Boolean);
 }
 
 /**
  * Campaign strategy for the whole store.
  */
-export async function decideCampaignStrategy(products, storeInfo = {}) {
+export async function decideCampaignStrategy(products: AiProduct[], storeInfo: { url?: string } = {}) {
   const productList = products
     .map((p, i) => `${i + 1}. "${p.title}" $${p.price}`)
     .join("\n");
   const avgPrice =
-    products.reduce((a, p) => a + parseFloat(p.price || 0), 0) /
+    products.reduce((a: number, p: AiProduct) => a + parseFloat(String(p.price || 0)), 0) /
     (products.length || 1);
 
   const response = await withRetry(
@@ -208,7 +229,7 @@ Return ONLY JSON:
     { label: "Claude" },
   );
 
-  const text = response.content[0].text.trim();
+  const text = (response.content[0] as { type: string; text: string }).text.trim();
   const cleaned = text.startsWith("```")
     ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
     : text;
@@ -217,17 +238,17 @@ Return ONLY JSON:
   const strategy = parsed.strategy;
   strategy.labels = {
     campaign_type:
-      {
+      ({
         pmax: "Maximum Reach",
         search: "Google Search Only",
         shopping: "Google Shopping",
-      }[strategy.campaign_type] || strategy.campaign_type,
+      } as Record<string, string>)[strategy.campaign_type] || strategy.campaign_type,
     bidding:
-      {
+      ({
         max_conversions: "Maximize sales",
         max_conv_value: "Maximize revenue",
         max_clicks: "Maximize traffic",
-      }[strategy.bidding] || strategy.bidding,
+      } as Record<string, string>)[strategy.bidding] || strategy.bidding,
   };
   return parsed;
 }

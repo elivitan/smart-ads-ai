@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { isCostLimitReached } from "./utils/api-cost-tracker.js";
+import { isCostLimitReached } from "./utils/api-cost-tracker";
 import { withRetry } from "./retry.server";
 
 
@@ -10,7 +10,7 @@ const client = new Anthropic({
   timeout: ANTHROPIC_TIMEOUT_MS,
 });
 
-export async function exploreKeywords(seedKeyword, location = "United States") {
+export async function exploreKeywords(seedKeyword: string, location: string = "United States") {
   // Cost guard
   if (isCostLimitReached("anthropic")) {
     throw new Error("Daily AI processing limit reached. Try again tomorrow.");
@@ -92,7 +92,7 @@ Rules:
     { label: "Claude" },
   );
 
-  const text = response.content[0].text.trim();
+  const text = (response.content[0] as { type: string; text: string }).text.trim();
   let cleaned = text;
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -100,7 +100,7 @@ Rules:
   return JSON.parse(cleaned);
 }
 
-export async function scanWebsite(url) {
+export async function scanWebsite(url: string) {
   const response = await withRetry(
     () =>
       client.messages.create({
@@ -168,7 +168,7 @@ Rules:
     { label: "Claude" },
   );
 
-  const text = response.content[0].text.trim();
+  const text = (response.content[0] as { type: string; text: string }).text.trim();
   let cleaned = text;
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");

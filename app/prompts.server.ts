@@ -1,13 +1,29 @@
 /**
- * prompts.server.js
+ * prompts.server.ts
  * 
  * All AI prompts — aligned with Google Ads requirements.
  * RSA: up to 15 headlines (30 chars), 4 descriptions (90 chars)
  * PMax: + long headlines (90 chars), business name (25 chars)
  * 
  * Usage:
- *   import { PROMPTS } from "./prompts.server.js";
+ *   import { PROMPTS } from "./prompts.server";
  */
+
+interface PromptProduct {
+  title: string;
+  price: string | number;
+  description?: string;
+}
+
+interface PromptStoreInfo {
+  url?: string;
+}
+
+interface PromptCompetitor {
+  domain: string;
+  title: string;
+  snippet?: string;
+}
 
 export const PROMPTS = {
 
@@ -15,7 +31,7 @@ export const PROMPTS = {
    * Analyze a batch of products for Google Ads.
    * Generates assets for BOTH RSA and PMax campaigns.
    */
-  analyzeBatch: (products) =>
+  analyzeBatch: (products: PromptProduct[]): string =>
     `You are a Google Ads expert. Analyze these ${products.length} products and generate campaign-ready assets.
 
 PRODUCTS:
@@ -62,7 +78,7 @@ STRICT RULES:
   /**
    * Select best products for advertising.
    */
-  selectBest: (products, maxProducts) =>
+  selectBest: (products: PromptProduct[], maxProducts: number): string =>
     `Google Ads expert. Select the ${maxProducts} products with highest ad potential from this list. Return JSON only.
 Return: { "selected": [indices of best products, 0-based] }
 
@@ -75,7 +91,7 @@ Respond ONLY with valid JSON.`,
   /**
    * Campaign strategy.
    */
-  campaignStrategy: (storeInfo, productSummary) =>
+  campaignStrategy: (storeInfo: PromptStoreInfo, productSummary: string): string =>
     `Google Ads strategist. Store: ${storeInfo.url || "shopify"} | ${productSummary}
 
 Decide the optimal campaign setup. Return JSON only:
@@ -90,7 +106,7 @@ Respond ONLY with valid JSON.`,
   /**
    * Competitor analysis with full Google Ads asset generation.
    */
-  competitorAnalysis: (product, competitors) =>
+  competitorAnalysis: (product: PromptProduct, competitors: PromptCompetitor[]): string =>
     `Google Ads competitor analyst. Create winning ad assets for this product based on competitive landscape.
 
 Product: "${product.title}" - $${product.price}
@@ -125,7 +141,7 @@ Respond ONLY with valid JSON.`,
   /**
    * Keyword research.
    */
-  keywordResearch: (topic, context) =>
+  keywordResearch: (topic: string, context?: string): string =>
     `SEO and Google Ads keyword expert. Generate comprehensive keyword research for: "${topic}"
 ${context ? `Context: ${context}` : ""}
 
@@ -139,7 +155,7 @@ Rules:
 - Include negative keyword suggestions
 Respond ONLY with valid JSON.`,
 
-  keywordExpansion: (seedKeywords, productTitle) =>
+  keywordExpansion: (seedKeywords: string[], productTitle: string): string =>
     `Google Ads keyword expert. Expand these seed keywords for "${productTitle}":
 ${seedKeywords.join(", ")}
 

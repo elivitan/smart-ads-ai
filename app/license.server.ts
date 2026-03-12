@@ -1,4 +1,4 @@
-// app/license.server.js
+// app/license.server.ts
 // ══════════════════════════════════════════════
 // LICENSE CHECK MIDDLEWARE
 // Every API route calls this to verify the shop
@@ -8,8 +8,28 @@
 import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";
 
+type PlanName = "free" | "starter" | "pro" | "premium";
+type ActionName = "scan" | "campaign" | "ai-improve" | "competitor-intel";
+
+interface PlanLimits {
+  maxProducts: number;
+  maxCampaigns: number;
+  aiCreditsMonthly: number;
+  scanCreditsMonthly: number;
+  dailyApiCalls: number;
+  canPublish: boolean;
+}
+
+interface LicenseCheckResult {
+  allowed: boolean;
+  reason?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sub: any;
+}
+
+
 // Plan limits configuration
-const PLAN_LIMITS = {
+const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
   free: {
     maxProducts: 3,
     maxCampaigns: 0,
@@ -47,7 +67,8 @@ const PLAN_LIMITS = {
 // ──────────────────────────────────────────────
 // Get or create shop subscription
 // ──────────────────────────────────────────────
-export async function getShopSubscription(shop) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getShopSubscription(shop: string): Promise<any> {
   if (!shop) throw new Error("Shop domain is required");
 
   let sub = await withDbRetry("license-find", () => prisma.shopSubscription.findUnique({ where: { shop } }));
@@ -91,9 +112,9 @@ export async function getShopSubscription(shop) {
 // Check if shop can perform an action
 // Returns { allowed: true/false, reason, sub }
 // ──────────────────────────────────────────────
-export async function checkLicense(shop, action) {
+export async function checkLicense(shop: string, action: ActionName): Promise<LicenseCheckResult> {
   const sub = await getShopSubscription(shop);
-  const limits = PLAN_LIMITS[sub.plan] || PLAN_LIMITS.free;
+  const limits = PLAN_LIMITS[sub.plan as PlanName] || PLAN_LIMITS.free;
 
   // Check trial expiration
   if (
@@ -186,7 +207,7 @@ export async function checkLicense(shop, action) {
 // ──────────────────────────────────────────────
 // Use a scan credit (call AFTER successful scan)
 // ──────────────────────────────────────────────
-export async function useScanCredit(shop) {
+export async function useScanCredit(shop: string): Promise<void> {
   const sub = await getShopSubscription(shop);
 
   if (sub.plan === "free") {
@@ -216,7 +237,7 @@ export async function useScanCredit(shop) {
 // ──────────────────────────────────────────────
 // Use an AI credit (call AFTER successful improvement)
 // ──────────────────────────────────────────────
-export async function useAiCredit(shop) {
+export async function useAiCredit(shop: string): Promise<void> {
   await withDbRetry("license-ai-deduct", () => prisma.shopSubscription.update({
     where: { shop },
     data: { aiCredits: { decrement: 1 } },
@@ -226,7 +247,7 @@ export async function useAiCredit(shop) {
 // ──────────────────────────────────────────────
 // Add credits (after purchase)
 // ──────────────────────────────────────────────
-export async function addCredits(shop, type, amount) {
+export async function addCredits(shop: string, type: "scan" | "ai", amount: number): Promise<void> {
   const field = type === "scan" ? "scanCredits" : "aiCredits";
   await withDbRetry("license-add-credits", () => prisma.shopSubscription.update({
     where: { shop },
@@ -237,9 +258,10 @@ export async function addCredits(shop, type, amount) {
 // ──────────────────────────────────────────────
 // Update plan (after subscription change)
 // ──────────────────────────────────────────────
-export async function updatePlan(shop, plan, options = {}) {
+export async function updatePlan(shop: string, plan: PlanName, options: { trial?: boolean; trialDays?: number } = {}) {
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  const data = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: Record<string, any> = {
     plan,
     status: options.trial ? "trial" : "active",
     maxProducts: limits.maxProducts,
@@ -267,9 +289,9 @@ export async function updatePlan(shop, plan, options = {}) {
 // ──────────────────────────────────────────────
 // Get subscription info for frontend
 // ──────────────────────────────────────────────
-export async function getSubscriptionInfo(shop) {
+export async function getSubscriptionInfo(shop: string) {
   const sub = await getShopSubscription(shop);
-  const limits = PLAN_LIMITS[sub.plan] || PLAN_LIMITS.free;
+  const limits = PLAN_LIMITS[sub.plan as PlanName] || PLAN_LIMITS.free;
   return {
     plan: sub.plan,
     status: sub.status,

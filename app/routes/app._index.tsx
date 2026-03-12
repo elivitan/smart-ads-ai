@@ -3,7 +3,7 @@ import { useLoaderData, useLocation, useRevalidator, useNavigate, Link } from "r
 import { authenticate } from "../shopify.server";
 import { getShopProducts, getSyncStatus } from "../sync.server.js";
 import prisma from "../db.server";
-import { getSubscriptionInfo } from "../license.server.js";
+import { getSubscriptionInfo } from "../license.server";
 import { CSS } from "./styles.index.js";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets";
 import { TipRotator, Confetti, SuccessTicker } from "../components/SmallComponents";
