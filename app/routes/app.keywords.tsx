@@ -1,21 +1,26 @@
 import { useState } from "react";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
+import type { LoaderFunctionArgs } from "react-router";
 
-export const loader = async ({ request }) => {
+interface KeywordsLoaderData {
+  savedKeywords: unknown[];
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs): Promise<Response | KeywordsLoaderData> => {
   await authenticate.admin(request);
   return { savedKeywords: [] };
 };
 
 export default function Keywords() {
   const [activeTab, setActiveTab] = useState("explore");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [seedKeyword, setSeedKeyword] = useState("");
   const [location, setLocation] = useState("United States");
-  const [exploreResults, setExploreResults] = useState(null);
+  const [exploreResults, setExploreResults] = useState<Record<string, unknown> | null>(null);
   const [scanUrl, setScanUrl] = useState("");
-  const [scanResults, setScanResults] = useState(null);
+  const [scanResults, setScanResults] = useState<Record<string, unknown> | null>(null);
 
   async function handleExplore() {
     if (!seedKeyword.trim()) return;
@@ -28,7 +33,7 @@ export default function Keywords() {
       const res = await fetch("/app/api/keywords", { method: "POST", body: form });
       const data = await res.json();
       if (data.success) { setExploreResults(data); } else { setError(data.error); }
-    } catch (e) { setError(e.message); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
     setLoading(false);
   }
 
@@ -42,11 +47,11 @@ export default function Keywords() {
       const res = await fetch("/app/api/keywords", { method: "POST", body: form });
       const data = await res.json();
       if (data.success) { setScanResults(data); } else { setError(data.error); }
-    } catch (e) { setError(e.message); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
     setLoading(false);
   }
 
-  function CompBadge({ level }) {
+  function CompBadge({ level }: { level: string }) {
     const colors = { Low: "#22c55e", Medium: "#f59e0b", High: "#ef4444" };
     return <span style={{ color: colors[level] || "#fff", fontWeight: 700, fontSize: "12px" }}>{level}</span>;
   }
@@ -89,13 +94,13 @@ export default function Keywords() {
           <div className="kw-form">
             <div className="kw-field kw-field-grow">
               <label>SEED KEYWORD</label>
-              <input type="text" value={seedKeyword} onChange={e => setSeedKeyword(e.target.value)}
+              <input type="text" value={seedKeyword} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSeedKeyword(e.target.value)}
                 placeholder="e.g. running shoes, organic skincare..."
-                onKeyDown={e => e.key === 'Enter' && handleExplore()} />
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleExplore()} />
             </div>
             <div className="kw-field">
               <label>LOCATION</label>
-              <select value={location} onChange={e => setLocation(e.target.value)}>
+              <select value={location} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLocation(e.target.value)}>
                 <option>United States</option><option>United Kingdom</option><option>Canada</option>
                 <option>Australia</option><option>Germany</option><option>France</option>
                 <option>Israel</option><option>Global</option>
@@ -198,9 +203,9 @@ export default function Keywords() {
           <div className="kw-form">
             <div className="kw-field kw-field-grow">
               <label>WEBSITE URL</label>
-              <input type="text" value={scanUrl} onChange={e => setScanUrl(e.target.value)}
+              <input type="text" value={scanUrl} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setScanUrl(e.target.value)}
                 placeholder="https://competitor-store.com"
-                onKeyDown={e => e.key === 'Enter' && handleScan()} />
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleScan()} />
             </div>
             <button className="kw-btn" onClick={handleScan} disabled={!scanUrl.trim()}>🌐 Scan Website</button>
           </div>

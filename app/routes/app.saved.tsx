@@ -2,12 +2,23 @@ import { useState, useEffect } from "react";
 import { authenticate } from "../shopify.server";
 import useAppStore from "../stores/useAppStore.js";
 
-export const loader = async ({ request }) => {
+import type { LoaderFunctionArgs } from "react-router";
+
+interface SavedLoaderData {
+  // Currently returns empty object, loader just authenticates
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs): Promise<Response | SavedLoaderData> => {
   await authenticate.admin(request);
   return {};
 };
 
-function ScoreRing({ score, size = 54 }) {
+interface ScoreRingProps {
+  score: number;
+  size?: number;
+}
+
+function ScoreRing({ score, size = 54 }: ScoreRingProps) {
   const r = (size - 6) / 2, circ = 2 * Math.PI * r, off = circ - (score / 100) * circ;
   const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
   return (
@@ -27,9 +38,9 @@ export default function SavedCampaigns() {
   const storeAiResults = useAppStore((s) => s.aiResults);
   const [products] = useState(() => storeProducts || []);
   const [aiResults] = useState(() => storeAiResults || null);
-  const [selProduct, setSelProduct] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("score");
+  const [selProduct, setSelProduct] = useState<Record<string, unknown> | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("score");
   const [lastScan] = useState(() => new Date().toISOString());
 
   const aiProds = aiResults?.products || [];
