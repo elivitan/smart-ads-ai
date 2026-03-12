@@ -259,7 +259,7 @@ export default function Index() {
 
   // ── SCAN FUNCTION (delegated to store) ──
   function doScan(mode) {
-    store.doScan(mode, { cancelRef, creepRef, getProductUrl });
+    appStore.getState().doScan(mode, { cancelRef, creepRef, getProductUrl });
   }
 
   // ── Fetch real spend from Google Ads API ──
@@ -452,8 +452,8 @@ export default function Index() {
           setAutoLaunching(false); setPickedProducts([]);
           if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }
         }}
-        doScan={doScan} handleProductClick={store.handleProductClick} navigate={navigate}
-        handlePauseCampaign={store.handlePauseCampaign} handleRemoveCampaign={store.handleRemoveCampaign}
+        doScan={doScan} handleProductClick={appStore.getState().handleProductClick} navigate={navigate}
+        handlePauseCampaign={appStore.getState().handlePauseCampaign} handleRemoveCampaign={appStore.getState().handleRemoveCampaign}
         StyleTag={StyleTag}
       />
       <GlobalModals navigate={navigate}/>
@@ -494,7 +494,7 @@ export default function Index() {
               const ai=aiResults?.products?.find(ap=>ap.title===product.title), hasAi=!!ai, score=hasAi?ai.ad_score||0:0;
               const eI=hasAi?Math.round(score*46+500):0, eC=hasAi?Math.round(score*3.8+20):0, eCo=hasAi?Math.round(score*0.45+10):0;
               return (
-                <div key={product.id} className={`p-card ${!hasAi?"p-card-locked":""}`} onClick={()=>hasAi?store.handleProductClick({...product,aiAnalysis:ai}):null}>
+                <div key={product.id} className={`p-card ${!hasAi?"p-card-locked":""}`} onClick={()=>hasAi?appStore.getState().handleProductClick({...product,aiAnalysis:ai}):null}>
                   <div className="p-card-img-wrap">
                     {product.image?<img src={product.image} alt={product.title} className="p-card-img"/>:<div className="p-card-noimg">📦</div>}
                     {hasAi && <div className="p-card-score"><ScoreRing score={score}/></div>}

@@ -2,22 +2,7 @@
 // Phase 2: replaces 39 useState hooks in app._index.jsx
 // NOTE: Uses createStore (vanilla) + useStore (react) to avoid SSR issues
 import { createStore } from "zustand/vanilla";
-import React from "react";
-
-// Custom useStore that uses getState() for BOTH client and server snapshots.
-// Zustand's default useStore uses getInitialState() for server snapshot,
-// which causes infinite loop when state is mutated during hydration.
-function useStore(api, selector = (s) => s, equalityFn) {
-  const getSnapshot = React.useCallback(() => selector(api.getState()), [api, selector]);
-  // CRITICAL: Use getState() (not getInitialState()) for server snapshot too
-  const getServerSnapshot = getSnapshot;
-  const slice = React.useSyncExternalStore(
-    api.subscribe,
-    getSnapshot,
-    getServerSnapshot
-  );
-  return slice;
-}
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 const appStore = createStore((set, get) => ({
 
@@ -420,11 +405,17 @@ const appStore = createStore((set, get) => ({
   },
 }));
 
+// FIX: Make getInitialState() return current state (not creation-time state).
+// Zustand 5 uses getInitialState() for SSR server snapshot. After initSubscription
+// mutates state in useEffect, getState() !== getInitialState() → infinite loop.
+// This one line syncs them so SSR hydration works cleanly.
+appStore.getInitialState = appStore.getState;
+
 const identitySelector = (s) => s;
 
 export default function useAppStore(selector, equalityFn) {
   const sel = selector || identitySelector;
-  return useStore(appStore, sel, equalityFn);
+  return useStoreWithEqualityFn(appStore, sel, equalityFn);
 }
 
 // Export vanilla store for direct setState (e.g. init from DB)

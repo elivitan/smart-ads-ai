@@ -36,30 +36,10 @@ interface SubscriberHomeProps {
 
 // ── Helpers ──
 
-function AnimNum({ end, pre = "", suf = "" }) {
-  const [v, setV] = useState(end);
-  const prevEnd = React.useRef(end);
-  const hasAnimated = React.useRef(false);
-  useEffect(() => {
-    // Skip if end hasn't changed and we already animated
-    if (prevEnd.current === end && hasAnimated.current) return;
-    prevEnd.current = end;
-    if (end === 0) { setV(0); hasAnimated.current = true; return; }
-    if (hasAnimated.current) { setV(end); return; }
-    hasAnimated.current = true;
-    let frame: number;
-    const duration = 1000;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      setV(progress * end);
-      if (progress < 1) frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [end]);
-  return <span>{pre}{end % 1 !== 0 ? v.toFixed(1) : Math.round(v)}{suf}</span>;
+function AnimNum({ end, pre = "", suf = "" }: { end: number; pre?: string; suf?: string }) {
+  // Simple display - no animation, no useEffect, no setState loops
+  const display = end % 1 !== 0 ? Number(end).toFixed(1) : Math.round(end);
+  return <span>{pre}{display}{suf}</span>;
 }
 
 function ScoreRing({ score, size = 42 }) {
