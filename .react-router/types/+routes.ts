@@ -161,11 +161,11 @@ type RouteFiles = {
     id: "routes/app";
     page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
-  "routes/app.api.campaign-manage.js": {
+  "routes/app.api.campaign-manage.ts": {
     id: "routes/app.api.campaign-manage";
     page: "/app/api/campaign-manage";
   };
-  "routes/app.api.campaign-status.js": {
+  "routes/app.api.campaign-status.ts": {
     id: "routes/app.api.campaign-status";
     page: "/app/api/campaign-status";
   };
@@ -177,11 +177,11 @@ type RouteFiles = {
     id: "routes/app.api.market-intel";
     page: "/app/api/market-intel";
   };
-  "routes/app.api.subscription.js": {
+  "routes/app.api.subscription.ts": {
     id: "routes/app.api.subscription";
     page: "/app/api/subscription";
   };
-  "routes/app.api.ai-improve.js": {
+  "routes/app.api.ai-improve.ts": {
     id: "routes/app.api.ai-improve";
     page: "/app/api/ai-improve";
   };
@@ -189,11 +189,11 @@ type RouteFiles = {
     id: "routes/app.api.job-status";
     page: "/app/api/job-status";
   };
-  "routes/app.api.ai-engine.js": {
+  "routes/app.api.ai-engine.ts": {
     id: "routes/app.api.ai-engine";
     page: "/app/api/ai-engine";
   };
-  "routes/app.api.campaign.js": {
+  "routes/app.api.campaign.ts": {
     id: "routes/app.api.campaign";
     page: "/app/api/campaign";
   };
@@ -209,7 +209,7 @@ type RouteFiles = {
     id: "routes/app.api.health";
     page: "/app/api/health";
   };
-  "routes/app.api.state.js": {
+  "routes/app.api.state.ts": {
     id: "routes/app.api.state";
     page: "/app/api/state";
   };
@@ -217,11 +217,11 @@ type RouteFiles = {
     id: "routes/app.campaigns";
     page: "/app/campaigns";
   };
-  "routes/app.api.scan.js": {
+  "routes/app.api.scan.ts": {
     id: "routes/app.api.scan";
     page: "/app/api/scan";
   };
-  "routes/app.api.sync.js": {
+  "routes/app.api.sync.ts": {
     id: "routes/app.api.sync";
     page: "/app/api/sync";
   };
@@ -257,22 +257,22 @@ type RouteModules = {
   "routes/auth.$": typeof import("./app/routes/auth.$.jsx");
   "routes/_index": typeof import("./app/routes/_index/route.jsx");
   "routes/app": typeof import("./app/routes/app.jsx");
-  "routes/app.api.campaign-manage": typeof import("./app/routes/app.api.campaign-manage.js");
-  "routes/app.api.campaign-status": typeof import("./app/routes/app.api.campaign-status.js");
+  "routes/app.api.campaign-manage": typeof import("./app/routes/app.api.campaign-manage.ts");
+  "routes/app.api.campaign-status": typeof import("./app/routes/app.api.campaign-status.ts");
   "routes/app.api.store-analytics": typeof import("./app/routes/app.api.store-analytics.ts");
   "routes/app.api.market-intel": typeof import("./app/routes/app.api.market-intel.ts");
-  "routes/app.api.subscription": typeof import("./app/routes/app.api.subscription.js");
-  "routes/app.api.ai-improve": typeof import("./app/routes/app.api.ai-improve.js");
+  "routes/app.api.subscription": typeof import("./app/routes/app.api.subscription.ts");
+  "routes/app.api.ai-improve": typeof import("./app/routes/app.api.ai-improve.ts");
   "routes/app.api.job-status": typeof import("./app/routes/app.api.job-status.ts");
-  "routes/app.api.ai-engine": typeof import("./app/routes/app.api.ai-engine.js");
-  "routes/app.api.campaign": typeof import("./app/routes/app.api.campaign.js");
+  "routes/app.api.ai-engine": typeof import("./app/routes/app.api.ai-engine.ts");
+  "routes/app.api.campaign": typeof import("./app/routes/app.api.campaign.ts");
   "routes/app.api.keywords": typeof import("./app/routes/app.api.keywords.ts");
   "routes/app.additional": typeof import("./app/routes/app.additional.jsx");
   "routes/app.api.health": typeof import("./app/routes/app.api.health.js");
-  "routes/app.api.state": typeof import("./app/routes/app.api.state.js");
+  "routes/app.api.state": typeof import("./app/routes/app.api.state.ts");
   "routes/app.campaigns": typeof import("./app/routes/app.campaigns.jsx");
-  "routes/app.api.scan": typeof import("./app/routes/app.api.scan.js");
-  "routes/app.api.sync": typeof import("./app/routes/app.api.sync.js");
+  "routes/app.api.scan": typeof import("./app/routes/app.api.scan.ts");
+  "routes/app.api.sync": typeof import("./app/routes/app.api.sync.ts");
   "routes/app.keywords": typeof import("./app/routes/app.keywords.jsx");
   "routes/app.settings": typeof import("./app/routes/app.settings.jsx");
   "routes/app._index": typeof import("./app/routes/app._index.jsx");
