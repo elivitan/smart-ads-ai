@@ -8,7 +8,8 @@ interface AutoLaunchingScreenProps {
 }
 
 export function AutoLaunchingScreen({ cancelRef, StyleTag }: AutoLaunchingScreenProps) {
-  const { setAutoLaunching, setShowDashboard } = useAppStore();
+  const setAutoLaunching = useAppStore(s => s.setAutoLaunching);
+  const setShowDashboard = useAppStore(s => s.setShowDashboard);
   return (
     <div className="sr dk"><StyleTag/>
       <div className="ld-wrap">
@@ -28,7 +29,9 @@ interface AutoStatusScreenProps {
 }
 
 export function AutoStatusScreen({ navigate, StyleTag }: AutoStatusScreenProps) {
-  const { autoStatus, setAutoStatus, showConfetti } = useAppStore();
+  const autoStatus = useAppStore(s => s.autoStatus);
+  const setAutoStatus = useAppStore(s => s.setAutoStatus);
+  const showConfetti = useAppStore(s => s.showConfetti);
   return (
     <div className="sr dk"><StyleTag/>
       <Confetti active={showConfetti}/>

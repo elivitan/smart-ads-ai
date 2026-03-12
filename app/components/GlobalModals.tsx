@@ -1,6 +1,7 @@
 import { OnboardModal, BuyCreditsModal } from "./Modals";
 import { LaunchChoiceDialog } from "./LaunchChoiceDialog";
 import useAppStore from "../stores/useAppStore.js";
+import { shallow } from "zustand/shallow";
 
 interface GlobalModalsProps {
   navigate: (path: string) => void;
@@ -14,7 +15,19 @@ export default function GlobalModals({ navigate }: GlobalModalsProps) {
     justSubscribed, setAutoScanMode,
     showLaunchChoice, setShowLaunchChoice, launchLoading, setLaunchLoading,
     showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits,
-  } = useAppStore();
+  } = useAppStore(s => ({
+    showOnboard: s.showOnboard, setShowOnboard: s.setShowOnboard,
+    onboardTab: s.onboardTab, setOnboardTab: s.setOnboardTab,
+    onboardStep: s.onboardStep, setOnboardStep: s.setOnboardStep,
+    selectedPlan: s.selectedPlan, selectPlan: s.selectPlan,
+    googleConnected: s.googleConnected, setGoogleConnected: s.setGoogleConnected,
+    scanCredits: s.scanCredits, setScanCredits: s.setScanCredits,
+    justSubscribed: s.justSubscribed, setAutoScanMode: s.setAutoScanMode,
+    showLaunchChoice: s.showLaunchChoice, setShowLaunchChoice: s.setShowLaunchChoice,
+    launchLoading: s.launchLoading, setLaunchLoading: s.setLaunchLoading,
+    showBuyCredits: s.showBuyCredits, setShowBuyCredits: s.setShowBuyCredits,
+    aiCredits: s.aiCredits, setAiCredits: s.setAiCredits,
+  }), shallow);
 
   return (
     <>

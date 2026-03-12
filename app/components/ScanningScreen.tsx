@@ -1,6 +1,7 @@
 import React from "react";
 import { TipRotator, Confetti } from "./SmallComponents";
 import useAppStore from "../stores/useAppStore.js";
+import { shallow } from "zustand/shallow";
 
 interface ScanningScreenProps {
   StyleTag: React.ComponentType;
@@ -15,7 +16,13 @@ export function ScanningScreen({ StyleTag, cancelRef, creepRef, FREE_SCAN_LIMIT 
     showCancelConfirm, setShowCancelConfirm,
     setIsScanning, setFakeProgress, setProducts, setAiResults, setShowDashboard,
     selectedPlan, scanCredits,
-  } = useAppStore();
+  } = useAppStore(s => ({
+    fakeProgress: s.fakeProgress, showConfetti: s.showConfetti, scanMsg: s.scanMsg,
+    showCancelConfirm: s.showCancelConfirm, setShowCancelConfirm: s.setShowCancelConfirm,
+    setIsScanning: s.setIsScanning, setFakeProgress: s.setFakeProgress,
+    setProducts: s.setProducts, setAiResults: s.setAiResults, setShowDashboard: s.setShowDashboard,
+    selectedPlan: s.selectedPlan, scanCredits: s.scanCredits,
+  }), shallow);
 
   const hasScanAccess = !!selectedPlan || scanCredits > 0;
   const pct = Math.round(fakeProgress);

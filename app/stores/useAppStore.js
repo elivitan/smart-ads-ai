@@ -406,7 +406,11 @@ const appStore = createStore((set, get) => ({
 }));
 
 // React hook wrapper — only uses React when called inside a component
-export default function useAppStore(selector) {
+// Accepts optional equalityFn (e.g. shallow) for multi-field selectors
+export default function useAppStore(selector, equalityFn) {
+  if (equalityFn) {
+    return useStore(appStore, selector || ((s) => s), equalityFn);
+  }
   return useStore(appStore, selector || ((s) => s));
 }
 

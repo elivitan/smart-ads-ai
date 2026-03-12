@@ -11,6 +11,7 @@ import { ProductModal } from "./ProductModal";
 import { MarketAlert } from "./MarketAlert";
 import { StoreAnalyticsWidget } from "./StoreAnalytics";
 import useAppStore from "../stores/useAppStore";
+import { shallow } from "zustand/shallow";
 
 interface DashboardViewProps {
   isPaid: boolean;
@@ -108,7 +109,27 @@ export function DashboardView({
     justSubscribed, setAutoScanMode,
     showLaunchChoice, setShowLaunchChoice, launchLoading, setLaunchLoading,
     showBuyCredits, setShowBuyCredits, aiCredits, setAiCredits,
-  } = useAppStore();
+  } = useAppStore(s => ({
+    showConfetti: s.showConfetti, showDashboard: s.showDashboard, setShowDashboard: s.setShowDashboard,
+    selectedPlan: s.selectedPlan, aiResults: s.aiResults,
+    selCompetitor: s.selCompetitor, setSelCompetitor: s.setSelCompetitor,
+    selProduct: s.selProduct, setSelProduct: s.setSelProduct,
+    pickedProducts: s.pickedProducts, setPickedProducts: s.setPickedProducts,
+    campaignId: s.campaignId, realSpend: s.realSpend,
+    campaignControlStatus: s.campaignControlStatus,
+    confirmRemove: s.confirmRemove, setConfirmRemove: s.setConfirmRemove,
+    showOnboard: s.showOnboard, setShowOnboard: s.setShowOnboard,
+    onboardTab: s.onboardTab, setOnboardTab: s.setOnboardTab,
+    onboardStep: s.onboardStep, setOnboardStep: s.setOnboardStep,
+    selectPlan: s.selectPlan,
+    googleConnected: s.googleConnected, setGoogleConnected: s.setGoogleConnected,
+    scanCredits: s.scanCredits, setScanCredits: s.setScanCredits,
+    justSubscribed: s.justSubscribed, setAutoScanMode: s.setAutoScanMode,
+    showLaunchChoice: s.showLaunchChoice, setShowLaunchChoice: s.setShowLaunchChoice,
+    launchLoading: s.launchLoading, setLaunchLoading: s.setLaunchLoading,
+    showBuyCredits: s.showBuyCredits, setShowBuyCredits: s.setShowBuyCredits,
+    aiCredits: s.aiCredits, setAiCredits: s.setAiCredits,
+  }), shallow);
   const isPaid = !!selectedPlan;
   const canPublish = isPaid;  const [showManualPicker, setShowManualPicker] = useState(false);
   const hasScanAccess = isPaid || scanCredits > 0;

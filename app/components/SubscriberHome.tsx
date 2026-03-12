@@ -94,7 +94,7 @@ export function SubscriberHome({
   keywordGaps, totalMonthlyGapLoss,
   onOpenDashboard, onScan, onLaunch, onBuyCredits,
 }) {
-  const { selectedPlan } = useAppStore();
+  const selectedPlan = useAppStore(s => s.selectedPlan);
   const [vis, setVis] = useState(false);
   const [greet, setGreet] = useState("Good morning");
 

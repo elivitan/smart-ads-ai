@@ -19,6 +19,7 @@ import { ScanningScreen } from "../components/ScanningScreen";
 import { AutoLaunchingScreen, AutoStatusScreen } from "../components/AutoScreens";
 import { DashboardView } from "../components/DashboardView";
 import useAppStore, { appStore } from "../stores/useAppStore.js";
+import { shallow } from "zustand/shallow";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
@@ -129,25 +130,19 @@ export default function Index() {
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
   const loaderHadError = !shopDomain;
 
-  // ── Zustand Store ──
-  const store = useAppStore();
+  // ── Zustand Store (shallow selectors — only re-render on used fields) ──
   const {
-    // UI
     showOnboard, setShowOnboard, onboardStep, setOnboardStep, onboardTab, setOnboardTab,
     showBuyCredits, setShowBuyCredits, showLaunchChoice, setShowLaunchChoice,
     launchLoading, setLaunchLoading, showConfetti, showDashboard, setShowDashboard,
     showCancelConfirm, setShowCancelConfirm, vis, setVis, triggerConfetti,
     openUpgradeModal, openCreditsTab,
-    // Subscription
     selectedPlan, scanCredits, setScanCredits, aiCredits, setAiCredits,
     googleConnected, setGoogleConnected, justSubscribed, setJustSubscribed,
-    autoScanMode, setAutoScanMode, isHydrated,
-    initSubscription, selectPlan,
-    // Scanning
+    autoScanMode, setAutoScanMode, isHydrated, initSubscription, selectPlan,
     isScanning, setIsScanning, fakeProgress, setFakeProgress, scanMode, setScanMode,
     scanMsg, setScanMsg, scanError, setScanError,
     products, setProducts, aiResults, setAiResults,
-    // Campaign
     campaignId, setCampaignId, campaignStatus, setCampaignStatus,
     campaignControlStatus, setCampaignControlStatus,
     realSpend, setRealSpend, confirmRemove, setConfirmRemove,
@@ -155,7 +150,22 @@ export default function Index() {
     selProduct, setSelProduct, selCompetitor, setSelCompetitor,
     editHeadlines, setEditHeadlines, editDescriptions, setEditDescriptions,
     improvingIdx, setImprovingIdx, pickedProducts, setPickedProducts,
-  } = store;
+  } = useAppStore(s => ({
+    showOnboard: s.showOnboard, setShowOnboard: s.setShowOnboard, onboardStep: s.onboardStep, setOnboardStep: s.setOnboardStep, onboardTab: s.onboardTab, setOnboardTab: s.setOnboardTab,
+    showBuyCredits: s.showBuyCredits, setShowBuyCredits: s.setShowBuyCredits, showLaunchChoice: s.showLaunchChoice, setShowLaunchChoice: s.setShowLaunchChoice,
+    launchLoading: s.launchLoading, setLaunchLoading: s.setLaunchLoading, showConfetti: s.showConfetti, showDashboard: s.showDashboard, setShowDashboard: s.setShowDashboard,
+    showCancelConfirm: s.showCancelConfirm, setShowCancelConfirm: s.setShowCancelConfirm, vis: s.vis, setVis: s.setVis, triggerConfetti: s.triggerConfetti, openUpgradeModal: s.openUpgradeModal, openCreditsTab: s.openCreditsTab,
+    selectedPlan: s.selectedPlan, scanCredits: s.scanCredits, setScanCredits: s.setScanCredits, aiCredits: s.aiCredits, setAiCredits: s.setAiCredits,
+    googleConnected: s.googleConnected, setGoogleConnected: s.setGoogleConnected, justSubscribed: s.justSubscribed, setJustSubscribed: s.setJustSubscribed,
+    autoScanMode: s.autoScanMode, setAutoScanMode: s.setAutoScanMode, isHydrated: s.isHydrated, initSubscription: s.initSubscription, selectPlan: s.selectPlan,
+    isScanning: s.isScanning, setIsScanning: s.setIsScanning, fakeProgress: s.fakeProgress, setFakeProgress: s.setFakeProgress, scanMode: s.scanMode, setScanMode: s.setScanMode,
+    scanMsg: s.scanMsg, setScanMsg: s.setScanMsg, scanError: s.scanError, setScanError: s.setScanError, products: s.products, setProducts: s.setProducts, aiResults: s.aiResults, setAiResults: s.setAiResults,
+    campaignId: s.campaignId, setCampaignId: s.setCampaignId, campaignStatus: s.campaignStatus, setCampaignStatus: s.setCampaignStatus, campaignControlStatus: s.campaignControlStatus, setCampaignControlStatus: s.setCampaignControlStatus,
+    realSpend: s.realSpend, setRealSpend: s.setRealSpend, confirmRemove: s.confirmRemove, setConfirmRemove: s.setConfirmRemove, autoStatus: s.autoStatus, setAutoStatus: s.setAutoStatus, autoLaunching: s.autoLaunching, setAutoLaunching: s.setAutoLaunching,
+    selProduct: s.selProduct, setSelProduct: s.setSelProduct, selCompetitor: s.selCompetitor, setSelCompetitor: s.setSelCompetitor,
+    editHeadlines: s.editHeadlines, setEditHeadlines: s.setEditHeadlines, editDescriptions: s.editDescriptions, setEditDescriptions: s.setEditDescriptions,
+    improvingIdx: s.improvingIdx, setImprovingIdx: s.setImprovingIdx, pickedProducts: s.pickedProducts, setPickedProducts: s.setPickedProducts,
+  }), shallow);
 
   // ── Initialize store from server data (once) ──
   const didInit = useRef(false);
