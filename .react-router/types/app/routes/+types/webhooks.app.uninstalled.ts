@@ -5,7 +5,7 @@ import type { GetInfo, GetAnnotations } from "react-router/internal";
 type Module = typeof import("../webhooks.app.uninstalled.js")
 
 type Info = GetInfo<{
-  file: "routes/webhooks.app.uninstalled.jsx",
+  file: "routes/webhooks.app.uninstalled.tsx",
   module: Module
 }>
 

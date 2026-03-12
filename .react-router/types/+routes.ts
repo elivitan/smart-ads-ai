@@ -113,19 +113,19 @@ type RouteFiles = {
     id: "root";
     page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/api/health" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
-  "routes/webhooks.app.scopes_update.jsx": {
+  "routes/webhooks.app.scopes_update.tsx": {
     id: "routes/webhooks.app.scopes_update";
     page: "/webhooks/app/scopes_update";
   };
-  "routes/webhooks.app.uninstalled.jsx": {
+  "routes/webhooks.app.uninstalled.tsx": {
     id: "routes/webhooks.app.uninstalled";
     page: "/webhooks/app/uninstalled";
   };
-  "routes/webhooks.products-delete.jsx": {
+  "routes/webhooks.products-delete.tsx": {
     id: "routes/webhooks.products-delete";
     page: "/webhooks/products-delete";
   };
-  "routes/webhooks.products.jsx": {
+  "routes/webhooks.products.tsx": {
     id: "routes/webhooks.products";
     page: "/webhooks/products";
   };
@@ -149,7 +149,7 @@ type RouteFiles = {
     id: "routes/auth.login";
     page: "/auth/login";
   };
-  "routes/auth.$.jsx": {
+  "routes/auth.$.tsx": {
     id: "routes/auth.$";
     page: "/auth/*";
   };
@@ -157,7 +157,7 @@ type RouteFiles = {
     id: "routes/_index";
     page: "/";
   };
-  "routes/app.jsx": {
+  "routes/app.tsx": {
     id: "routes/app";
     page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
@@ -201,11 +201,11 @@ type RouteFiles = {
     id: "routes/app.api.keywords";
     page: "/app/api/keywords";
   };
-  "routes/app.additional.jsx": {
+  "routes/app.additional.tsx": {
     id: "routes/app.additional";
     page: "/app/additional";
   };
-  "routes/app.api.health.js": {
+  "routes/app.api.health.ts": {
     id: "routes/app.api.health";
     page: "/app/api/health";
   };
@@ -229,7 +229,7 @@ type RouteFiles = {
     id: "routes/app.keywords";
     page: "/app/keywords";
   };
-  "routes/app.settings.jsx": {
+  "routes/app.settings.tsx": {
     id: "routes/app.settings";
     page: "/app/settings";
   };
@@ -245,18 +245,18 @@ type RouteFiles = {
 
 type RouteModules = {
   "root": typeof import("./app/root.jsx");
-  "routes/webhooks.app.scopes_update": typeof import("./app/routes/webhooks.app.scopes_update.jsx");
-  "routes/webhooks.app.uninstalled": typeof import("./app/routes/webhooks.app.uninstalled.jsx");
-  "routes/webhooks.products-delete": typeof import("./app/routes/webhooks.products-delete.jsx");
-  "routes/webhooks.products": typeof import("./app/routes/webhooks.products.jsx");
+  "routes/webhooks.app.scopes_update": typeof import("./app/routes/webhooks.app.scopes_update.tsx");
+  "routes/webhooks.app.uninstalled": typeof import("./app/routes/webhooks.app.uninstalled.tsx");
+  "routes/webhooks.products-delete": typeof import("./app/routes/webhooks.products-delete.tsx");
+  "routes/webhooks.products": typeof import("./app/routes/webhooks.products.tsx");
   "routes/styles.index": typeof import("./app/routes/styles.index.js");
   "routes/api.analyze": typeof import("./app/routes/api.analyze.js");
   "routes/api.credits": typeof import("./app/routes/api.credits.jsx");
   "routes/api.health": typeof import("./app/routes/api.health.js");
   "routes/auth.login": typeof import("./app/routes/auth.login/route.jsx");
-  "routes/auth.$": typeof import("./app/routes/auth.$.jsx");
+  "routes/auth.$": typeof import("./app/routes/auth.$.tsx");
   "routes/_index": typeof import("./app/routes/_index/route.jsx");
-  "routes/app": typeof import("./app/routes/app.jsx");
+  "routes/app": typeof import("./app/routes/app.tsx");
   "routes/app.api.campaign-manage": typeof import("./app/routes/app.api.campaign-manage.ts");
   "routes/app.api.campaign-status": typeof import("./app/routes/app.api.campaign-status.ts");
   "routes/app.api.store-analytics": typeof import("./app/routes/app.api.store-analytics.ts");
@@ -267,14 +267,14 @@ type RouteModules = {
   "routes/app.api.ai-engine": typeof import("./app/routes/app.api.ai-engine.ts");
   "routes/app.api.campaign": typeof import("./app/routes/app.api.campaign.ts");
   "routes/app.api.keywords": typeof import("./app/routes/app.api.keywords.ts");
-  "routes/app.additional": typeof import("./app/routes/app.additional.jsx");
-  "routes/app.api.health": typeof import("./app/routes/app.api.health.js");
+  "routes/app.additional": typeof import("./app/routes/app.additional.tsx");
+  "routes/app.api.health": typeof import("./app/routes/app.api.health.ts");
   "routes/app.api.state": typeof import("./app/routes/app.api.state.ts");
   "routes/app.campaigns": typeof import("./app/routes/app.campaigns.jsx");
   "routes/app.api.scan": typeof import("./app/routes/app.api.scan.ts");
   "routes/app.api.sync": typeof import("./app/routes/app.api.sync.ts");
   "routes/app.keywords": typeof import("./app/routes/app.keywords.jsx");
-  "routes/app.settings": typeof import("./app/routes/app.settings.jsx");
+  "routes/app.settings": typeof import("./app/routes/app.settings.tsx");
   "routes/app._index": typeof import("./app/routes/app._index.jsx");
   "routes/app.saved": typeof import("./app/routes/app.saved.jsx");
 };

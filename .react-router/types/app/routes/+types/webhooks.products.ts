@@ -5,7 +5,7 @@ import type { GetInfo, GetAnnotations } from "react-router/internal";
 type Module = typeof import("../webhooks.products.js")
 
 type Info = GetInfo<{
-  file: "routes/webhooks.products.jsx",
+  file: "routes/webhooks.products.tsx",
   module: Module
 }>
 
