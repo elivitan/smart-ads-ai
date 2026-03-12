@@ -7,8 +7,8 @@ import { launchCampaign } from "../campaignLifecycle.server.js";
 import { checkLicense } from "../license.server.js";
 import { checkGoogleAdsLimit } from "../rateLimit.server.js";
 import { z } from "zod";
-import { logger } from "../utils/logger.js";
-import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
+import { logger } from "../utils/logger";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 
 // Zod schemas
 const CampaignSchema = z.object({

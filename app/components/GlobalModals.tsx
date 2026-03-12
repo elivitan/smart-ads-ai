@@ -1,5 +1,5 @@
-import { OnboardModal, BuyCreditsModal } from "./Modals.jsx";
-import { LaunchChoiceDialog } from "./LaunchChoiceDialog.js";
+import { OnboardModal, BuyCreditsModal } from "./Modals";
+import { LaunchChoiceDialog } from "./LaunchChoiceDialog";
 import useAppStore from "../stores/useAppStore.js";
 
 interface GlobalModalsProps {

@@ -3,11 +3,11 @@
 // Install: npm install bullmq
 //
 // USAGE:
-//   import { scanQueue, addScanJob } from "../utils/queue.js";
+//   import { scanQueue, addScanJob } from "./queue.js";
 //   await addScanJob({ shop: "store.myshopify.com", products: [...] });
 //
 // WORKER (separate process):
-//   import { scanQueue } from "../utils/queue.js";
+//   import { scanQueue } from "./queue.js";
 //   scanQueue.process(async (job) => { ... });
 
 import { logger } from "./logger.js";

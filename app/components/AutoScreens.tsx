@@ -1,5 +1,5 @@
 import React from "react";
-import { Confetti } from "./SmallComponents.jsx";
+import { Confetti } from "./SmallComponents";
 import useAppStore from "../stores/useAppStore.js";
 
 interface AutoLaunchingScreenProps {

@@ -3,7 +3,7 @@
 // Install: npm install ioredis
 //
 // USAGE:
-//   import { getRedis, cache } from "../utils/redis.js";
+//   import { getRedis, cache } from "./redis.js";
 //   const cached = await cache.get("scan:shop123:product456");
 //   if (!cached) { const data = await doExpensiveScan(); await cache.set("scan:...", data, 3600); }
 

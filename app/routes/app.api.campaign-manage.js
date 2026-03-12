@@ -1,7 +1,7 @@
 import { authenticate } from "../shopify.server";
 import { z } from "zod";
-import { logger } from "../utils/logger.js";
-import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
+import { logger } from "../utils/logger";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 
 /**
  * Campaign Management API

@@ -14,8 +14,8 @@ import { analyzeBatch } from "../ai.server.js";
 import prisma from "../db.server.js";
 import crypto from "crypto";
 import { z } from "zod";
-import { logger } from "../utils/logger.js";
-import { rateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
+import { logger } from "../utils/logger";
+import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 
 function productHash(title, price, description) {
   return crypto.createHash("md5").update(`${title}|${price}|${(description || "").slice(0, 200)}`).digest("hex");

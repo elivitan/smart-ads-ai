@@ -1,5 +1,5 @@
 import React from "react";
-import { TipRotator, Confetti } from "./SmallComponents.jsx";
+import { TipRotator, Confetti } from "./SmallComponents";
 import useAppStore from "../stores/useAppStore.js";
 
 interface ScanningScreenProps {
