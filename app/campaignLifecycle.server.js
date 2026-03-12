@@ -18,8 +18,8 @@
  */
 
 import { createCampaign } from "./google-ads.server.js";
-import { withRetry } from "./retry.server.js";
-import prisma from "./db.server.js";
+import { withRetry } from "./retry.server";
+import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";
 
 // ── Campaign States ──────────────────────────────────────────────────────

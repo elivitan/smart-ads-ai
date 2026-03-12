@@ -15,7 +15,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
-import { withRetry } from "./retry.server.js";
+import { withRetry } from "./retry.server";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

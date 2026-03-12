@@ -4,7 +4,7 @@
 // GET → Returns system health: DB, Redis, API keys, circuits, queues, uptime
 // Used by: Pingdom, UptimeRobot, internal monitoring
 // ════════════════════════════════════════════
-import prisma from "../db.server.js";
+import prisma from "../db.server";
 import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { logger } from "../utils/logger";
 import { getCircuitStatus } from "../utils/retry.js";

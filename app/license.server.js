@@ -5,7 +5,7 @@
 // has permission to use the requested feature.
 // ══════════════════════════════════════════════
 
-import prisma from "./db.server.js";
+import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";
 
 // Plan limits configuration

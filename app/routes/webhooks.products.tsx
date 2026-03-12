@@ -4,7 +4,7 @@
  * Shopify sends this when a product is created or updated.
  * We update the local DB to stay in sync.
  */
-import { authenticate } from "../shopify.server.js";
+import { authenticate } from "../shopify.server";
 import { handleProductWebhook } from "../sync.server.js";
 
 interface WebhookActionArgs {

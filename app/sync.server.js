@@ -6,7 +6,7 @@
  * - Incremental: handles webhook events (create/update/delete)
  * - Detects changes: hashes title+price+description to know if AI re-analysis needed
  */
-import prisma from "./db.server.js";
+import prisma from "./db.server";
 import crypto from "crypto";
 import { withDbRetry } from "./utils/db-health";
 

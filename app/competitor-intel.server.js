@@ -2,7 +2,7 @@
  * Competitor Intelligence Module (SerpAPI version)
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { withRetry } from "./retry.server.js";
+import { withRetry } from "./retry.server";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SERP_KEY = process.env.SERPAPI_KEY || "";

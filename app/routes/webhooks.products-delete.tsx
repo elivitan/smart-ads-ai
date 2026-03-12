@@ -4,7 +4,7 @@
  * Shopify sends this when a product is deleted.
  * We remove it from the local DB.
  */
-import { authenticate } from "../shopify.server.js";
+import { authenticate } from "../shopify.server";
 import { handleProductDelete } from "../sync.server.js";
 
 interface WebhookActionArgs {

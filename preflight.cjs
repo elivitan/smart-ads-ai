@@ -496,7 +496,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
 {
   const serverPatterns = ["shopify.server", "sync.server", "db.server", "license.server",
     "ai.server", "ai-brain.server", "market-intel.server", "store-analytics.server",
-    "campaignLifecycle.server", "rateLimit.server", "keyword-research.server",
+    "campaignLifecycle.server", "keyword-research.server",
     "prisma.server", "billing.server"];
 
   let resolveOk = 0, resolveFail = 0;

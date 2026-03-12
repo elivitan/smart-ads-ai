@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached } from "./utils/api-cost-tracker.js";
-import { withRetry } from "./retry.server.js";
+import { withRetry } from "./retry.server";
 
 
 // ── Timeout for Anthropic SDK calls (Session 56) ──
