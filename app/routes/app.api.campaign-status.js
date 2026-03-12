@@ -33,7 +33,7 @@ export async function loader({ request }) {
     const shop = session.shop;
 
     // Rate limiting — polling is frequent, allow 60/min
-    const limit = rateLimit.campaignStatus(shop);
+    const limit = await rateLimit.campaignStatus(shop);
     if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
 
     const url = new URL(request.url);

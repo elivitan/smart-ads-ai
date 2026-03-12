@@ -36,7 +36,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.subscription(shop);
+  const rl = await rateLimit.subscription(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   try {

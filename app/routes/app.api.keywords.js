@@ -15,7 +15,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.keywords(shop);
+  const rl = await rateLimit.keywords(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
   const formData = await request.formData();
   const actionType = formData.get("actionType");

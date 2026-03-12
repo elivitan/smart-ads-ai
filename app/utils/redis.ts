@@ -12,7 +12,10 @@ import { logger } from "./logger.js";
 // Type for Redis client (ioredis)
 interface RedisClient {
   get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string>;
   setex(key: string, seconds: number, value: string): Promise<string>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
   del(key: string | string[]): Promise<number>;
   on(event: string, listener: (...args: unknown[]) => void): this;
 }

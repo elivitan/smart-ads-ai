@@ -32,7 +32,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.sync(shop);
+  const rl = await rateLimit.sync(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   const formData = await request.formData();

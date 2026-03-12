@@ -5,7 +5,6 @@
 import { authenticate } from "../shopify.server";
 import { launchCampaign } from "../campaignLifecycle.server.js";
 import { checkLicense } from "../license.server.js";
-import { checkGoogleAdsLimit } from "../rateLimit.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
@@ -33,7 +32,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.campaign(shop);
+  const rl = await rateLimit.campaign(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   // ✅ LICENSE CHECK — must have paid plan

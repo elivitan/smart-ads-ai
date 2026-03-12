@@ -6,7 +6,6 @@
 import { authenticate } from "../shopify.server";
 import { analyzeBatch } from "../ai.server";
 import { checkLicense, useScanCredit } from "../license.server.js";
-import { checkAnthropicLimit, checkSerpApiLimit } from "../rateLimit.server.js";
 import prisma from "../db.server.js";
 import crypto from "crypto";
 import { z } from "zod";
@@ -98,7 +97,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.scan(shop);
+  const rl = await rateLimit.scan(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   const formData = await request.formData();

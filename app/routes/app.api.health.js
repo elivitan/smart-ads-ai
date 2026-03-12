@@ -5,7 +5,7 @@
 // Used by: Pingdom, UptimeRobot, internal monitoring
 // ════════════════════════════════════════════
 import prisma from "../db.server.js";
-import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { logger } from "../utils/logger.ts";
 import { getCircuitStatus } from "../utils/retry.ts";
 
@@ -14,7 +14,7 @@ const APP_VERSION = "1.0.0-beta";
 
 export const loader = async ({ request }) => {
   // Basic rate limiting (prevent abuse)
-  const limit = checkRateLimit("_health", "health", 30, 60000);
+  const limit = await checkRateLimit("_health", "health", 30, 60000);
   if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
 
   const start = Date.now();

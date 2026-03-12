@@ -5,7 +5,6 @@
 import { authenticate } from "../shopify.server";
 import Anthropic from "@anthropic-ai/sdk";
 import { checkLicense, useAiCredit } from "../license.server.js";
-import { checkAnthropicLimit } from "../rateLimit.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
@@ -23,7 +22,7 @@ export const action = async ({ request }) => {
   const shop = session.shop;
 
   // Rate limit check
-  const rl = rateLimit.aiImprove(shop);
+  const rl = await rateLimit.aiImprove(shop);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   // ✅ LICENSE CHECK — must have AI credits
