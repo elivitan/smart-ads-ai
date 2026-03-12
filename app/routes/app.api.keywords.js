@@ -3,6 +3,7 @@ import { exploreKeywords, scanWebsite } from "../keyword-research.server";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { cache, TTL } from "../utils/redis";
 
 export const action = async ({ request }) => {
   let session;
@@ -27,7 +28,12 @@ export const action = async ({ request }) => {
       if (!keyword) {
         return Response.json({ success: false, error: "Please enter a keyword" }, { status: 400 });
       }
-      const result = await exploreKeywords(keyword, location);
+      const cacheKey = `kw:explore:${keyword.toLowerCase().trim()}:${location}`;
+      let result = await cache.get(cacheKey);
+      if (!result) {
+        result = await exploreKeywords(keyword, location);
+        await cache.set(cacheKey, result, TTL.KEYWORD_DATA); // 12h
+      }
       return Response.json({ success: true, ...result });
     }
 
@@ -36,7 +42,12 @@ export const action = async ({ request }) => {
       if (!url) {
         return Response.json({ success: false, error: "Please enter a URL" }, { status: 400 });
       }
-      const result = await scanWebsite(url);
+      const cacheKeyScan = `kw:scan:${url.toLowerCase().trim()}`;
+      let result = await cache.get(cacheKeyScan);
+      if (!result) {
+        result = await scanWebsite(url);
+        await cache.set(cacheKeyScan, result, TTL.KEYWORD_DATA); // 12h
+      }
       return Response.json({ success: true, ...result });
     }
 
