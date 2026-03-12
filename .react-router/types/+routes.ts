@@ -213,7 +213,7 @@ type RouteFiles = {
     id: "routes/app.api.state";
     page: "/app/api/state";
   };
-  "routes/app.campaigns.jsx": {
+  "routes/app.campaigns.tsx": {
     id: "routes/app.campaigns";
     page: "/app/campaigns";
   };
@@ -270,7 +270,7 @@ type RouteModules = {
   "routes/app.additional": typeof import("./app/routes/app.additional.tsx");
   "routes/app.api.health": typeof import("./app/routes/app.api.health.ts");
   "routes/app.api.state": typeof import("./app/routes/app.api.state.ts");
-  "routes/app.campaigns": typeof import("./app/routes/app.campaigns.jsx");
+  "routes/app.campaigns": typeof import("./app/routes/app.campaigns.tsx");
   "routes/app.api.scan": typeof import("./app/routes/app.api.scan.ts");
   "routes/app.api.sync": typeof import("./app/routes/app.api.sync.ts");
   "routes/app.keywords": typeof import("./app/routes/app.keywords.tsx");

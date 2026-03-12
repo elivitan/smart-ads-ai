@@ -1,4 +1,5 @@
 import { useLoaderData , useNavigate} from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -15,7 +16,29 @@ import {
 import { GoogleAdsPreview } from "../components/campaigns/GoogleAdsPreview";
 import CampaignWizard, { CampaignCreatingAnimation, CampaignSuccessScreen } from "../components/campaigns/CampaignWizard";
 
-export const loader = async ({ request }) => {
+interface CampaignData {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  budget: number;
+  products: Array<Record<string, unknown>>;
+  keywords: Array<{ text: string; bid: number; match?: string }>;
+  headlines: string[];
+  descriptions: string[];
+  finalUrl: string;
+  displayPath: string[];
+  performance: Record<string, number>;
+}
+
+interface CampaignsLoaderData {
+  campaigns: CampaignData[];
+  isSimulated: boolean;
+  marketSignal: Record<string, unknown> | null;
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs): Promise<CampaignsLoaderData> => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
@@ -106,8 +129,8 @@ export const loader = async ({ request }) => {
       isSimulated = true;
       campaigns = getSimulatedCampaigns();
     }
-  } catch (err) {
-    console.error("[Campaigns Loader] Error loading real data:", err.message);
+  } catch (err: unknown) {
+    console.error("[Campaigns Loader] Error loading real data:", err instanceof Error ? err.message : err);
     isSimulated = true;
     campaigns = getSimulatedCampaigns();
   }
@@ -120,15 +143,15 @@ export const loader = async ({ request }) => {
       regions: ["US"],
       productCategory: "bedding",
     });
-  } catch (e) {
-    console.warn("[Campaigns Loader] Market signal failed:", e.message);
+  } catch (e: unknown) {
+    console.warn("[Campaigns Loader] Market signal failed:", e instanceof Error ? e.message : e);
   }
 
   return { campaigns, isSimulated, marketSignal };
 };
 
 // Helper: Get Google Ads access token
-async function getGoogleAccessToken() {
+async function getGoogleAccessToken(): Promise<string | null> {
   try {
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -142,7 +165,7 @@ async function getGoogleAccessToken() {
     });
     const data = await res.json();
     return data.access_token;
-  } catch { return null; }
+  } catch (_e: unknown) { return null; }
 }
 
 // Simulated campaigns for demo/development
@@ -203,7 +226,12 @@ function getSimulatedCampaigns() {
 
 
 /* ── Launch Dialog ── */
-function LaunchDialog({ onClose, onAutoLaunch, onManualBuild }) {
+interface LaunchDialogProps {
+  onClose: () => void;
+  onAutoLaunch?: () => void;
+  onManualBuild?: () => void;
+}
+function LaunchDialog({ onClose, onAutoLaunch, onManualBuild }: LaunchDialogProps) {
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(10,10,26,.75)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)" }} onClick={onClose}>
       <div style={{ background:"#1a1a2e",borderRadius:24,padding:36,maxWidth:500,width:"90%",boxShadow:"0 24px 80px rgba(0,0,0,.25)" }} onClick={e => e.stopPropagation()}>
@@ -230,7 +258,13 @@ function LaunchDialog({ onClose, onAutoLaunch, onManualBuild }) {
 
 
 /* ── Sidebar ── */
-function CampaignSidebar({ campaigns, selectedId, onSelect, onNew }) {
+interface CampaignSidebarProps {
+  campaigns: CampaignData[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+}
+function CampaignSidebar({ campaigns, selectedId, onSelect, onNew }: CampaignSidebarProps) {
   return (
     <div style={{ background:"#0f0f23",borderRight:"1px solid rgba(255,255,255,.06)",padding:"16px",overflowY:"auto",display:"flex",flexDirection:"column",gap:8 }}>
       <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,.3)",letterSpacing:2,marginBottom:6,textTransform:"uppercase",paddingLeft:2 }}>Campaigns</div>
@@ -268,7 +302,12 @@ function CampaignSidebar({ campaigns, selectedId, onSelect, onNew }) {
 
 
 /* ── Campaign Detail (main panel) ── */
-function CampaignDetail({ campaign, onSwitchMode, mode }) {
+interface CampaignDetailProps {
+  campaign: CampaignData;
+  onSwitchMode: () => void;
+  mode: string;
+}
+function CampaignDetail({ campaign, onSwitchMode, mode }: CampaignDetailProps) {
   const navigate = useNavigate();
   const [navLoading, setNavLoading] = useState(false);
   function goToDashboard() { setNavLoading(true); navigate("/app"); }
@@ -804,7 +843,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }) {
 /* ── Main Component ── */
 
 export default function Campaigns() {
-  const { campaigns, isSimulated, marketSignal } = useLoaderData();
+  const { campaigns, isSimulated, marketSignal } = useLoaderData<CampaignsLoaderData>();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id || null);
   const [viewMode, setViewMode] = useState({});
@@ -827,7 +866,7 @@ export default function Campaigns() {
         if (intent === "autoLaunch") setShowAutoLaunch(true);
         else if (intent === "wizard") setShowStandaloneWizard(true);
       }
-    } catch(e) { console.error("[SmartAds] app.campaigns:intent error:", e.message || e); }
+    } catch(e: unknown) { console.error("[SmartAds] app.campaigns:intent error:", e instanceof Error ? e.message : e); }
   }, []);
 
 
