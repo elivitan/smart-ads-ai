@@ -20,6 +20,7 @@ import { AutoLaunchingScreen, AutoStatusScreen } from "../components/AutoScreens
 import { DashboardView } from "../components/DashboardView";
 import useAppStore, { appStore } from "../stores/useAppStore.js";
 import { shallow } from "zustand/shallow";
+import { withDbRetry } from "../utils/db-health";
 
 // Error Boundary — prevents widget crashes from killing the whole page
 class WidgetErrorBoundary extends React.Component {
@@ -93,7 +94,7 @@ export const loader = async ({ request }) => {
   // Load persistent user state from DB
   let userState = null;
   try {
-    userState = await prisma.userState.findUnique({ where: { shop } });
+    userState = await withDbRetry("index-userstate", () => prisma.userState.findUnique({ where: { shop } }));
   } catch (e) {
     console.error("[SmartAds] Failed to load UserState:", e.message);
   }

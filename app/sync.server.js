@@ -8,6 +8,7 @@
  */
 import prisma from "./db.server.js";
 import crypto from "crypto";
+import { withDbRetry } from "./utils/db-health";
 
 // ─── Helpers ───
 
@@ -49,14 +50,14 @@ function mapGraphQLProduct(node) {
  * Returns { synced, created, updated, deleted, needsAi }
  */
 export async function fullSync(admin, shop) {
-  const log = await prisma.syncLog.create({
+  const log = await withDbRetry("sync-log-start", () => prisma.syncLog.create({
     data: {
       shop,
       type: "full_sync",
       status: "started",
       details: "Starting full product sync...",
     },
-  });
+  }));
 
   try {
     // Fetch all products via pagination
@@ -91,10 +92,10 @@ export async function fullSync(admin, shop) {
     }
 
     // Get existing products from DB
-    const existing = await prisma.product.findMany({
+    const existing = await withDbRetry("sync-existing-products", () => prisma.product.findMany({
       where: { shop },
       select: { id: true },
-    });
+    }));
     const existingIds = new Set(existing.map((p) => p.id));
     const fetchedIds = new Set(allProducts.map((p) => p.id));
 
@@ -111,11 +112,11 @@ export async function fullSync(admin, shop) {
         product.description,
       );
 
-      const dbProduct = await prisma.product.upsert({
+      const dbProduct = await withDbRetry("sync-upsert-" + product.id.slice(-8), () => prisma.product.upsert({
         where: { id: product.id },
         create: { ...product, shop, syncedAt: new Date() },
         update: { ...product, syncedAt: new Date() },
-      });
+      }));
 
       if (!existingIds.has(product.id)) {
         created++;
@@ -135,12 +136,12 @@ export async function fullSync(admin, shop) {
     // Delete products that no longer exist in Shopify
     const toDelete = [...existingIds].filter((id) => !fetchedIds.has(id));
     if (toDelete.length > 0) {
-      await prisma.product.deleteMany({ where: { id: { in: toDelete } } });
+      await withDbRetry("sync-delete-stale", () => prisma.product.deleteMany({ where: { id: { in: toDelete } } }));
       deleted = toDelete.length;
     }
 
     // Update log
-    await prisma.syncLog.update({
+    await withDbRetry("sync-log-complete", () => prisma.syncLog.update({
       where: { id: log.id },
       data: {
         status: "completed",
@@ -148,7 +149,7 @@ export async function fullSync(admin, shop) {
         details: `Synced ${allProducts.length} products: ${created} new, ${updated} updated, ${deleted} removed. ${needsAi.length} need AI analysis.`,
         completedAt: new Date(),
       },
-    });
+    }));
 
     return {
       synced: allProducts.length,
@@ -159,10 +160,10 @@ export async function fullSync(admin, shop) {
       needsAiIds: needsAi,
     };
   } catch (err) {
-    await prisma.syncLog.update({
+    await withDbRetry("sync-log-fail", () => prisma.syncLog.update({
       where: { id: log.id },
       data: { status: "failed", error: err.message, completedAt: new Date() },
-    });
+    }));
     throw err;
   }
 }
@@ -174,14 +175,14 @@ export async function fullSync(admin, shop) {
  * Shopify sends the REST product object, not GraphQL.
  */
 export async function handleProductWebhook(shop, shopifyProduct, eventType) {
-  const log = await prisma.syncLog.create({
+  const log = await withDbRetry("sync-webhook-log", () => prisma.syncLog.create({
     data: {
       shop,
       type: `webhook_${eventType}`,
       status: "started",
       details: `Product: ${shopifyProduct.title}`,
     },
-  });
+  }));
 
   try {
     const productId = `gid://shopify/Product/${shopifyProduct.id}`;
@@ -214,21 +215,21 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
       productData.description,
     );
 
-    await prisma.product.upsert({
+    await withDbRetry("sync-webhook-upsert", () => prisma.product.upsert({
       where: { id: productId },
       create: { id: productId, shop, ...productData },
       update: productData,
-    });
+    }));
 
     // Check if AI re-analysis needed
-    const existing = await prisma.aiAnalysis.findUnique({
+    const existing = await withDbRetry("sync-webhook-ai-check", () => prisma.aiAnalysis.findUnique({
       where: { productId },
       select: { productHash: true },
-    });
+    }));
 
     const needsAi = !existing || existing.productHash !== hash;
 
-    await prisma.syncLog.update({
+    await withDbRetry("sync-webhook-log-done", () => prisma.syncLog.update({
       where: { id: log.id },
       data: {
         status: "completed",
@@ -236,14 +237,14 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
         details: `${eventType}: "${productData.title}" ${needsAi ? "(needs AI re-analysis)" : "(unchanged)"}`,
         completedAt: new Date(),
       },
-    });
+    }));
 
     return { productId, needsAi };
   } catch (err) {
-    await prisma.syncLog.update({
+    await withDbRetry("sync-webhook-log-fail", () => prisma.syncLog.update({
       where: { id: log.id },
       data: { status: "failed", error: err.message, completedAt: new Date() },
-    });
+    }));
     throw err;
   }
 }
@@ -254,7 +255,7 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
 export async function handleProductDelete(shop, shopifyProductId) {
   const productId = `gid://shopify/Product/${shopifyProductId}`;
 
-  await prisma.syncLog.create({
+  await withDbRetry("sync-delete-log", () => prisma.syncLog.create({
     data: {
       shop,
       type: "webhook_delete",
@@ -263,7 +264,7 @@ export async function handleProductDelete(shop, shopifyProductId) {
       productsAffected: 1,
       completedAt: new Date(),
     },
-  });
+  }));
 
   // Cascade delete will remove AiAnalysis too
   await prisma.product.delete({ where: { id: productId } }).catch(() => {});
@@ -277,16 +278,16 @@ export async function handleProductDelete(shop, shopifyProductId) {
  * Save AI analysis results for a product.
  */
 export async function saveAiAnalysis(productId, shop, aiResult) {
-  const product = await prisma.product.findUnique({
+  const product = await withDbRetry("sync-ai-product-find", () => prisma.product.findUnique({
     where: { id: productId },
     select: { title: true, price: true, description: true },
-  });
+  }));
 
   const hash = product
     ? productHash(product.title, product.price, product.description)
     : "";
 
-  return prisma.aiAnalysis.upsert({
+  return withDbRetry("sync-ai-upsert", () => prisma.aiAnalysis.upsert({
     where: { productId },
     create: {
       productId,
@@ -324,7 +325,7 @@ export async function saveAiAnalysis(productId, shop, aiResult) {
       productHash: hash,
       analyzedAt: new Date(),
     },
-  });
+  }));
 }
 
 // ─── Query Helpers ───
@@ -339,11 +340,11 @@ export async function getShopProducts(
   const where = { shop };
   if (inStockOnly) where.inStock = true;
 
-  const products = await prisma.product.findMany({
+  const products = await withDbRetry("sync-get-products", () => prisma.product.findMany({
     where,
     include: { aiAnalysis: true },
     orderBy: { title: "asc" },
-  });
+  }));
 
   return products
     .map((p) => ({
@@ -388,7 +389,7 @@ export async function getShopProducts(
  */
 export async function getSyncStatus(shop) {
   const [totalProducts, inStockProducts, analyzedProducts, lastSync] =
-    await Promise.all([
+    await withDbRetry("sync-status", () => Promise.all([
       prisma.product.count({ where: { shop } }),
       prisma.product.count({ where: { shop, inStock: true } }),
       prisma.aiAnalysis.count({ where: { shop } }),
@@ -396,7 +397,7 @@ export async function getSyncStatus(shop) {
         where: { shop, type: "full_sync", status: "completed" },
         orderBy: { completedAt: "desc" },
       }),
-    ]);
+    ]));
 
   return {
     totalProducts,
@@ -416,10 +417,10 @@ export async function getSyncStatus(shop) {
  */
 export async function getShopCredits(shop) {
   try {
-    const record = await prisma.shopSubscription.findUnique({
+    const record = await withDbRetry("sync-credits-find", () => prisma.shopSubscription.findUnique({
       where: { shop },
       select: { scanCredits: true, aiCredits: true, plan: true },
-    });
+    }));
     return {
       scanCredits: record?.scanCredits ?? 0,
       aiCredits: record?.aiCredits ?? 0,
@@ -439,7 +440,7 @@ export async function updateShopCredits(shop, { scanCredits, aiCredits } = {}) {
   if (typeof aiCredits === "number") data.aiCredits = aiCredits;
   if (Object.keys(data).length === 0) return;
 
-  await prisma.shopSubscription.upsert({
+  await withDbRetry("sync-credits-update", () => prisma.shopSubscription.upsert({
     where: { shop },
     update: data,
     create: {
@@ -449,5 +450,5 @@ export async function updateShopCredits(shop, { scanCredits, aiCredits } = {}) {
       plan: "free",
       status: "active",
     },
-  });
+  }));
 }

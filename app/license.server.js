@@ -6,6 +6,7 @@
 // ══════════════════════════════════════════════
 
 import prisma from "./db.server.js";
+import { withDbRetry } from "./utils/db-health";
 
 // Plan limits configuration
 const PLAN_LIMITS = {
@@ -49,11 +50,11 @@ const PLAN_LIMITS = {
 export async function getShopSubscription(shop) {
   if (!shop) throw new Error("Shop domain is required");
 
-  let sub = await prisma.shopSubscription.findUnique({ where: { shop } });
+  let sub = await withDbRetry("license-find", () => prisma.shopSubscription.findUnique({ where: { shop } }));
 
   if (!sub) {
     // First time — create free plan
-    sub = await prisma.shopSubscription.create({
+    sub = await withDbRetry("license-create", () => prisma.shopSubscription.create({
       data: {
         shop,
         plan: "free",
@@ -63,7 +64,7 @@ export async function getShopSubscription(shop) {
         maxProducts: 3,
         maxCampaigns: 0,
       },
-    });
+    }));
   }
 
   // Reset daily counters if needed
@@ -73,14 +74,14 @@ export async function getShopSubscription(shop) {
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    sub = await prisma.shopSubscription.update({
+    sub = await withDbRetry("license-reset-daily", () => prisma.shopSubscription.update({
       where: { shop },
       data: {
         scanCountToday: 0,
         apiCallsToday: 0,
         rateLimitReset: tomorrow,
       },
-    });
+    }));
   }
 
   return sub;
@@ -100,10 +101,10 @@ export async function checkLicense(shop, action) {
     sub.trialEndsAt &&
     sub.trialEndsAt < new Date()
   ) {
-    await prisma.shopSubscription.update({
+    await withDbRetry("license-expire-trial", () => prisma.shopSubscription.update({
       where: { shop },
       data: { status: "expired", plan: "free" },
-    });
+    }));
     sub.plan = "free";
     sub.status = "expired";
   }
@@ -118,10 +119,10 @@ export async function checkLicense(shop, action) {
   }
 
   // Increment API call counter
-  await prisma.shopSubscription.update({
+  await withDbRetry("license-api-increment", () => prisma.shopSubscription.update({
     where: { shop },
     data: { apiCallsToday: { increment: 1 } },
-  });
+  }));
 
   switch (action) {
     case "scan": {
@@ -191,24 +192,24 @@ export async function useScanCredit(shop) {
   if (sub.plan === "free") {
     // Deduct from purchased credits
     if (sub.scanCredits > 0) {
-      await prisma.shopSubscription.update({
+      await withDbRetry("license-scan-deduct", () => prisma.shopSubscription.update({
         where: { shop },
         data: {
           scanCredits: { decrement: 1 },
           scanCountToday: { increment: 1 },
           lastScanAt: new Date(),
         },
-      });
+      }));
     }
   } else {
     // Paid plan — just track usage
-    await prisma.shopSubscription.update({
+    await withDbRetry("license-scan-track", () => prisma.shopSubscription.update({
       where: { shop },
       data: {
         scanCountToday: { increment: 1 },
         lastScanAt: new Date(),
       },
-    });
+    }));
   }
 }
 
@@ -216,10 +217,10 @@ export async function useScanCredit(shop) {
 // Use an AI credit (call AFTER successful improvement)
 // ──────────────────────────────────────────────
 export async function useAiCredit(shop) {
-  await prisma.shopSubscription.update({
+  await withDbRetry("license-ai-deduct", () => prisma.shopSubscription.update({
     where: { shop },
     data: { aiCredits: { decrement: 1 } },
-  });
+  }));
 }
 
 // ──────────────────────────────────────────────
@@ -227,10 +228,10 @@ export async function useAiCredit(shop) {
 // ──────────────────────────────────────────────
 export async function addCredits(shop, type, amount) {
   const field = type === "scan" ? "scanCredits" : "aiCredits";
-  await prisma.shopSubscription.update({
+  await withDbRetry("license-add-credits", () => prisma.shopSubscription.update({
     where: { shop },
     data: { [field]: { increment: amount } },
-  });
+  }));
 }
 
 // ──────────────────────────────────────────────
@@ -256,11 +257,11 @@ export async function updatePlan(shop, plan, options = {}) {
     data.billingStartedAt = new Date();
   }
 
-  return prisma.shopSubscription.upsert({
+  return withDbRetry("license-update-plan", () => prisma.shopSubscription.upsert({
     where: { shop },
     create: { shop, ...data },
     update: data,
-  });
+  }));
 }
 
 // ──────────────────────────────────────────────
