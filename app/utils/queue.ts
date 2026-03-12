@@ -1,36 +1,51 @@
-// queue.ts — Job queue for background processing at scale
-// Phase 3: Move scans, AI analysis, and campaigns to background jobs
-// Install: npm install bullmq
-//
-// USAGE:
-//   import { scanQueue, addScanJob } from "./queue.js";
-//   await addScanJob({ shop: "store.myshopify.com", products: [...] });
-//
-// WORKER (separate process):
-//   import { scanQueue } from "./queue.js";
-//   scanQueue.process(async (job) => { ... });
+// queue.ts — BullMQ job queue for background processing
+// Scans and campaign creation run as background jobs.
+// Worker runs in-process (entry.server) for simplicity.
+// When load increases, move Worker to separate process.
 
 import { logger } from "./logger.js";
 
-// Types for BullMQ (avoids hard dependency on @types/bullmq)
+// ── Types ──
 interface BullMQJob {
   id: string;
   name: string;
   data: unknown;
+  returnvalue?: unknown;
+  failedReason?: string;
+  progress: number | object;
+  getState(): Promise<string>;
 }
 
 interface BullMQQueue {
   add(name: string, data: unknown, opts?: Record<string, unknown>): Promise<BullMQJob>;
+  getJob(id: string): Promise<BullMQJob | null>;
   getJobCounts(): Promise<Record<string, number>>;
+}
+
+interface BullMQWorker {
+  on(event: string, listener: (...args: unknown[]) => void): this;
+  close(): Promise<void>;
 }
 
 interface BullMQConstructor {
   new (name: string, opts: Record<string, unknown>): BullMQQueue;
 }
 
-interface JobResult {
+interface BullMQWorkerConstructor {
+  new (name: string, processor: (job: BullMQJob) => Promise<unknown>, opts: Record<string, unknown>): BullMQWorker;
+}
+
+export interface JobResult {
   queued: boolean;
   jobId?: string;
+}
+
+export interface JobStatus {
+  id: string;
+  state: string;
+  progress: number | object;
+  result?: unknown;
+  error?: string;
 }
 
 interface QueueHealthEntry {
@@ -39,83 +54,200 @@ interface QueueHealthEntry {
   [key: string]: unknown;
 }
 
-interface ScanJobData {
+export interface ScanJobData {
   shop: string;
-  products?: unknown[];
-  priority?: number;
+  products: unknown[];
+  storeDomain: string;
 }
 
-interface CampaignJobData {
+export interface CampaignJobData {
   shop: string;
-  campaignConfig?: unknown;
-  priority?: number;
+  productTitle: string;
+  headlines: string[];
+  descriptions: string[];
+  keywords?: string[];
+  finalUrl: string;
+  dailyBudget: number;
+  campaignType: string;
+  bidding: string;
 }
 
+// ── Redis connection config ──
+function getRedisConnection(): Record<string, unknown> {
+  const url = process.env.REDIS_URL;
+  if (url) {
+    // Upstash uses rediss:// (TLS)
+    const IORedis = require("ioredis");
+    return new IORedis(url, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      tls: url.startsWith("rediss://") ? {} : undefined,
+    });
+  }
+  // Fallback to local Redis
+  return {
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT || "6379"),
+  };
+}
+
+// ── Queue setup ──
 let QueueClass: BullMQConstructor | null = null;
+let WorkerClass: BullMQWorkerConstructor | null = null;
 
 try {
   const bullmq = require("bullmq");
   QueueClass = bullmq.Queue as BullMQConstructor;
+  WorkerClass = bullmq.Worker as BullMQWorkerConstructor;
 } catch (e) {
-  logger.warn("[Queue]", "bullmq not installed — jobs run synchronously. Run: npm install bullmq");
+  logger.warn("[Queue]", "bullmq not installed — jobs run synchronously");
 }
 
-const REDIS_CONN: { host: string; port: number } = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-};
-
-// Queue name constants
 export const QUEUES = {
   SCAN: "smart-ads-scan",
-  AI_ANALYSIS: "smart-ads-ai",
   CAMPAIGN: "smart-ads-campaign",
 } as const;
 
 export type QueueName = typeof QUEUES[keyof typeof QUEUES];
 
-// Create queue (lazy — only if bullmq available)
 function createQueue(name: string): BullMQQueue | null {
   if (!QueueClass) return null;
-  return new QueueClass(name, {
-    connection: REDIS_CONN,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: "exponential", delay: 2000 },
-      removeOnComplete: { age: 3600 },
-      removeOnFail: { age: 24 * 3600 },
-    },
-  });
+  try {
+    return new QueueClass(name, {
+      connection: getRedisConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2000 },
+        removeOnComplete: { age: 3600 },
+        removeOnFail: { age: 24 * 3600 },
+      },
+    });
+  } catch (err) {
+    logger.error("[Queue]", `Failed to create queue ${name}: ${(err as Error).message}`);
+    return null;
+  }
 }
 
 export const scanQueue: BullMQQueue | null = createQueue(QUEUES.SCAN);
-export const aiQueue: BullMQQueue | null = createQueue(QUEUES.AI_ANALYSIS);
 export const campaignQueue: BullMQQueue | null = createQueue(QUEUES.CAMPAIGN);
 
-// Helper to add jobs (falls back to sync execution if no queue)
+// ── Add job helpers ──
 export async function addScanJob(data: ScanJobData): Promise<JobResult> {
-  if (scanQueue) {
-    const job = await scanQueue.add("scan", data, { priority: data.priority || 5 });
+  if (!scanQueue || process.env.USE_QUEUES !== "true") {
+    return { queued: false };
+  }
+  try {
+    const job = await scanQueue.add("scan", data, { priority: 5 });
     logger.info("[Queue]", `Scan job added: ${job.id}`);
     return { queued: true, jobId: job.id };
+  } catch (err) {
+    logger.error("[Queue]", `Failed to add scan job: ${(err as Error).message}`);
+    return { queued: false };
   }
-  // Fallback: return null so caller knows to run synchronously
-  return { queued: false };
 }
 
 export async function addCampaignJob(data: CampaignJobData): Promise<JobResult> {
-  if (campaignQueue) {
-    const job = await campaignQueue.add("campaign", data, { priority: data.priority || 5 });
+  if (!campaignQueue || process.env.USE_QUEUES !== "true") {
+    return { queued: false };
+  }
+  try {
+    const job = await campaignQueue.add("campaign", data, { priority: 5 });
     logger.info("[Queue]", `Campaign job added: ${job.id}`);
     return { queued: true, jobId: job.id };
+  } catch (err) {
+    logger.error("[Queue]", `Failed to add campaign job: ${(err as Error).message}`);
+    return { queued: false };
   }
-  return { queued: false };
 }
 
-// Status check for health endpoint
+// ── Get job status ──
+export async function getJobStatus(queueName: string, jobId: string): Promise<JobStatus | null> {
+  const queue = queueName === QUEUES.SCAN ? scanQueue : campaignQueue;
+  if (!queue) return null;
+  try {
+    const job = await queue.getJob(jobId);
+    if (!job) return null;
+    const state = await job.getState();
+    return {
+      id: job.id,
+      state,
+      progress: job.progress,
+      result: state === "completed" ? job.returnvalue : undefined,
+      error: state === "failed" ? job.failedReason : undefined,
+    };
+  } catch (err) {
+    logger.error("[Queue]", `Failed to get job status: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+// ── Start workers (called from entry.server) ──
+export function startWorkers(): void {
+  if (!WorkerClass || process.env.USE_QUEUES !== "true") {
+    logger.info("[Queue]", "Workers not started (USE_QUEUES !== true or bullmq not available)");
+    return;
+  }
+
+  const connection = getRedisConnection();
+
+  // Scan Worker
+  const scanWorker = new WorkerClass(
+    QUEUES.SCAN,
+    async (job: BullMQJob) => {
+      const { shop, products, storeDomain } = job.data as ScanJobData;
+      logger.info("[Worker:Scan]", `Processing scan for ${shop} (${(products as unknown[]).length} products)`);
+      const { analyzeBatch } = require("../ai.server");
+      const result = await analyzeBatch(products, storeDomain);
+      logger.info("[Worker:Scan]", `Scan complete for ${shop}`);
+      return result;
+    },
+    { connection, concurrency: 2 }
+  );
+
+  scanWorker.on("completed", (job: BullMQJob) => {
+    logger.info("[Worker:Scan]", `Job ${job.id} completed`);
+  });
+  scanWorker.on("failed", (job: BullMQJob, err: Error) => {
+    logger.error("[Worker:Scan]", `Job ${job?.id} failed: ${err.message}`);
+  });
+
+  // Campaign Worker
+  const campaignWorker = new WorkerClass(
+    QUEUES.CAMPAIGN,
+    async (job: BullMQJob) => {
+      const data = job.data as CampaignJobData;
+      logger.info("[Worker:Campaign]", `Processing campaign for ${data.shop}`);
+      const { launchCampaign } = require("../campaignLifecycle.server.js");
+      const result = await launchCampaign(data.shop, {
+        productTitle: data.productTitle,
+        headlines: data.headlines,
+        descriptions: data.descriptions,
+        keywords: data.keywords,
+        finalUrl: data.finalUrl,
+        budgetAmount: String(data.dailyBudget),
+        campaignType: data.campaignType,
+        bidding: data.bidding,
+      });
+      logger.info("[Worker:Campaign]", `Campaign done for ${data.shop}: ${result.success}`);
+      return result;
+    },
+    { connection, concurrency: 1 }
+  );
+
+  campaignWorker.on("completed", (job: BullMQJob) => {
+    logger.info("[Worker:Campaign]", `Job ${job.id} completed`);
+  });
+  campaignWorker.on("failed", (job: BullMQJob, err: Error) => {
+    logger.error("[Worker:Campaign]", `Job ${job?.id} failed: ${err.message}`);
+  });
+
+  logger.info("[Queue]", "Workers started (scan: concurrency=2, campaign: concurrency=1)");
+}
+
+// ── Queue health for health endpoint ──
 export async function getQueueHealth(): Promise<Record<string, QueueHealthEntry>> {
   const result: Record<string, QueueHealthEntry> = {};
-  const queues: Record<string, BullMQQueue | null> = { scan: scanQueue, ai: aiQueue, campaign: campaignQueue };
+  const queues: Record<string, BullMQQueue | null> = { scan: scanQueue, campaign: campaignQueue };
 
   for (const [name, queue] of Object.entries(queues)) {
     if (!queue) {

@@ -20,6 +20,13 @@ Sentry.init({
   },
 });
 
+// ── Start BullMQ workers (in-process) ──
+import("./utils/queue.js").then(({ startWorkers }) => {
+  startWorkers();
+}).catch((e) => {
+  console.warn("[Queue] Worker startup skipped:", e.message);
+});
+
 export const streamTimeout = 5000;
 
 export const handleError = (error, { request }) => {

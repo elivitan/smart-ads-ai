@@ -8,6 +8,7 @@ import { checkLicense } from "../license.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { addCampaignJob } from "../utils/queue";
 
 // Zod schemas
 const CampaignSchema = z.object({
@@ -75,6 +76,15 @@ export const action = async ({ request }) => {
   let dailyBudget = parsed.data.dailyBudget || 30;
   dailyBudget = Math.max(1, Math.min(500, dailyBudget)); // $1-$500 safety cap
 
+  // Try queue first (if USE_QUEUES=true)
+  const queueResult = await addCampaignJob({
+    shop, productTitle, headlines, descriptions, keywords,
+    finalUrl, dailyBudget, campaignType, bidding,
+  });
+  if (queueResult.queued) {
+    return Response.json({ success: true, queued: true, jobId: queueResult.jobId, message: "Campaign queued for background processing" });
+  }
+  // Fallback: run synchronously
   const result = await launchCampaign(shop, {
     productTitle,
     headlines,

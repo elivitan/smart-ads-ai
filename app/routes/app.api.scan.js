@@ -11,6 +11,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { addScanJob } from "../utils/queue";
 
 // Zod schemas
 const ScanStepSchema = z.enum(["fetch", "analyze-batch", "analyze"]);
@@ -168,6 +169,12 @@ export const action = async ({ request }) => {
         return Response.json({ success: false, error: "No products" }, { status: 400 });
       }
 
+      // Try queue first (if USE_QUEUES=true)
+      const queueResult = await addScanJob({ shop, products, storeDomain });
+      if (queueResult.queued) {
+        return Response.json({ success: true, queued: true, jobId: queueResult.jobId, message: "Scan queued for background processing" });
+      }
+      // Fallback: run synchronously
       const result = await analyzeBatch(products, storeDomain);
 
       // SAVE TO DATABASE
