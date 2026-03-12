@@ -133,11 +133,11 @@ type RouteFiles = {
     id: "routes/styles.index";
     page: "/styles/index";
   };
-  "routes/api.analyze.js": {
+  "routes/api.analyze.ts": {
     id: "routes/api.analyze";
     page: "/api/analyze";
   };
-  "routes/api.credits.jsx": {
+  "routes/api.credits.ts": {
     id: "routes/api.credits";
     page: "/api/credits";
   };
@@ -250,8 +250,8 @@ type RouteModules = {
   "routes/webhooks.products-delete": typeof import("./app/routes/webhooks.products-delete.tsx");
   "routes/webhooks.products": typeof import("./app/routes/webhooks.products.tsx");
   "routes/styles.index": typeof import("./app/routes/styles.index.js");
-  "routes/api.analyze": typeof import("./app/routes/api.analyze.js");
-  "routes/api.credits": typeof import("./app/routes/api.credits.jsx");
+  "routes/api.analyze": typeof import("./app/routes/api.analyze.ts");
+  "routes/api.credits": typeof import("./app/routes/api.credits.ts");
   "routes/api.health": typeof import("./app/routes/api.health.js");
   "routes/auth.login": typeof import("./app/routes/auth.login/route.jsx");
   "routes/auth.$": typeof import("./app/routes/auth.$.tsx");

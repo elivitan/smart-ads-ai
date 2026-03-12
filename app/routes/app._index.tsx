@@ -12,7 +12,7 @@ import { CompetitorGapFinder } from "../components/CompetitorComponents";
 import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "../components/DashboardWidgets";
 import { LandingBudgetTeaser, LandingMissingBlock } from "../components/LandingComponents";
 import { ProductModal } from "../components/ProductModal";
-import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
+import { useGoogleAdsData } from "../hooks/useGoogleAdsData";
 import { SubscriberHome } from "../components/SubscriberHome";
 import GlobalModals from "../components/GlobalModals";
 import { ScanningScreen } from "../components/ScanningScreen";

@@ -1,17 +1,34 @@
 import { useState, useEffect, useRef } from "react";
 
+// ── Types ──
+interface LiveAdData {
+  impressions: number;
+  clicks: number;
+  cost: number;
+  conversions: number;
+  roas: number;
+  campaigns: number;
+  source: "mock" | "real";
+}
+
+interface UseGoogleAdsDataReturn extends LiveAdData {
+  ctr: string;
+  isRealData: boolean;
+  lastUpdated: Date | null;
+}
+
 /**
  * useGoogleAdsData
  * Tries real Google Ads API first, falls back to mock data.
  * Pauses polling when tab is hidden (enterprise performance pattern).
  */
-export function useGoogleAdsData(mockCampaigns, avgScore) {
-  const [liveData, setLiveData] = useState(null);
+export function useGoogleAdsData(mockCampaigns: number, avgScore: number): UseGoogleAdsDataReturn {
+  const [liveData, setLiveData] = useState<LiveAdData | null>(null);
   const [isRealData, setIsRealData] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const prevRef = useRef(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const prevRef = useRef<LiveAdData | null>(null);
 
-  function buildMockData(prev) {
+  function buildMockData(prev: LiveAdData | null): LiveAdData {
     const campaigns = mockCampaigns || 0;
     const hourOfDay = new Date().getHours();
     const trafficMult = hourOfDay >= 10 && hourOfDay <= 20 ? 1.3 : 0.7;
@@ -33,7 +50,7 @@ export function useGoogleAdsData(mockCampaigns, avgScore) {
     };
   }
 
-  async function tryRealAPI() {
+  async function tryRealAPI(): Promise<LiveAdData | null> {
     // Auto-enables when /app/api/google-ads/metrics is live
     return null;
   }
