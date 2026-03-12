@@ -12,12 +12,14 @@ import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { authenticate } from "../shopify.server";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 const statusSchema = z.object({
   launchId: z.string().min(1, "Missing launchId"),
 });
 
-export async function loader({ request }) {
+async function _loader({ request }) {
   let session;
   try {
     ({ session } = await authenticate.admin(request));
@@ -76,3 +78,7 @@ export async function loader({ request }) {
     );
   }
 }
+
+
+// ── Middleware wrappers (Session 56) ──
+export const loader = withSentryMonitoring("api.campaign-status", withRequestLogging("api.campaign-status", _loader));

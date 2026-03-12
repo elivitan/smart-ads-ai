@@ -2,6 +2,8 @@ import { authenticate } from "../shopify.server";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 /**
  * Campaign Management API
@@ -57,7 +59,7 @@ async function gadsMutate(token, customerId, endpoint, operations) {
   return data;
 }
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let session;
   try { ({ session } = await authenticate.admin(request)); } catch (authErr) { return Response.json({ success: false, error: "Auth failed" }, { status: 401 }); }
   const shop = session.shop;
@@ -385,3 +387,7 @@ function getSimulatedResponse(action, formData) {
       return { success: false, error: "Unknown action" };
   }
 }
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.campaign-manage", withRequestLogging("api.campaign-manage", _action));

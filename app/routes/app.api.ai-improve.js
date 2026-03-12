@@ -8,10 +8,12 @@ import { checkLicense, useAiCredit } from "../license.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let session;
   try {
     ({ session } = await authenticate.admin(request));
@@ -93,3 +95,7 @@ Rules:
     return Response.json({ success: false, error: e.message }, { status: 500 });
   }
 };
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.ai-improve", withRequestLogging("api.ai-improve", _action));

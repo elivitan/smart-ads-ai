@@ -16,12 +16,14 @@ import crypto from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 function productHash(title, price, description) {
   return crypto.createHash("md5").update(`${title}|${price}|${(description || "").slice(0, 200)}`).digest("hex");
 }
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let admin, session;
   try {
     ({ admin, session } = await authenticate.admin(request));
@@ -213,3 +215,7 @@ export const action = async ({ request }) => {
     return Response.json({ success: false, error: err.message || "Sync failed" }, { status: 500 });
   }
 };
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.sync", withRequestLogging("api.sync", _action));

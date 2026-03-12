@@ -4,8 +4,10 @@ import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { cache, TTL } from "../utils/redis";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let session;
   try {
     ({ session } = await authenticate.admin(request));
@@ -60,3 +62,7 @@ export const action = async ({ request }) => {
     );
   }
 };
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.keywords", withRequestLogging("api.keywords", _action));

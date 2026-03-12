@@ -3,7 +3,10 @@ import { isCostLimitReached } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server.js";
 import { analyzeWithCompetitorIntel } from "./competitor-intel.server.js";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Timeout for Anthropic SDK calls (Session 56) ──
+const ANTHROPIC_TIMEOUT_MS = 30000; // 30 seconds
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: ANTHROPIC_TIMEOUT_MS });
 
 /**
  * Analyze a batch of products with competitor intelligence.

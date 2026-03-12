@@ -1,16 +1,18 @@
 // app/routes/app.api.health.js
 // ════════════════════════════════════════════
-// Health Check Endpoint
-// GET → Returns system health: DB, API keys, circuits, uptime
+// Health Check Endpoint (upgraded Session 56)
+// GET → Returns system health: DB, Redis, API keys, circuits, queues, uptime
 // Used by: Pingdom, UptimeRobot, internal monitoring
 // ════════════════════════════════════════════
 import prisma from "../db.server.js";
 import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter";
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 import { getCircuitStatus } from "../utils/retry.ts";
+import { getRedis } from "../utils/redis";
+import { getDbHealthStats } from "../utils/db-health";
 
 const START_TIME = Date.now();
-const APP_VERSION = "1.0.0-beta";
+const APP_VERSION = "1.1.0-beta";
 
 export const loader = async ({ request }) => {
   // Basic rate limiting (prevent abuse)
@@ -28,15 +30,49 @@ export const loader = async ({ request }) => {
 
   // ── 1. Database connectivity ──
   try {
+    const dbStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    results.checks.database = { status: "ok", latency: Date.now() - start };
+    results.checks.database = { status: "ok", latency: Date.now() - dbStart };
   } catch (error) {
     results.checks.database = { status: "error", error: error.message };
     results.status = "degraded";
     logger.error("health", "Database check failed", { error: error.message });
   }
 
-  // ── 2. Anthropic API key ──
+  // ── 2. Database health stats ──
+  try {
+    const dbStats = getDbHealthStats();
+    results.checks.dbStats = {
+      totalQueries: dbStats.totalQueries,
+      slowQueries: dbStats.slowQueries,
+      errors: dbStats.errors,
+      poolConfig: dbStats.poolConfig,
+    };
+  } catch (error) {
+    results.checks.dbStats = { status: "error", error: error.message };
+  }
+
+  // ── 3. Redis connectivity ──
+  try {
+    const redis = getRedis();
+    if (redis) {
+      const redisStart = Date.now();
+      await redis.set("health:ping", "pong");
+      const pong = await redis.get("health:ping");
+      results.checks.redis = {
+        status: pong === "pong" ? "ok" : "degraded",
+        latency: Date.now() - redisStart,
+      };
+    } else {
+      results.checks.redis = { status: "not_configured", note: "Using in-memory fallback" };
+    }
+  } catch (error) {
+    results.checks.redis = { status: "error", error: error.message };
+    results.status = "degraded";
+    logger.error("health", "Redis check failed", { error: error.message });
+  }
+
+  // ── 4. Anthropic API key ──
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   results.checks.anthropic = {
     status: anthropicKey && anthropicKey.length > 10 ? "configured" : "missing",
@@ -44,14 +80,14 @@ export const loader = async ({ request }) => {
   };
   if (!anthropicKey) results.status = "degraded";
 
-  // ── 3. Serper API key (primary search) ──
+  // ── 5. Serper API key (primary search) ──
   const serperKey = process.env.SERPER_API_KEY;
   results.checks.serper = {
     status: serperKey && serperKey.length > 5 ? "configured" : "missing",
     circuit: getCircuitStatus("serper"),
   };
 
-  // ── 4. SerpAPI key (fallback search) ──
+  // ── 6. SerpAPI key (fallback search) ──
   const serpApiKey = process.env.SERPAPI_KEY;
   results.checks.serpApi = {
     status: serpApiKey && serpApiKey.length > 5 ? "configured" : "missing",
@@ -59,7 +95,7 @@ export const loader = async ({ request }) => {
     circuit: getCircuitStatus("serpapi"),
   };
 
-  // ── 5. Google Ads credentials ──
+  // ── 7. Google Ads credentials ──
   const gadsToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   const gadsClient = process.env.GOOGLE_ADS_CLIENT_ID;
   results.checks.googleAds = {
@@ -69,13 +105,25 @@ export const loader = async ({ request }) => {
   };
   if (!gadsToken) results.status = "degraded";
 
-  // ── 6. Memory usage ──
+  // ── 8. Memory usage ──
   const mem = process.memoryUsage();
   results.checks.memory = {
     heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
     heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
     rssMB: Math.round(mem.rss / 1024 / 1024),
   };
+
+  // ── 9. Queue status ──
+  try {
+    const { getQueueStats } = await import("../utils/queue.js");
+    if (typeof getQueueStats === "function") {
+      results.checks.queue = await getQueueStats();
+    } else {
+      results.checks.queue = { status: "no_stats_fn", note: "getQueueStats not exported" };
+    }
+  } catch (error) {
+    results.checks.queue = { status: "not_available", note: error.message };
+  }
 
   // ── Overall latency ──
   results.responseTime = Date.now() - start;

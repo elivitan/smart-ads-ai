@@ -14,6 +14,8 @@ import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { withDbRetry } from "../utils/db-health";
 import { cache, TTL } from "../utils/redis";
 import { addScanJob } from "../utils/queue";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 // Zod schemas
 const ScanStepSchema = z.enum(["fetch", "analyze-batch", "analyze"]);
@@ -89,7 +91,7 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
   return saved;
 }
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let admin, session;
   try {
     ({ admin, session } = await authenticate.admin(request));
@@ -229,3 +231,7 @@ export const action = async ({ request }) => {
   }
 };
 
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.scan", withRequestLogging("api.scan", _action));

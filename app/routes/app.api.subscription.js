@@ -18,6 +18,8 @@ import { updatePlan, getSubscriptionInfo } from "../license.server.js";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 // Zod schemas
 const SubscriptionSchema = z.object({
@@ -25,7 +27,7 @@ const SubscriptionSchema = z.object({
 });
 const VALID_PLANS = ["free", "starter", "pro", "premium"];
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let session;
   try {
     ({ session } = await authenticate.admin(request));
@@ -73,7 +75,7 @@ export const action = async ({ request }) => {
 };
 
 // GET — return current subscription info
-export const loader = async ({ request }) => {
+const _loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
@@ -84,3 +86,8 @@ export const loader = async ({ request }) => {
     return Response.json({ success: false, error: err.message }, { status: 500 });
   }
 };
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.subscription", withRequestLogging("api.subscription", _action));
+export const loader = withSentryMonitoring("api.subscription", withRequestLogging("api.subscription", _loader));

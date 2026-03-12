@@ -2,8 +2,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server.js";
 
+
+// ── Timeout for Anthropic SDK calls (Session 56) ──
+const ANTHROPIC_TIMEOUT_MS = 30000; // 30 seconds
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: ANTHROPIC_TIMEOUT_MS,
 });
 
 export async function exploreKeywords(seedKeyword, location = "United States") {

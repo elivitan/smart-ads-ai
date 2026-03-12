@@ -9,6 +9,8 @@ import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
 import { addCampaignJob } from "../utils/queue";
+import { withRequestLogging } from "../utils/request-logger";
+import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
 
 // Zod schemas
 const CampaignSchema = z.object({
@@ -22,7 +24,7 @@ const CampaignSchema = z.object({
   bidding: z.enum(["max_conversions", "max_clicks", "target_cpa", "target_roas"]).optional(),
 });
 
-export const action = async ({ request }) => {
+const _action = async ({ request }) => {
   let session;
   try {
     ({ session } = await authenticate.admin(request));
@@ -99,3 +101,7 @@ export const action = async ({ request }) => {
 };
 
 
+
+
+// ── Middleware wrappers (Session 56) ──
+export const action = withSentryMonitoring("api.campaign", withRequestLogging("api.campaign", _action));
