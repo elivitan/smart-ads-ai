@@ -131,6 +131,10 @@ function createQueue(name: string): BullMQQueue | null {
 export const scanQueue: BullMQQueue | null = createQueue(QUEUES.SCAN);
 export const campaignQueue: BullMQQueue | null = createQueue(QUEUES.CAMPAIGN);
 
+// ── Worker references (for graceful shutdown) ──
+let activeScanWorker: BullMQWorker | null = null;
+let activeCampaignWorker: BullMQWorker | null = null;
+
 // ── Add job helpers ──
 export async function addScanJob(data: ScanJobData): Promise<JobResult> {
   if (!scanQueue || process.env.USE_QUEUES !== "true") {
@@ -191,7 +195,7 @@ export function startWorkers(): void {
   const connection = getRedisConnection();
 
   // Scan Worker
-  const scanWorker = new WorkerClass(
+  activeScanWorker = new WorkerClass(
     QUEUES.SCAN,
     async (job: BullMQJob) => {
       const { shop, products, storeDomain } = job.data as ScanJobData;
@@ -204,15 +208,15 @@ export function startWorkers(): void {
     { connection, concurrency: 2 }
   );
 
-  scanWorker.on("completed", (job: BullMQJob) => {
+  activeScanWorker.on("completed", (job: BullMQJob) => {
     logger.info("[Worker:Scan]", `Job ${job.id} completed`);
   });
-  scanWorker.on("failed", (job: BullMQJob, err: Error) => {
+  activeScanWorker.on("failed", (job: BullMQJob, err: Error) => {
     logger.error("[Worker:Scan]", `Job ${job?.id} failed: ${err.message}`);
   });
 
   // Campaign Worker
-  const campaignWorker = new WorkerClass(
+  activeCampaignWorker = new WorkerClass(
     QUEUES.CAMPAIGN,
     async (job: BullMQJob) => {
       const data = job.data as CampaignJobData;
@@ -234,14 +238,65 @@ export function startWorkers(): void {
     { connection, concurrency: 1 }
   );
 
-  campaignWorker.on("completed", (job: BullMQJob) => {
+  activeCampaignWorker.on("completed", (job: BullMQJob) => {
     logger.info("[Worker:Campaign]", `Job ${job.id} completed`);
   });
-  campaignWorker.on("failed", (job: BullMQJob, err: Error) => {
+  activeCampaignWorker.on("failed", (job: BullMQJob, err: Error) => {
     logger.error("[Worker:Campaign]", `Job ${job?.id} failed: ${err.message}`);
   });
 
   logger.info("[Queue]", "Workers started (scan: concurrency=2, campaign: concurrency=1)");
+}
+
+// ── Stop workers + close queues (called on shutdown) ──
+export async function stopWorkers(): Promise<void> {
+  const closePromises: Promise<void>[] = [];
+
+  if (activeScanWorker) {
+    closePromises.push(
+      activeScanWorker.close().then(() => {
+        logger.info("[Queue]", "Scan worker closed");
+        activeScanWorker = null;
+      }).catch((e: unknown) => {
+        logger.warn("[Queue]", "Scan worker close error: " + (e as Error).message);
+      })
+    );
+  }
+
+  if (activeCampaignWorker) {
+    closePromises.push(
+      activeCampaignWorker.close().then(() => {
+        logger.info("[Queue]", "Campaign worker closed");
+        activeCampaignWorker = null;
+      }).catch((e: unknown) => {
+        logger.warn("[Queue]", "Campaign worker close error: " + (e as Error).message);
+      })
+    );
+  }
+
+  // Close queues too (releases Redis connections)
+  if (scanQueue && typeof (scanQueue as any).close === "function") {
+    closePromises.push(
+      (scanQueue as any).close().then(() => {
+        logger.info("[Queue]", "Scan queue closed");
+      }).catch((e: unknown) => {
+        logger.warn("[Queue]", "Scan queue close error: " + (e as Error).message);
+      })
+    );
+  }
+
+  if (campaignQueue && typeof (campaignQueue as any).close === "function") {
+    closePromises.push(
+      (campaignQueue as any).close().then(() => {
+        logger.info("[Queue]", "Campaign queue closed");
+      }).catch((e: unknown) => {
+        logger.warn("[Queue]", "Campaign queue close error: " + (e as Error).message);
+      })
+    );
+  }
+
+  await Promise.allSettled(closePromises);
+  logger.info("[Queue]", "All workers and queues closed");
 }
 
 // ── Queue health for health endpoint ──

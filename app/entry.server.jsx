@@ -37,6 +37,16 @@ async function gracefulShutdown(signal) {
   console.log(`[Shutdown] ${signal} received. Closing gracefully...`);
   
   try {
+    // Close BullMQ workers + queues (max 5s)
+    const { stopWorkers } = await import("./utils/queue.js");
+    await Promise.race([
+      stopWorkers(),
+      new Promise(r => setTimeout(r, 5000)),
+    ]);
+    console.log("[Shutdown] BullMQ workers closed");
+  } catch (e) { console.warn("[Shutdown] BullMQ close failed:", e.message); }
+  
+  try {
     // Flush Sentry events (max 2s)
     await Sentry.flush(2000);
     console.log("[Shutdown] Sentry flushed");
