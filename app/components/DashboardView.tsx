@@ -1,16 +1,48 @@
 import React, { useState, useCallback } from "react";
 import { Link } from "react-router";
-import { Counter, ScoreRing, Speedometer } from "./ui/SmallWidgets.jsx";
-import { Confetti } from "./SmallComponents.jsx";
-import { AdPreviewPanel } from "./AdPreviewPanel.jsx";
-import { CompetitorModal } from "./CompetitorComponents.jsx";
-import { CompetitorGapFinder } from "./CompetitorComponents.jsx";
-import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "./DashboardWidgets.jsx";
-import { LivePulse } from "./dashboard/LivePulse.jsx";
-import { ProductModal } from "./ProductModal.jsx";
-import { MarketAlert } from "./MarketAlert.jsx";
-import { StoreAnalyticsWidget } from "./StoreAnalytics.jsx";
-import useAppStore from "../stores/useAppStore.js";
+import { Counter, ScoreRing, Speedometer } from "./ui/SmallWidgets";
+import { Confetti } from "./SmallComponents";
+import { AdPreviewPanel } from "./AdPreviewPanel";
+import { CompetitorModal } from "./CompetitorComponents";
+import { CompetitorGapFinder } from "./CompetitorComponents";
+import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "./DashboardWidgets";
+import { LivePulse } from "./dashboard/LivePulse";
+import { ProductModal } from "./ProductModal";
+import { MarketAlert } from "./MarketAlert";
+import { StoreAnalyticsWidget } from "./StoreAnalytics";
+import useAppStore from "../stores/useAppStore";
+
+interface DashboardViewProps {
+  isPaid: boolean;
+  products: any[];
+  analyzedCount: number;
+  totalProducts: number;
+  avgScore: number;
+  highPotential: number;
+  competitorCount: number;
+  keywordGaps: any[];
+  totalMonthlyGapLoss: number;
+  mockCampaigns: number;
+  topProduct: any;
+  shop: string;
+  canPublish: boolean;
+  googleAdsData: any;
+  impressionsBase: number;
+  clicksBase: number;
+  onUpgrade: () => void;
+  onLaunch: () => void;
+  onScan: () => void;
+  onViewProduct: (p: any) => void;
+  onAddKeyword: (gap: any) => void;
+  hasScanAccess: boolean;
+}
+
+interface LockedOverlayProps {
+  isPaid: boolean;
+  onUpgrade: () => void;
+  title?: string;
+  children: React.ReactNode;
+}
 
 function LockedOverlay({ isPaid, onUpgrade, title, children }) {
   if (isPaid) return children || null;

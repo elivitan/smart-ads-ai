@@ -8,6 +8,19 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = process.cwd();
 
+// Helper: resolve .jsx/.tsx paths (Batch 3 TSX migration)
+function resolvePath(relPath) {
+  const full = path.join(ROOT, relPath);
+  if (fs.existsSync(full)) return relPath;
+  const tsxPath = relPath.replace(/\.jsx$/, '.tsx');
+  const tsxFull = path.join(ROOT, tsxPath);
+  if (tsxFull !== full && fs.existsSync(tsxFull)) return tsxPath;
+  const tsPath = relPath.replace(/\.js$/, '.ts');
+  const tsFull = path.join(ROOT, tsPath);
+  if (tsFull !== full && fs.existsSync(tsFull)) return tsPath;
+  return relPath; // return original if nothing found
+}
+
 let passed = 0, failed = 0, warnings = 0;
 function pass(msg) { console.log('  \u2705 ' + msg); passed++; }
 function fail(msg) { console.log('  \u274C ' + msg); failed++; }
@@ -18,8 +31,8 @@ const FILES = {};
 const fileList = [
   ['index',      'app/routes/app._index.jsx'],
   ['campaigns',  'app/routes/app.campaigns.jsx'],
-  ['subscriber', 'app/components/SubscriberHome.jsx'],
-  ['wizard',     'app/components/campaigns/CampaignWizard.jsx'],
+  ['subscriber', resolvePath('app/components/SubscriberHome.jsx')],
+  ['wizard',     resolvePath('app/components/campaigns/CampaignWizard.jsx')],
   ['styles',     'app/routes/styles.index.js'],
   ['modals',     'app/components/Modals.tsx'],
 ];
@@ -84,7 +97,7 @@ console.log('\n\uD83D\uDE80 SECTION B: Campaign Launch Flow\n');
 
 if (FILES.index) {
   // Check both app._index.jsx and DashboardView.jsx for campaign launch buttons
-  const dashPath = 'app/components/DashboardView.jsx';
+  const dashPath = resolvePath('app/components/DashboardView.jsx');
   const dashCode = require('fs').existsSync(dashPath) ? require('fs').readFileSync(dashPath, 'utf8') : '';
   const allCode = FILES.index + '\n' + dashCode;
   const allLines = allCode.split(/\r?\n/);
@@ -109,7 +122,7 @@ if (FILES.index) {
   }
 
   // Check LaunchChoiceDialog uses URL params for intent
-  const lcdPath = path.join(ROOT, 'app/components/LaunchChoiceDialog.jsx');
+  const lcdPath = path.join(ROOT, resolvePath('app/components/LaunchChoiceDialog.jsx'));
   const lcdCode = fs.existsSync(lcdPath) ? fs.readFileSync(lcdPath, 'utf8') : '';
   const hasUrlIntent = lcdCode.includes('intent=') || allLines.some(l => l.includes('intent='));
   if (hasUrlIntent) {
@@ -267,8 +280,8 @@ if (FILES.index) {
 
 const routesDir = path.join(ROOT, 'app', 'routes');
 if (fs.existsSync(routesDir)) {
-  const known = ['CollectingDataScreen.jsx', 'MarketAlert.jsx', 'StoreAnalytics.jsx'];
-  const files = fs.readdirSync(routesDir).filter(f => f.endsWith('.jsx'));
+  const known = ['CollectingDataScreen.jsx', 'CollectingDataScreen.tsx', 'MarketAlert.jsx', 'MarketAlert.tsx', 'StoreAnalytics.jsx', 'StoreAnalytics.tsx'];
+  const files = fs.readdirSync(routesDir).filter(f => f.endsWith('.jsx') || f.endsWith('.tsx'));
   const bad = files.filter(f => !f.startsWith('app.') && !known.includes(f));
   if (bad.length > 0) {
     warn('F2: ' + bad.length + ' non-route file(s) in routes/: ' + bad.join(', '));

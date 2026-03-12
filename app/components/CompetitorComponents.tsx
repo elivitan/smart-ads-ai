@@ -1,5 +1,37 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
+interface CompetitorInfo {
+  domain?: string;
+  price_range?: string;
+  strength?: string;
+}
+
+interface CompetitorModalProps {
+  competitor: CompetitorInfo | null;
+  products: any[];
+  onClose: () => void;
+}
+
+interface KeywordGap {
+  keyword?: string;
+  source?: string;
+  matchType?: string;
+  campaignId?: string;
+  monthlySearches?: number;
+  competition?: string;
+  suggestedBid?: number;
+  opportunity_score?: number;
+}
+
+interface CompetitorGapFinderProps {
+  keywordGaps: KeywordGap[];
+  totalMonthlyGapLoss: number;
+  analyzedCount: number;
+  onAddKeyword?: (gap: KeywordGap) => void;
+  canPublish: boolean;
+  onUpgrade?: () => void;
+}
+
 
 function CompetitorModal({ competitor, products, onClose }) {
   const [loading, setLoading] = useState(true);

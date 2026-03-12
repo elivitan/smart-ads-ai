@@ -7,17 +7,17 @@ import { getSubscriptionInfo } from "../license.server.js";
 import { CSS } from "./styles.index.js";
 import { Counter, ScoreRing, Speedometer } from "../components/ui/SmallWidgets.jsx";
 import { TipRotator, Confetti, SuccessTicker } from "../components/SmallComponents.jsx";
-import { CollectingDataScreen } from "../components/CollectingDataScreen.jsx";
-import { CompetitorGapFinder } from "../components/CompetitorComponents.jsx";
-import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "../components/DashboardWidgets.jsx";
+import { CollectingDataScreen } from "../components/CollectingDataScreen";
+import { CompetitorGapFinder } from "../components/CompetitorComponents";
+import { StoreHealthScore, TopMissedOpportunity, BudgetSimulator } from "../components/DashboardWidgets";
 import { LandingBudgetTeaser, LandingMissingBlock } from "../components/LandingComponents.jsx";
 import { ProductModal } from "../components/ProductModal.jsx";
 import { useGoogleAdsData } from "../hooks/useGoogleAdsData.js";
-import { SubscriberHome } from "../components/SubscriberHome.jsx";
+import { SubscriberHome } from "../components/SubscriberHome";
 import GlobalModals from "../components/GlobalModals.jsx";
 import { ScanningScreen } from "../components/ScanningScreen.jsx";
 import { AutoLaunchingScreen, AutoStatusScreen } from "../components/AutoScreens.jsx";
-import { DashboardView } from "../components/DashboardView.jsx";
+import { DashboardView } from "../components/DashboardView";
 import useAppStore, { appStore } from "../stores/useAppStore.js";
 
 // Error Boundary — prevents widget crashes from killing the whole page

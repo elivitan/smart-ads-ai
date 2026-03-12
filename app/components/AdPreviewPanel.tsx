@@ -1,6 +1,41 @@
 import React, { useState } from "react";
 
-import { ScoreRing } from "./SmallComponents.jsx";
+import { ScoreRing } from "./SmallComponents";
+
+interface AiAnalysis {
+  headlines?: (string | { text?: string })[];
+  descriptions?: (string | { text?: string })[];
+  keywords?: (string | { text?: string })[];
+  ad_score?: number;
+  sitelinks?: ({ title?: string } | string)[];
+  competitor_intel?: {
+    top_competitors?: CompetitorInfo[];
+  };
+}
+
+interface CompetitorInfo {
+  domain?: string;
+  price_range?: string;
+  strength?: string;
+  position?: number;
+}
+
+interface Product {
+  title?: string;
+  price?: string | number;
+  image?: string;
+  aiAnalysis?: AiAnalysis;
+  ai?: AiAnalysis;
+}
+
+interface AdPreviewPanelProps {
+  topProduct: Product | null;
+  mockCampaigns: number;
+  canPublish: boolean;
+  onLaunch: () => void;
+  onViewProduct?: (product: Product) => void;
+  shop?: string;
+}
 
 const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCampaigns, canPublish, onLaunch, onViewProduct, shop }) {
   const [tab, setTab] = useState("search");

@@ -3,14 +3,36 @@
 // PROPS: real data from Index(), plus callbacks
 
 import React, { useState, useEffect } from "react";
-import useAppStore from "../stores/useAppStore.js";
+import useAppStore from "../stores/useAppStore";
 import {
+
   Target, MousePointerClick, DollarSign, BarChart3, KeyRound,
   Brain, ArrowRight, AlertTriangle, AlertCircle, Rocket,
   Trophy, TrendingUp, TrendingDown, Swords, Search,
   ChevronRight, Zap, Globe, ShieldAlert, LayoutDashboard,
   Eye, Package, Crown, Star, Gem
 } from "lucide-react";
+
+interface SubscriberHomeProps {
+  shop: string;
+  isPaid: boolean;
+  aiCredits: number;
+  planName: string;
+  analyzedCount: number;
+  totalProducts: number;
+  avgScore: number;
+  topProduct: any;
+  keywordGaps: any[];
+  competitorCount: number;
+  totalMonthlyGapLoss: number;
+  mockCampaigns: number;
+  googleAdsData: any;
+  onScan: () => void;
+  onViewProduct: (p: any) => void;
+  onLaunch: () => void;
+  onUpgrade: () => void;
+}
+
 
 // ── Helpers ──
 

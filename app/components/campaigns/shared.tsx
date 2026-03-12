@@ -1,5 +1,95 @@
 import { useState, useCallback, useEffect } from "react";
 
+interface RoasResult {
+  color: string;
+  bg: string;
+  label: string;
+}
+
+interface StatusDotResult {
+  color: string;
+  label: string;
+}
+
+interface BudgetSliderProps {
+  value: number;
+  onChange: (v: number) => void;
+}
+
+interface CharInputProps {
+  defaultValue: string;
+  maxLen: number;
+  tag: string;
+  placeholder?: string;
+}
+
+interface KeywordSuggestionsProps {
+  onAdd?: (keyword: string) => void;
+}
+
+interface DangerZoneProps {
+  keywords: string[];
+}
+
+interface HeadlineABTestProps {
+  headlines: string[];
+}
+
+interface CompetitorIntelligenceProps {
+  keywords: string[];
+}
+
+interface QualityScoreCardProps {
+  score: number;
+}
+
+interface CampaignSettingsProps {
+  campaign: any;
+}
+
+interface ProductsPerformanceProps {
+  products: any[];
+}
+
+interface UrlEditorProps {
+  campaign: any;
+}
+
+interface CampaignStatusBarProps {
+  status: string;
+  paused: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  onDelete: () => void;
+}
+
+interface AICreditsBarProps {
+  credits: number;
+  maxCredits: number;
+  plan: string;
+}
+
+interface AISuggestButtonProps {
+  label: string;
+  cost: number;
+  credits: number;
+  onClick: () => void;
+}
+
+interface AIOptimizeAllButtonProps {
+  credits: number;
+  onClick: () => void;
+}
+
+interface DateRangeSelectorProps {
+  range: string;
+  onChange: (r: string) => void;
+}
+
+interface CampaignAlertsProps {
+  campaign: any;
+}
+
 export function roasColor(roas) {
   if (roas >= 3) return { color:"#10b981", bg:"rgba(16,185,129,.12)", label:"Excellent" };
   if (roas >= 2) return { color:"#f59e0b", bg:"rgba(245,158,11,.12)", label:"Good" };

@@ -1,5 +1,11 @@
 import { useState } from "react";
 
+interface GoogleAdsPreviewProps {
+  headlines: string[];
+  descriptions: string[];
+  url?: string;
+}
+
 /* ── Google Ads Live Preview ── */
 export function GoogleAdsPreview({ headlines, descriptions, url }) {
   const [activeTab, setActiveTab] = useState("desktop");

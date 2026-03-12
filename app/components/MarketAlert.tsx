@@ -7,6 +7,18 @@
 
 import React, { useState, useEffect } from "react";
 
+interface MarketAlertProps {
+  shopDomain: string;
+}
+
+interface Signal {
+  type: string;
+  title: string;
+  detail: string;
+  time: string;
+  source?: string;
+}
+
 const SIGNAL_COLORS = {
   green:  { color: "#22c55e", bg: "rgba(34,197,94,.06)",  border: "rgba(34,197,94,.15)" },
   yellow: { color: "#f59e0b", bg: "rgba(245,158,11,.06)", border: "rgba(245,158,11,.15)" },

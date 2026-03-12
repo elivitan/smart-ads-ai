@@ -1,5 +1,30 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
+interface StoreHealthScoreProps {
+  analyzedCount: number;
+  totalProducts: number;
+  avgScore: number;
+  highPotential: number;
+  competitorCount: number;
+}
+
+interface TopMissedOpportunityProps {
+  topProduct: any;
+  avgScore: number;
+  totalMonthlyGapLoss: number;
+  analyzedCount: number;
+  onScan: () => void;
+  onViewProduct: (p: any) => void;
+  hasScanAccess: boolean;
+}
+
+interface BudgetSimulatorProps {
+  avgScore: number;
+  avgCpc: number;
+  canPublish: boolean;
+  onUpgrade: () => void;
+}
+
 
 const StoreHealthScore = React.memo(function StoreHealthScore({ analyzedCount, totalProducts, avgScore, highPotential, competitorCount }) {
   const [expanded, setExpanded] = useState(false);

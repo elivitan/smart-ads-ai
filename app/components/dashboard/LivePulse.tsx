@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 
+interface Campaign {
+  id?: string;
+  name?: string;
+  status?: string;
+}
+
+interface LivePulseProps {
+  campaigns: Campaign[];
+  impressionsBase: number;
+  clicksBase: number;
+  campaignId?: string;
+  realSpend?: number;
+  campaignControlStatus?: string;
+  confirmRemove: boolean;
+  setConfirmRemove: (v: boolean) => void;
+  onPause?: () => void;
+  onRemove?: () => void;
+}
+
 const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, clicksBase, campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove, onPause, onRemove }) {
   const [heartbeat, setHeartbeat] = useState(false);
   const [impressions, setImpressions] = useState(impressionsBase);

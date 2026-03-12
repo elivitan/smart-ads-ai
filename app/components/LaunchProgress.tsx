@@ -1,4 +1,22 @@
 import React from "react";
+
+interface StepInfo {
+  label: string;
+  icon: string;
+}
+
+interface LaunchState {
+  step: string;
+  progress: number;
+  done: boolean;
+  error: string | null;
+  campaignName?: string;
+  campaignId?: string;
+}
+
+interface LaunchProgressProps {
+  launch: LaunchState;
+}
 // getStepInfo — inlined from deleted useCampaignLaunch.js
 function getStepInfo(stepKey) {
   const STEPS = {

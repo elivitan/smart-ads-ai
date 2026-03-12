@@ -3,6 +3,59 @@ import { Link } from "react-router";
 import { CharInput, BudgetSlider } from "./shared";
 import { GoogleAdsPreview } from "./GoogleAdsPreview";
 
+interface WizardProgressProps {
+  currentStep: number;
+  totalSteps: number;
+  steps: { label: string }[];
+}
+
+interface AIRecommendationProps {
+  text: string;
+  tip?: string;
+}
+
+interface GoogleGlossaryProps {
+  terms: { term: string; def: string }[];
+}
+
+interface WizardNavProps {
+  step: number;
+  totalSteps: number;
+  onBack: () => void;
+  onNext: () => void;
+  onSaveDraft?: () => void;
+  nextLabel?: string;
+  nextDisabled?: boolean;
+}
+
+interface CampaignSuccessScreenProps {
+  onViewCampaign: () => void;
+  onGoToDashboard: () => void;
+}
+
+interface CampaignCreatingAnimationProps {
+  onComplete: () => void;
+  onCancel: () => void;
+}
+
+interface CampaignData {
+  name?: string;
+  product?: any;
+  headlines?: string[];
+  descriptions?: string[];
+  keywords?: string[];
+  budget?: number;
+  targetRoas?: number;
+  location?: string;
+  [key: string]: any;
+}
+
+interface CampaignWizardProps {
+  campaign: CampaignData;
+  onComplete: (data: CampaignData) => void;
+  onCancel: () => void;
+}
+
 
 export function WizardProgress({ currentStep, totalSteps, steps }) {
   const pct = ((currentStep) / totalSteps) * 100;

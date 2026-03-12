@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 
+interface CollectingDataScreenProps {
+  products?: any[];
+  totalProducts?: number;
+  storeName?: string;
+  onComplete: () => void;
+  onCancel?: () => void;
+}
+
 // ══════════════════════════════════════════════════════════════
 // CollectingDataScreen — Welcome experience for new subscribers
 //

@@ -6,6 +6,12 @@
 
 import React, { useState, useEffect } from "react";
 
+interface ReadinessConfig {
+  emoji: string;
+  color: string;
+  bg: string;
+}
+
 const READINESS_CONFIG = {
   ready: { emoji: "🟢", color: "#22c55e", bg: "rgba(34,197,94,.08)" },
   almost_ready: { emoji: "🟡", color: "#f59e0b", bg: "rgba(245,158,11,.08)" },
