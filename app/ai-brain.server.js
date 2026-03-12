@@ -14,9 +14,20 @@
 // ═══════════════════════════════════════════════════════════════
 
 import Anthropic from "@anthropic-ai/sdk";
+import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Cost guard helper
+function checkCostLimits() {
+  if (isCostLimitReached("anthropic")) {
+    throw new Error("Daily AI processing limit reached. Try again tomorrow.");
+  }
+  if (isCostLimitReached("serper")) {
+    throw new Error("Daily search limit reached. Try again tomorrow.");
+  }
+}
 const SERPER_KEY = process.env.SERPER_API_KEY || "";
 const SERP_KEY = process.env.SERPAPI_KEY || "";
 

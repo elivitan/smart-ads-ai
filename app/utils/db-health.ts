@@ -65,6 +65,43 @@ export function getDbHealthStats(): DbHealthStats {
   };
 }
 
+
+/**
+ * Wrap a DB operation with monitoring + retry for transient errors.
+ * Retries only on connection errors (ECONNRESET, ETIMEDOUT, connection refused).
+ * Max 2 attempts, 500ms delay.
+ */
+export async function withDbRetry<T>(label: string, queryFn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 2;
+  const delayMs = 500;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await monitoredQuery(label, queryFn);
+    } catch (error) {
+      const msg = (error as Error).message || "";
+      const isTransient = msg.includes("ECONNRESET") || 
+                          msg.includes("ETIMEDOUT") || 
+                          msg.includes("connection") ||
+                          msg.includes("Connection") ||
+                          msg.includes("connect ECONNREFUSED") ||
+                          msg.includes("prepared statement") ||
+                          msg.includes("server closed the connection");
+      
+      if (isTransient && attempt < maxAttempts) {
+        logger.warn("[DB]", `Transient error on "${label}" (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms: ${msg}`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+  
+  // TypeScript: unreachable but needed for type safety
+  throw new Error("withDbRetry: unexpected exit");
+}
+
 /**
  * Reset stats (for testing).
  */

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { isCostLimitReached } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server.js";
 
 const client = new Anthropic({
@@ -6,6 +7,10 @@ const client = new Anthropic({
 });
 
 export async function exploreKeywords(seedKeyword, location = "United States") {
+  // Cost guard
+  if (isCostLimitReached("anthropic")) {
+    throw new Error("Daily AI processing limit reached. Try again tomorrow.");
+  }
   const response = await withRetry(
     () =>
       client.messages.create({

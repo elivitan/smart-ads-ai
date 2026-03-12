@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { isCostLimitReached } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server.js";
 import { analyzeWithCompetitorIntel } from "./competitor-intel.server.js";
 
@@ -9,6 +10,11 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  * Flow: Google search → scrape competitors → check store ranking → Claude AI analysis
  */
 export async function analyzeBatch(products, storeDomain = "") {
+  // Cost guard — block if daily Anthropic limit reached
+  if (isCostLimitReached("anthropic")) {
+    console.warn("[AI] Daily Anthropic cost limit reached — blocking scan");
+    return { products: [], error: "Daily AI processing limit reached. Try again tomorrow." };
+  }
   console.log(
     "ANALYZE_BATCH storeDomain:",
     storeDomain,

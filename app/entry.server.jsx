@@ -27,6 +27,45 @@ import("./utils/queue.js").then(({ startWorkers }) => {
   console.warn("[Queue] Worker startup skipped:", e.message);
 });
 
+
+// ── Graceful Shutdown ──
+// On SIGTERM/SIGINT: close queues, disconnect DB, flush Sentry
+let isShuttingDown = false;
+async function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[Shutdown] ${signal} received. Closing gracefully...`);
+  
+  try {
+    // Flush Sentry events (max 2s)
+    await Sentry.flush(2000);
+    console.log("[Shutdown] Sentry flushed");
+  } catch (e) { console.warn("[Shutdown] Sentry flush failed:", e.message); }
+  
+  try {
+    // Disconnect Prisma
+    const { default: prisma } = await import("./db.server.js");
+    await prisma.$disconnect();
+    console.log("[Shutdown] Prisma disconnected");
+  } catch (e) { console.warn("[Shutdown] Prisma disconnect failed:", e.message); }
+  
+  try {
+    // Close Redis
+    const { getRedis } = await import("./utils/redis.js");
+    const redis = getRedis();
+    if (redis && typeof redis.quit === "function") {
+      await redis.quit();
+      console.log("[Shutdown] Redis closed");
+    }
+  } catch (e) { console.warn("[Shutdown] Redis close failed:", e.message); }
+  
+  console.log("[Shutdown] Clean shutdown complete");
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
 export const streamTimeout = 5000;
 
 export const handleError = (error, { request }) => {

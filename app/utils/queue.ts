@@ -119,7 +119,7 @@ function createQueue(name: string): BullMQQueue | null {
         attempts: 3,
         backoff: { type: "exponential", delay: 2000 },
         removeOnComplete: { age: 3600 },
-        removeOnFail: { age: 24 * 3600 },
+        removeOnFail: { age: 7 * 24 * 3600 },
       },
     });
   } catch (err) {

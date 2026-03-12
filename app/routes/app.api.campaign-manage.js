@@ -58,7 +58,13 @@ async function gadsMutate(token, customerId, endpoint, operations) {
 }
 
 export const action = async ({ request }) => {
-  try { await authenticate.admin(request); } catch (authErr) { return Response.json({ success: false, error: "Auth failed" }, { status: 401 }); }
+  let session;
+  try { ({ session } = await authenticate.admin(request)); } catch (authErr) { return Response.json({ success: false, error: "Auth failed" }, { status: 401 }); }
+  const shop = session.shop;
+
+  // Rate limit check
+  const rl = await rateLimit.campaignManage(shop);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSeconds);
 
   const formData = await request.formData();
   const action = formData.get("action"); // list, pause, enable, remove, diagnose
