@@ -334,7 +334,8 @@ pass(`${Math.floor(ebCount / 2)} WidgetErrorBoundary instances found (open+close
 // ─── CHECK 26: Health endpoint exists ───
 console.log("\n🏥 HEALTH CHECK:");
 {
-  const healthFile = path.join(ROOT, "app", "routes", "app.api.health.js");
+  let healthFile = path.join(ROOT, "app", "routes", "app.api.health.js");
+  if (!fs.existsSync(healthFile)) healthFile = path.join(ROOT, "app", "routes", "app.api.health.ts");
   if (fs.existsSync(healthFile)) {
     const content = fs.readFileSync(healthFile, "utf8");
     if (content.includes("export const loader") && content.includes("getCircuitStatus")) {
@@ -457,6 +458,7 @@ console.log("\n🧪 FULL JSX VALIDATION:");
   scanTs(path.join(ROOT, "app", "utils"));
   scanTs(path.join(ROOT, "app", "components"));
   scanTs(path.join(ROOT, "app", "types"));
+  scanTs(path.join(ROOT, "app", "routes"));
   if (tsFileCount > 0 && tsOk === tsFileCount) {
     pass("All " + tsOk + " TS/TSX files pass balance validation");
   } else if (tsFileCount === 0) {
