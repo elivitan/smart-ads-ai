@@ -1,13 +1,49 @@
 import { GoogleAdsApi, enums } from "google-ads-api";
 
+interface CampaignConfig {
+  productTitle: string;
+  headlines: string[];
+  descriptions: string[];
+  keywords?: Array<string | { text: string; match_type?: string }>;
+  finalUrl: string;
+  dailyBudget?: number;
+  campaignType?: string;
+  bidding?: string;
+  imageUrls?: string[];
+  videoUrls?: string[];
+}
+
+interface SearchCampaignConfig {
+  productTitle: string;
+  headlines: string[];
+  descriptions: string[];
+  keywords: Array<string | { text: string; match_type?: string }>;
+  finalUrl: string;
+  budgetResourceName: string;
+  bidding: string;
+}
+
+interface PMaxCampaignConfig {
+  productTitle: string;
+  headlines: string[];
+  descriptions: string[];
+  finalUrl: string;
+  budgetResourceName: string;
+  imageUrls?: string[];
+  videoUrls?: string[];
+  longHeadlines?: string[];
+}
+
+
 const client = new GoogleAdsApi({
   client_id: process.env.GOOGLE_ADS_CLIENT_ID,
   client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
   developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
 });
 
-function getCustomer() {
-  const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID.replace(/-/g, "");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCustomer(): any {
+  const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
   return client.Customer({
     customer_id: customerId,
     refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
@@ -15,7 +51,8 @@ function getCustomer() {
 }
 
 // ── Budget (shared by all campaign types) ────────────────────────────────
-async function createBudget(customer, productTitle, dailyBudget) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function createBudget(customer: any, productTitle: string, dailyBudget: number): Promise<string> {
   const budget = {
     name: `Smart Ads Budget - ${productTitle} - ${Date.now()}`,
     amount_micros: dailyBudget * 1_000_000,
@@ -26,9 +63,10 @@ async function createBudget(customer, productTitle, dailyBudget) {
 }
 
 // ── Search Campaign ──────────────────────────────────────────────────────
-async function createSearchCampaign(customer, {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function createSearchCampaign(customer: any, {
   productTitle, headlines, descriptions, keywords, finalUrl, budgetResourceName, bidding,
-}) {
+}: SearchCampaignConfig): Promise<string> {
   // Campaign
   const biddingConfig = buildBiddingConfig(bidding, "search");
   const campaign = {
@@ -52,7 +90,8 @@ async function createSearchCampaign(customer, {
   const adGroupResourceName = adGroupResults[0];
 
   // Keywords
-  const keywordCriteria = keywords.slice(0, 20).map((kw) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const keywordCriteria = keywords.slice(0, 20).map((kw: any) => {
     const text = typeof kw === "string" ? kw : kw.text || kw;
     const matchType = typeof kw === "object" && kw.match_type
       ? enums.KeywordMatchType[kw.match_type] || enums.KeywordMatchType.BROAD
@@ -86,9 +125,10 @@ async function createSearchCampaign(customer, {
 }
 
 // ── Performance Max Campaign ─────────────────────────────────────────────
-async function createPMaxCampaign(customer, {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function createPMaxCampaign(customer: any, {
   productTitle, headlines, descriptions, finalUrl, budgetResourceName, imageUrls, videoUrls, longHeadlines,
-}) {
+}: PMaxCampaignConfig): Promise<string> {
   // PMax campaign
   const campaign = {
     name: `Smart Ads PMax - ${productTitle} - ${new Date().toLocaleDateString()}`,
@@ -165,8 +205,8 @@ async function createPMaxCampaign(customer, {
             field_type: enums.AssetFieldType.MARKETING_IMAGE,
           });
         }
-      } catch (err) {
-        console.warn("[SmartAds] Image upload failed:", url, err.message);
+      } catch (err: unknown) {
+        console.warn("[SmartAds] Image upload failed:", url, err instanceof Error ? err.message : String(err));
       }
     }
     if (imageAssets.length > 0) {
@@ -192,8 +232,8 @@ async function createPMaxCampaign(customer, {
             field_type: enums.AssetFieldType.YOUTUBE_VIDEO,
           });
         }
-      } catch (err) {
-        console.warn("[SmartAds] Video upload failed:", ytUrl, err.message);
+      } catch (err: unknown) {
+        console.warn("[SmartAds] Video upload failed:", ytUrl, err instanceof Error ? err.message : String(err));
       }
     }
     if (videoAssets.length > 0) {
@@ -204,7 +244,8 @@ async function createPMaxCampaign(customer, {
 }
 
 // ── Bidding config builder ───────────────────────────────────────────────
-function buildBiddingConfig(bidding, campaignType) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildBiddingConfig(bidding: string | { target?: number }, campaignType: string): Record<string, any> {
   if (campaignType === "pmax") {
     return { maximize_conversions: {} };
   }
@@ -216,9 +257,11 @@ function buildBiddingConfig(bidding, campaignType) {
     case "max_clicks":
       return { maximize_clicks: {} };
     case "target_cpa":
-      return { maximize_conversions: { target_cpa_micros: (bidding.target || 15) * 1_000_000 } };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { maximize_conversions: { target_cpa_micros: ((bidding as any).target || 15) * 1_000_000 } };
     case "target_roas":
-      return { maximize_conversion_value: { target_roas: (bidding.target || 300) / 100 } };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { maximize_conversion_value: { target_roas: ((bidding as any).target || 300) / 100 } };
     default:
       return { manual_cpc: { enhanced_cpc_enabled: true } };
   }
@@ -236,7 +279,7 @@ export async function createCampaign({
   bidding = "max_conversions",
   imageUrls = [],
   videoUrls = [],
-}) {
+}: CampaignConfig) {
   const customer = getCustomer();
   const budgetResourceName = await createBudget(customer, productTitle, dailyBudget);
 
@@ -291,8 +334,8 @@ export async function testConnection() {
       `SELECT campaign.id, campaign.name FROM campaign LIMIT 1`
     );
     return { connected: true, campaigns: campaigns.length };
-  } catch (err) {
-    return { connected: false, error: err.message };
+  } catch (err: unknown) {
+    return { connected: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 

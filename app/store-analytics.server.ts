@@ -1,4 +1,4 @@
-// app/store-analytics.server.js
+// app/store-analytics.server.ts
 // ══════════════════════════════════════════════════════════════
 // Store Analytics Engine — Pre-campaign intelligence
 // Pulls real store data to assess campaign readiness
@@ -18,7 +18,8 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // SOURCE 1: Shopify Admin API
 // ─────────────────────────────────────────────────
 
-export async function getShopifyAnalytics(admin, shop) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getShopifyAnalytics(admin: any, shop: string) {
   try {
     // Query 1: Shop info + orders summary (last 30 days)
     const response = await admin.graphql(`{
@@ -52,12 +53,15 @@ export async function getShopifyAnalytics(admin, shop) {
     const data = await response.json();
     const shopInfo = data.data?.shop || {};
     const orderEdges = data.data?.orders?.edges || [];
-    const orders = orderEdges.map(e => e.node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const orders = orderEdges.map((e: any) => e.node);
 
     // Calculate order metrics
     const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.totalPriceSet?.shopMoney?.amount || 0), 0);
-    const totalDiscounts = orders.reduce((sum, o) => sum + parseFloat(o.currentTotalDiscountsSet?.shopMoney?.amount || 0), 0);
+    const totalRevenue = // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.reduce((sum: number, o: any) => sum + parseFloat(o.totalPriceSet?.shopMoney?.amount || 0), 0);
+    const totalDiscounts = // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.reduce((sum: number, o: any) => sum + parseFloat(o.currentTotalDiscountsSet?.shopMoney?.amount || 0), 0);
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const currency = shopInfo.currencyCode || "USD";
 
@@ -66,28 +70,32 @@ export async function getShopifyAnalytics(admin, shop) {
     const ordersPerWeek = ordersPerDay * 7;
 
     // Top selling products from orders
-    const productCounts = {};
-    orders.forEach(o => {
-      (o.lineItems?.edges || []).forEach(li => {
+    const productCounts: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.forEach((o: any) => {
+      (o.lineItems?.edges || []// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ).forEach((li: any) => {
         const title = li.node.title;
         productCounts[title] = (productCounts[title] || 0) + li.node.quantity;
       });
     });
     const topSellingProducts = Object.entries(productCounts)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
       .slice(0, 5)
-      .map(([title, qty]) => ({ title, qty }));
+      .map(([title, qty]: [string, number]) => ({ title, qty }));
 
     // Fulfillment status breakdown
-    const fulfillmentStatus = {};
-    orders.forEach(o => {
+    const fulfillmentStatus: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.forEach((o: any) => {
       const status = o.displayFulfillmentStatus || "UNKNOWN";
       fulfillmentStatus[status] = (fulfillmentStatus[status] || 0) + 1;
     });
 
     // Financial status breakdown
-    const financialStatus = {};
-    orders.forEach(o => {
+    const financialStatus: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.forEach((o: any) => {
       const status = o.displayFinancialStatus || "UNKNOWN";
       financialStatus[status] = (financialStatus[status] || 0) + 1;
     });
@@ -110,7 +118,8 @@ export async function getShopifyAnalytics(admin, shop) {
 
     const prodData = await prodResponse.json();
     const totalProducts = prodData.data?.productsCount?.count || 0;
-    const bestSelling = (prodData.data?.products?.edges || []).map(e => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bestSelling = (prodData.data?.products?.edges || []).map((e: any) => ({
       title: e.node.title,
       inventory: e.node.totalInventory,
       status: e.node.status,
@@ -169,20 +178,20 @@ export async function getShopifyAnalytics(admin, shop) {
       },
       fetchedAt: new Date().toISOString(),
     };
-  } catch (err) {
-    console.error("[StoreAnalytics] Shopify API error:", err.message);
-    return { source: "shopify", error: err.message };
+  } catch (err: unknown) {
+    console.error("[StoreAnalytics] Shopify API error:", err instanceof Error ? err.message : String(err));
+    return { source: "shopify", error: err instanceof Error ? err.message : String(err) };
   }
 }
 
 // Rough estimate: typical Shopify conversion rate is 1-3%
-function estimateSessions(orders) {
+function estimateSessions(orders: number): number {
   if (orders === 0) return 0;
   const estimatedRate = 0.018; // 1.8% average
   return Math.round(orders / estimatedRate);
 }
 
-function thirtyDaysAgo() {
+function thirtyDaysAgo(): string {
   const d = new Date();
   d.setDate(d.getDate() - 30);
   return d.toISOString().slice(0, 10);
@@ -192,7 +201,8 @@ function thirtyDaysAgo() {
 // AI ANALYSIS: Campaign readiness assessment
 // ─────────────────────────────────────────────────
 
-export async function analyzeCampaignReadiness(analyticsData) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function analyzeCampaignReadiness(analyticsData: any) {
   if (!analyticsData || analyticsData.error) {
     return {
       readiness: "unknown",
@@ -219,8 +229,8 @@ ORDERS (Last 30 days):
 
 PRODUCTS:
 - Total products: ${analyticsData.products?.totalProducts || 0}
-- Top selling: ${analyticsData.products?.topSelling?.map(p => `${p.title} (${p.qty} sold)`).join(", ") || "none"}
-- Best selling products inventory: ${analyticsData.products?.bestSelling?.map(p => `${p.title}: ${p.inventory} in stock`).join(", ") || "unknown"}
+- Top selling: ${analyticsData.products?.topSelling?.map((p: any) => `${p.title} (${p.qty} sold)`).join(", ") || "none"}
+- Best selling products inventory: ${analyticsData.products?.bestSelling?.map((p: any) => `${p.title}: ${p.inventory} in stock`).join(", ") || "unknown"}
 
 TRAFFIC (estimated):
 - Est. sessions/month: ${analyticsData.traffic?.sessions30d || 0}
@@ -260,7 +270,7 @@ Respond ONLY with valid JSON.`;
       messages: [{ role: "user", content: prompt }],
     });
 
-    const text = response.content[0]?.text || "";
+    const text = (response.content[0] as { type: string; text: string })?.text || "";
     const cleaned = text.replace(/```json\s*/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleaned);
 
@@ -273,8 +283,8 @@ Respond ONLY with valid JSON.`;
         merchantCenter: false,
       },
     };
-  } catch (err) {
-    console.error("[StoreAnalytics] AI analysis failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[StoreAnalytics] AI analysis failed:", err instanceof Error ? err.message : String(err));
     return {
       readiness_score: 50,
       readiness_level: "unknown",

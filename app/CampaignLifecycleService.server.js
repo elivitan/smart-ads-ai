@@ -27,7 +27,7 @@ import {
   createSearchCampaign,
   createPMaxCampaign,
   getCustomer,
-} from "./google-ads.server.js";
+} from "./google-ads.server";
 import { withRetry } from "./retry.server";
 import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";

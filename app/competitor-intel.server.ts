@@ -4,10 +4,51 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { withRetry } from "./retry.server";
 
+interface SearchResult {
+  position: number;
+  title: string;
+  link: string;
+  domain: string;
+  snippet: string;
+}
+
+interface AdResult {
+  title: string;
+  domain: string;
+  displayed_link: string;
+  description: string;
+}
+
+interface SearchData {
+  organic: SearchResult[];
+  ads: AdResult[];
+}
+
+interface ScrapedData {
+  title: string;
+  metaDescription: string;
+  metaKeywords: string;
+  prices: string[];
+}
+
+interface CompetitorProduct {
+  title: string;
+  price: string | number;
+  description?: string;
+}
+
+interface StoreRanking {
+  found: boolean;
+  position: number | null;
+  status: string;
+  query?: string;
+}
+
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SERP_KEY = process.env.SERPAPI_KEY || "";
 
-async function searchGoogle(query) {
+async function searchGoogle(query: string): Promise<SearchData> {
   if (!SERP_KEY) return { organic: [], ads: [] };
   try {
     const url = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${SERP_KEY}&num=50&hl=en&gl=us`;
@@ -20,7 +61,8 @@ async function searchGoogle(query) {
       { label: "SerpAPI" },
     );
     return {
-      organic: (data.organic_results || []).map((r) => ({
+      organic: (data.organic_results || [])// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => ({
         position: r.position,
         title: r.title,
         link: r.link,
@@ -28,7 +70,8 @@ async function searchGoogle(query) {
           r.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
         snippet: r.snippet || "",
       })),
-      ads: (data.ads || []).map((a) => ({
+      ads: (data.ads || [])// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((a: any) => ({
         title: a.title,
         domain:
           a.displayed_link?.replace(/https?:\/\//, "").split("/")[0] || "",
@@ -36,13 +79,13 @@ async function searchGoogle(query) {
         description: a.description || "",
       })),
     };
-  } catch (err) {
-    console.error("SerpAPI search failed:", err.message);
+  } catch (err: unknown) {
+    console.error("SerpAPI search failed:", err instanceof Error ? err.message : String(err));
     return { organic: [], ads: [] };
   }
 }
 
-async function scrapeCompetitor(url) {
+async function scrapeCompetitor(url: string): Promise<ScrapedData | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -74,8 +117,8 @@ async function scrapeCompetitor(url) {
   }
 }
 
-function checkStoreRanking(organicResults, storeDomain) {
-  if (!storeDomain) return { found: false, position: null, query: "" };
+function checkStoreRanking(organicResults: SearchResult[], storeDomain: string): StoreRanking {
+  if (!storeDomain) return { found: false, position: null, status: "not_found", query: "" };
   const cleanDomain = storeDomain
     .replace(/https?:\/\//, "")
     .replace(/\/$/, "")
@@ -100,18 +143,19 @@ function checkStoreRanking(organicResults, storeDomain) {
   return { found: false, position: null, status: "not_found" };
 }
 
-function extractJSON(text) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractJSON(text: string): any {
   let cleaned = text.trim();
   if (cleaned.startsWith("```"))
     cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   try {
     return JSON.parse(cleaned);
-  } catch(err) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err.message || err); }
+  } catch(err: unknown) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err instanceof Error ? err.message : String(err)); }
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[0]);
-    } catch(err) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err.message || err); }
+    } catch(err: unknown) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err instanceof Error ? err.message : String(err)); }
     let attempt = jsonMatch[0];
     const ob = (attempt.match(/\{/g) || []).length;
     const cb = (attempt.match(/\}/g) || []).length;
@@ -121,11 +165,12 @@ function extractJSON(text) {
     for (let i = 0; i < ob - cb; i++) attempt += "}";
     try {
       return JSON.parse(attempt);
-    } catch(err) { console.error("[SmartAds] competitor-intel.server:i error:", err.message || err); }
+    } catch(err: unknown) { console.error("[SmartAds] competitor-intel.server:i error:", err instanceof Error ? err.message : String(err)); }
   }
   throw new Error("Could not parse JSON from AI response");
 }
-async function analyzeProductWithIntel(product, storeDomain) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function analyzeProductWithIntel(product: CompetitorProduct, storeDomain: string): Promise<any> {
   const searchQuery = `buy ${product.title}`;
   const searchResults = await searchGoogle(searchQuery);
   const ranking = checkStoreRanking(searchResults.organic, storeDomain);
@@ -142,7 +187,7 @@ async function analyzeProductWithIntel(product, storeDomain) {
     competitorUrls.map((c) => scrapeCompetitor(c.link)),
   );
   let competitorContext = "";
-  competitorUrls.forEach((c, i) => {
+  competitorUrls.forEach((c: SearchResult, i: number) => {
     const data = scraped[i];
     competitorContext += `\nCompetitor #${c.position} - ${c.domain}: "${c.title}"`;
     if (data) {
@@ -200,14 +245,15 @@ RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 cha
       }),
     { label: "Claude" },
   );
-  const result = extractJSON(response.content[0].text);
+  const result = extractJSON((response.content[0] as { type: string; text: string }).text);
   if (result.headlines)
-    result.headlines = result.headlines.map((h) => h.slice(0, 30));
-  if (result.long_headlines) result.long_headlines = result.long_headlines.map(h => h.slice(0, 90));
+    result.headlines = result.headlines.map((h: string) => h.slice(0, 30));
+  if (result.long_headlines) result.long_headlines = result.long_headlines.map((h: string) => h.slice(0, 90));
   if (result.descriptions)
-    result.descriptions = result.descriptions.map((d) => d.slice(0, 90));
+    result.descriptions = result.descriptions.map((d: string) => d.slice(0, 90));
   if (result.sitelinks)
-    result.sitelinks.forEach((sl) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result.sitelinks.forEach((sl: any) => {
       sl.title = (sl.title || "").slice(0, 25);
       sl.description = (sl.description || "").slice(0, 35);
     });
@@ -221,15 +267,16 @@ RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 cha
   return result;
 }
 
-export async function analyzeWithCompetitorIntel(products, storeDomain) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function analyzeWithCompetitorIntel(products: CompetitorProduct[], storeDomain: string): Promise<{ products: any[] }> {
   const results = [];
   for (const product of products) {
     try {
       const result = await analyzeProductWithIntel(product, storeDomain);
       results.push(result);
       console.log(`OK: "${product.title}" score: ${result.ad_score}`);
-    } catch (err) {
-      console.error(`FAIL: "${product.title}":`, err.message);
+    } catch (err: unknown) {
+      console.error(`FAIL: "${product.title}":`, err instanceof Error ? err.message : String(err));
       results.push({
         title: product.title,
         ad_score: 65,
@@ -303,7 +350,8 @@ export async function analyzeWithCompetitorIntel(products, storeDomain) {
   return { products: results };
 }
 
-export async function getCompetitorIntel(product, storeDomain) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getCompetitorIntel(product: CompetitorProduct, storeDomain: string): Promise<any> {
   const result = await analyzeProductWithIntel(product, storeDomain);
   return result.competitor_intel || {};
 }

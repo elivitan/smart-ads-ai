@@ -17,7 +17,7 @@
  *   import { launchCampaign, retryCampaign, rollbackCampaign, getCampaignStatus } from "./campaignLifecycle.server.js";
  */
 
-import { createCampaign } from "./google-ads.server.js";
+import { createCampaign } from "./google-ads.server";
 import { withRetry } from "./retry.server";
 import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";
