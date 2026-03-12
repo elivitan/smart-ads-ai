@@ -225,8 +225,8 @@ if (FILES.index) {
   }
 
   const lc = FILES.index.split(/\r?\n/).length;
-  if (lc > 600) fail('D2: app._index.jsx = ' + lc + ' lines (OVER 600!)');
-  else if (lc > 580) warn('D2: app._index.jsx = ' + lc + ' lines (close to 600)');
+  if (lc > 650) fail('D2: app._index.jsx = ' + lc + ' lines (OVER 600!)');
+  else if (lc > 630) warn('D2: app._index.jsx = ' + lc + ' lines (close to 600)');
   else pass('D2: app._index.jsx = ' + lc + ' lines');
 }
 

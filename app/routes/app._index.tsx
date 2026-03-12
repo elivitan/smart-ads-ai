@@ -21,12 +21,21 @@ import { DashboardView } from "../components/DashboardView";
 import useAppStore, { appStore } from "../stores/useAppStore.js";
 import { shallow } from "zustand/shallow";
 import { withDbRetry } from "../utils/db-health";
+import type { LoaderFunctionArgs } from "react-router";
 
 // Error Boundary — prevents widget crashes from killing the whole page
-class WidgetErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(err, info) { console.error(`[WidgetErrorBoundary] ${this.props.label || "widget"} crashed:`, err, info); }
+interface WEBProps {
+  label?: string;
+  children?: React.ReactNode;
+}
+interface WEBState {
+  hasError: boolean;
+  error: Error | null;
+}
+class WidgetErrorBoundary extends React.Component<WEBProps, WEBState> {
+  constructor(props: WEBProps) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(err: Error, info: React.ErrorInfo) { console.error(`[WidgetErrorBoundary] ${this.props.label || "widget"} crashed:`, err, info); }
   render() {
     if (this.state.hasError) {
       return (
@@ -47,7 +56,13 @@ class WidgetErrorBoundary extends React.Component {
 }
 
 // LockedOverlay — MUST be outside Index() to prevent child remount loops
-function LockedOverlay({ isPaid, onUpgrade, title, children }) {
+interface LockedOverlayProps {
+  isPaid: boolean;
+  onUpgrade: () => void;
+  title?: string;
+  children?: React.ReactNode;
+}
+function LockedOverlay({ isPaid, onUpgrade, title, children }: LockedOverlayProps) {
   if (isPaid) return children || null;
   return (
     <div style={{position:"relative"}}>
@@ -62,7 +77,7 @@ function LockedOverlay({ isPaid, onUpgrade, title, children }) {
   );
 }
 
-function getPlanFromCookie(request) {
+function getPlanFromCookie(request: Request): string | null {
   try {
     const cookie = request.headers.get("cookie") || "";
     const match = cookie.match(/sai_plan=([^;]+)/);
@@ -72,7 +87,18 @@ function getPlanFromCookie(request) {
 
 function StyleTag() { return <style dangerouslySetInnerHTML={{__html: CSS}}/>; }
 
-export const loader = async ({ request }) => {
+interface IndexLoaderData {
+  products: Array<Record<string, unknown>>;
+  syncStatus: Record<string, unknown>;
+  shop: string;
+  planFromCookie: string;
+  isPaidServer: boolean;
+  needsInitialSync: boolean;
+  subscription: Record<string, unknown>;
+  userState: Record<string, unknown> | null;
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs): Promise<IndexLoaderData> => {
   try {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -84,8 +110,8 @@ export const loader = async ({ request }) => {
   let subscriptionInfo = null;
   try {
     subscriptionInfo = await getSubscriptionInfo(shop);
-  } catch (e) {
-    console.error("[SmartAds] Failed to load subscription:", e.message);
+  } catch (e: unknown) {
+    console.error("[SmartAds] Failed to load subscription:", e instanceof Error ? e.message : e);
   }
 
   const serverPlan = subscriptionInfo?.plan || planFromCookie || "free";
@@ -95,8 +121,8 @@ export const loader = async ({ request }) => {
   let userState = null;
   try {
     userState = await withDbRetry("index-userstate", () => prisma.userState.findUnique({ where: { shop } }));
-  } catch (e) {
-    console.error("[SmartAds] Failed to load UserState:", e.message);
+  } catch (e: unknown) {
+    console.error("[SmartAds] Failed to load UserState:", e instanceof Error ? e.message : e);
   }
 
   return {
@@ -109,8 +135,8 @@ export const loader = async ({ request }) => {
     subscription: subscriptionInfo || { plan: serverPlan, scanCredits: 0, aiCredits: 0, canPublish: isPaidServer },
     userState,
   };
-  } catch (loaderErr) {
-    console.error("[SmartAds] Loader error:", loaderErr.message);
+  } catch (loaderErr: unknown) {
+    console.error("[SmartAds] Loader error:", loaderErr instanceof Error ? loaderErr.message : loaderErr);
     return {
       products: [],
       syncStatus: { totalProducts: 0 },
@@ -127,7 +153,7 @@ export const loader = async ({ request }) => {
 
 
 export default function Index() {
-  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription, userState } = useLoaderData();
+  const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription, userState } = useLoaderData<IndexLoaderData>();
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
   const loaderHadError = !shopDomain;
 
@@ -184,10 +210,10 @@ export default function Index() {
         if (userState.autoScanMode) u.autoScanMode = userState.autoScanMode;
         if (userState.showDashboard) u.showDashboard = userState.showDashboard;
         if (userState.lastScanProducts) {
-          try { u.products = JSON.parse(userState.lastScanProducts); } catch(err) { console.error("[SmartAds] app._index:unknown error:", err.message || err); }
+          try { u.products = JSON.parse(userState.lastScanProducts); } catch(err: unknown) { console.error("[SmartAds] app._index:unknown error:", err instanceof Error ? err.message : err); }
         }
         if (userState.lastAiResults) {
-          try { u.aiResults = JSON.parse(userState.lastAiResults); } catch(err) { console.error("[SmartAds] app._index:unknown error:", err.message || err); }
+          try { u.aiResults = JSON.parse(userState.lastAiResults); } catch(err: unknown) { console.error("[SmartAds] app._index:unknown error:", err instanceof Error ? err.message : err); }
         }
         if (Object.keys(u).length > 0) appStore.setState(u);
       }
@@ -215,7 +241,7 @@ export default function Index() {
 
   const revalidator = useRevalidator();
 
-  function getProductUrl(product) {
+  function getProductUrl(product: Record<string, unknown>): string {
     const base = storeUrl;
     if (product?.handle) return `${base}/products/${product.handle}`;
     if (product?.title) {
@@ -259,7 +285,7 @@ export default function Index() {
   const creepRef = useRef(null);
 
   // ── SCAN FUNCTION (delegated to store) ──
-  function doScan(mode) {
+  function doScan(mode: string) {
     appStore.getState().doScan(mode, { cancelRef, creepRef, getProductUrl });
   }
 
@@ -279,7 +305,7 @@ export default function Index() {
           const camp = data.campaigns.find(c => String(c.id) === numId || c.resourceName === campaignId);
           if (camp) setRealSpend(parseFloat(camp.cost));
         }
-      } catch(err) { console.error("[SmartAds] app._index:camp error:", err.message || err); }
+      } catch(err: unknown) { console.error("[SmartAds] app._index:camp error:", err instanceof Error ? err.message : err); }
     }
     fetchSpend();
     const iv = setInterval(fetchSpend, 60000);
@@ -448,7 +474,7 @@ export default function Index() {
               const res = await fetch("/app/api/campaign", {method:"POST", body:form});
               const data = await res.json();
               if(data.success) sc++;
-            } catch(err) { console.error("[SmartAds] app._index:data error:", err.message || err); }
+            } catch(err: unknown) { console.error("[SmartAds] app._index:data error:", err instanceof Error ? err.message : err); }
           }
           setAutoLaunching(false); setPickedProducts([]);
           if (sc>0) { setAutoStatus("success"); triggerConfetti(); } else { setAutoStatus("error"); }

@@ -225,7 +225,7 @@ type RouteFiles = {
     id: "routes/app.api.sync";
     page: "/app/api/sync";
   };
-  "routes/app.keywords.jsx": {
+  "routes/app.keywords.tsx": {
     id: "routes/app.keywords";
     page: "/app/keywords";
   };
@@ -233,11 +233,11 @@ type RouteFiles = {
     id: "routes/app.settings";
     page: "/app/settings";
   };
-  "routes/app._index.jsx": {
+  "routes/app._index.tsx": {
     id: "routes/app._index";
     page: "/app";
   };
-  "routes/app.saved.jsx": {
+  "routes/app.saved.tsx": {
     id: "routes/app.saved";
     page: "/app/saved";
   };
@@ -273,8 +273,8 @@ type RouteModules = {
   "routes/app.campaigns": typeof import("./app/routes/app.campaigns.jsx");
   "routes/app.api.scan": typeof import("./app/routes/app.api.scan.ts");
   "routes/app.api.sync": typeof import("./app/routes/app.api.sync.ts");
-  "routes/app.keywords": typeof import("./app/routes/app.keywords.jsx");
+  "routes/app.keywords": typeof import("./app/routes/app.keywords.tsx");
   "routes/app.settings": typeof import("./app/routes/app.settings.tsx");
-  "routes/app._index": typeof import("./app/routes/app._index.jsx");
-  "routes/app.saved": typeof import("./app/routes/app.saved.jsx");
+  "routes/app._index": typeof import("./app/routes/app._index.tsx");
+  "routes/app.saved": typeof import("./app/routes/app.saved.tsx");
 };

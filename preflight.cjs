@@ -281,40 +281,54 @@ if (fs.existsSync(tomlPath)) {
   warn("shopify.app.v.toml not found (not in ZIP)");
 }
 
-// ─── CHECK 10: Syntax check with Acorn ───
+// ─── CHECK 10: Syntax check with Acorn (JSX only — Acorn can't parse TypeScript) ───
 console.log("\n🔧 SYNTAX CHECK:");
-try {
-  // Try to use acorn if available
-
-  const acorn = require("acorn");
-  const jsx = require("acorn-jsx");
-  acorn.Parser.extend(jsx()).parse(code, { sourceType: "module", ecmaVersion: 2022 });
-  pass("Acorn syntax check passed");
-} catch (acornErr) {
-  if (acornErr.code === "MODULE_NOT_FOUND") {
-    // Acorn not installed — try basic brace check
-    let braceCount = 0, parenCount = 0, bracketCount = 0;
-    for (const char of code) {
-      if (char === "{") braceCount++;
-      else if (char === "}") braceCount--;
-      else if (char === "(") parenCount++;
-      else if (char === ")") parenCount--;
-      else if (char === "[") bracketCount++;
-      else if (char === "]") bracketCount--;
+if (INDEX_FILE.endsWith(".tsx") || INDEX_FILE.endsWith(".ts")) {
+  // TSX/TS: Acorn can't parse TypeScript — use balance check instead
+  let braceCount = 0, parenCount = 0, bracketCount = 0;
+  for (const char of code) {
+    if (char === "{") braceCount++;
+    else if (char === "}") braceCount--;
+    else if (char === "(") parenCount++;
+    else if (char === ")") parenCount--;
+    else if (char === "[") bracketCount++;
+    else if (char === "]") bracketCount--;
+  }
+  const balanceOk = braceCount === 0 && parenCount === 0 && bracketCount === 0;
+  if (balanceOk) pass("TypeScript balance check passed (braces/parens/brackets all balanced)");
+  else {
+    if (braceCount !== 0) fail(`Brace imbalance: ${braceCount > 0 ? braceCount + " unclosed {" : Math.abs(braceCount) + " extra }"}`);
+    if (parenCount !== 0) fail(`Paren imbalance: ${parenCount > 0 ? parenCount + " unclosed (" : Math.abs(parenCount) + " extra )"}`);
+    if (bracketCount !== 0) fail(`Bracket imbalance: ${bracketCount > 0 ? bracketCount + " unclosed [" : Math.abs(bracketCount) + " extra ]"}`);
+  }
+} else {
+  try {
+    // JSX: Use acorn for full AST validation
+    const acorn = require("acorn");
+    const jsx = require("acorn-jsx");
+    acorn.Parser.extend(jsx()).parse(code, { sourceType: "module", ecmaVersion: 2022 });
+    pass("Acorn syntax check passed");
+  } catch (acornErr) {
+    if (acornErr.code === "MODULE_NOT_FOUND") {
+      let braceCount = 0, parenCount = 0, bracketCount = 0;
+      for (const char of code) {
+        if (char === "{") braceCount++;
+        else if (char === "}") braceCount--;
+        else if (char === "(") parenCount++;
+        else if (char === ")") parenCount--;
+        else if (char === "[") bracketCount++;
+        else if (char === "]") bracketCount--;
+      }
+      if (braceCount === 0) pass("Brace balance: OK (0)");
+      else fail(`Brace imbalance: ${braceCount > 0 ? braceCount + " unclosed {" : Math.abs(braceCount) + " extra }"}`);
+      if (parenCount === 0) pass("Paren balance: OK (0)");
+      else fail(`Paren imbalance: ${parenCount > 0 ? parenCount + " unclosed (" : Math.abs(parenCount) + " extra )"}`);
+      if (bracketCount === 0) pass("Bracket balance: OK (0)");
+      else fail(`Bracket imbalance: ${bracketCount > 0 ? bracketCount + " unclosed [" : Math.abs(bracketCount) + " extra ]"}`);
+      warn("Acorn not installed — used basic brace check");
+    } else {
+      fail(`Syntax error: ${acornErr.message}`);
     }
-    
-    if (braceCount === 0) pass("Brace balance: OK (0)");
-    else fail(`Brace imbalance: ${braceCount > 0 ? braceCount + " unclosed {" : Math.abs(braceCount) + " extra }"}`);
-    
-    if (parenCount === 0) pass("Paren balance: OK (0)");
-    else fail(`Paren imbalance: ${parenCount > 0 ? parenCount + " unclosed (" : Math.abs(parenCount) + " extra )"}`);
-    
-    if (bracketCount === 0) pass("Bracket balance: OK (0)");
-    else fail(`Bracket imbalance: ${bracketCount > 0 ? bracketCount + " unclosed [" : Math.abs(bracketCount) + " extra ]"}`);
-    
-    warn("Acorn not installed — used basic brace check. Run 'npm install -g acorn' for full syntax check");
-  } else {
-    fail(`Syntax error: ${acornErr.message}`);
   }
 }
 
