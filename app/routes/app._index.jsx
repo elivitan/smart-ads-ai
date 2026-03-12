@@ -127,6 +127,7 @@ export const loader = async ({ request }) => {
 export default function Index() {
   const { products: dbProducts, planFromCookie, isPaidServer, shop: shopDomain, needsInitialSync, subscription: serverSubscription, userState } = useLoaderData();
   const storeUrl = shopDomain ? `https://${shopDomain}` : "https://your-store.myshopify.com";
+  const loaderHadError = !shopDomain;
 
   // ── Zustand Store ──
   const store = useAppStore();
@@ -315,7 +316,17 @@ export default function Index() {
   }, [analyzedDbProducts, avgScore]);
 
   // ── ERROR / LOADING SCREENS ──
-  if (scanError) return (
+  // Show error banner if loader failed
+  if (loaderHadError) return (
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0a0a1a",color:"#fff",fontFamily:"system-ui,sans-serif",padding:40,textAlign:"center"}}>
+      <div style={{fontSize:64,marginBottom:20}}>??</div>
+      <h2 style={{fontSize:22,fontWeight:700,marginBottom:12}}>Connection Issue</h2>
+      <p style={{fontSize:14,color:"rgba(255,255,255,0.6)",marginBottom:24,maxWidth:400}}>We could not connect to your Shopify store. This is usually temporary � please try reloading.</p>
+      <button onClick={function(){window.location.reload()}} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer"}}>Reload Page</button>
+    </div>
+  );
+
+    if (scanError) return (
     <div className="sr dk"><StyleTag/>
       <div className="ld-wrap">
         <div style={{fontSize:64,marginBottom:20}}>⚠️</div>
@@ -551,6 +562,21 @@ export default function Index() {
         </section>
       </div>
       <GlobalModals navigate={navigate}/>
+    </div>
+  );
+}
+
+// Route-level ErrorBoundary � catches loader crashes, render errors, etc.
+export function ErrorBoundary() {
+  return (
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0a0a1a",color:"#fff",fontFamily:"system-ui,sans-serif",padding:40,textAlign:"center"}}>
+      <div style={{fontSize:64,marginBottom:20}}>??</div>
+      <h1 style={{fontSize:24,fontWeight:700,marginBottom:12}}>Something went wrong</h1>
+      <p style={{fontSize:14,color:"rgba(255,255,255,0.6)",marginBottom:24,maxWidth:400}}>Smart Ads AI encountered an error loading this page. This is usually temporary.</p>
+      <div style={{display:"flex",gap:12}}>
+        <button onClick={function(){window.location.reload()}} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer"}}>Reload Page</button>
+        <a href="/app" style={{background:"rgba(255,255,255,0.1)",color:"#fff",border:"1px solid rgba(255,255,255,0.2)",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none"}}>Go Home</a>
+      </div>
     </div>
   );
 }
