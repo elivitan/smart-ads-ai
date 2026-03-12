@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
-import { ScoreRing } from "./ui/SmallWidgets.jsx";
+﻿import React, { useEffect } from "react";
+import { ScoreRing } from "./ui/SmallWidgets";
 
-// ══════════════════════════════════════════════
-// ProductModal.tsx — Product detail & AI ad preview modal
-// ══════════════════════════════════════════════
+// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ProductModal.tsx ג€” Product detail & AI ad preview modal
+// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
 
 function ModalScrollLock(): null {
   useEffect(() => {
@@ -13,7 +13,7 @@ function ModalScrollLock(): null {
   return null;
 }
 
-// ── Types ──
+// ג”€ג”€ Types ג”€ג”€
 
 interface Keyword {
   text: string;
@@ -115,7 +115,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
     <div className="modal-overlay" onClick={onClose}>
       <ModalScrollLock />
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
+        <button className="modal-close" onClick={onClose}>ג•</button>
 
         {/* Header */}
         <div className="modal-header">
@@ -137,8 +137,8 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
           </div>
           <span className="rsa-strength-txt" style={{ color: strengthColor[adStrength] }}>{adStrength}</span>
           <span className="rsa-strength-info">
-            {headlines.length} headlines · {descriptions.length} descriptions
-            {longHeadlines.length > 0 ? ` · ${longHeadlines.length} long headlines` : ""}
+            {headlines.length} headlines ֲ· {descriptions.length} descriptions
+            {longHeadlines.length > 0 ? ` ֲ· ${longHeadlines.length} long headlines` : ""}
           </span>
         </div>
 
@@ -162,10 +162,10 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
 
         {/* Google Ad Preview */}
         <div className="rsa-preview">
-          <div className="rsa-preview-label">📱 Google Ad Preview</div>
+          <div className="rsa-preview-label">נ“± Google Ad Preview</div>
           <div className="rsa-preview-ad">
             <div className="rsa-preview-sponsor">Sponsored</div>
-            <div className="rsa-preview-url">{storeUrl} › {path1}{path2 ? " › " + path2 : ""}</div>
+            <div className="rsa-preview-url">{storeUrl} ג€÷ {path1}{path2 ? " ג€÷ " + path2 : ""}</div>
             <div className="rsa-preview-h">{headlines[0] || "Headline 1"} | {headlines[1] || "Headline 2"} | {headlines[2] || "Headline 3"}</div>
             <div className="rsa-preview-d">{descriptions[0] || "Description will appear here."}</div>
           </div>
@@ -221,7 +221,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
 
           {/* Keywords */}
           <div className="rsa-section">
-            <h3>🔑 Keywords ({keywords.length})</h3>
+            <h3>נ”‘ Keywords ({keywords.length})</h3>
             <div className="rsa-kw-grid">
               {keywords.map((k, i) => {
                 const mt = k.match_type || "BROAD";
@@ -237,7 +237,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
             </div>
             {negKw.length > 0 && (
               <div className="rsa-neg-kw">
-                <strong>🚫 Negative Keywords:</strong>
+                <strong>נ« Negative Keywords:</strong>
                 <div className="rsa-kw-grid" style={{ marginTop: 6 }}>
                   {negKw.map((k, i) => (
                     <div key={i} className="rsa-kw kw-neg">-{k}</div>
@@ -250,7 +250,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
           {/* Sitelinks */}
           {sitelinks.length > 0 && (
             <div className="rsa-section">
-              <h3>🔗 Sitelinks</h3>
+              <h3>נ”— Sitelinks</h3>
               <div className="rsa-sitelinks">
                 {sitelinks.map((sl, i) => (
                   <div key={i} className="rsa-sitelink">
@@ -265,7 +265,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
           {/* Competitor Intelligence */}
           {cIntel && (
             <div className="rsa-section ci-section">
-              <h3>🕵️ Competitor Intelligence</h3>
+              <h3>נ•µן¸ Competitor Intelligence</h3>
               {cIntel.strategy_reason && <p className="ci-reason">{cIntel.strategy_reason}</p>}
               {(cIntel.top_competitors?.length ?? 0) > 0 && (
                 <div className="ci-competitors">
@@ -288,7 +288,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
               )}
               {(cIntel.keyword_gaps?.length ?? 0) > 0 && (
                 <div className="ci-gaps">
-                  <strong>💡 Keyword Opportunities:</strong>
+                  <strong>נ’¡ Keyword Opportunities:</strong>
                   <div className="rsa-kw-grid" style={{ marginTop: 6 }}>
                     {cIntel.keyword_gaps!.map((k, i) => (
                       <div key={i} className="rsa-kw kw-gap">+{k}</div>
@@ -298,7 +298,7 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
               )}
               {(cIntel.competitive_advantages?.length ?? 0) > 0 && (
                 <div className="ci-advantages">
-                  <strong>✅ Your Advantages:</strong>
+                  <strong>ג… Your Advantages:</strong>
                   <ul className="ci-adv-list">
                     {cIntel.competitive_advantages!.map((a, i) => (
                       <li key={i}>{a}</li>
@@ -318,12 +318,13 @@ export function ProductModal({ product, onClose, aiResults, shop }: ProductModal
             </div>
           )}
 
-          {/* CTA: Go to Campaigns — using <a> with target for external nav */}
+          {/* CTA: Go to Campaigns ג€” using <a> with target for external nav */}
           <a href="/app/campaigns" className="btn-campaign" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 8 }}>
-            📋 Go to Campaigns →
+            נ“‹ Go to Campaigns ג†’
           </a>
         </div>
       </div>
     </div>
   );
 }
+

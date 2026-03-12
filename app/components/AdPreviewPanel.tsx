@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { ScoreRing } from "./SmallWidgets";
+import { ScoreRing } from "./ui/SmallWidgets";
 
 interface AiAnalysis {
   headlines?: (string | { text?: string })[];
