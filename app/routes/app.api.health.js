@@ -115,11 +115,11 @@ export const loader = async ({ request }) => {
 
   // ── 9. Queue status ──
   try {
-    const { getQueueStats } = await import("../utils/queue.js");
-    if (typeof getQueueStats === "function") {
-      results.checks.queue = await getQueueStats();
+    const { getQueueHealth } = await import("../utils/queue.js");
+    if (typeof getQueueHealth === "function") {
+      results.checks.queue = await getQueueHealth();
     } else {
-      results.checks.queue = { status: "no_stats_fn", note: "getQueueStats not exported" };
+      results.checks.queue = { status: "no_stats_fn", note: "getQueueHealth not exported" };
     }
   } catch (error) {
     results.checks.queue = { status: "not_available", note: error.message };
@@ -137,3 +137,4 @@ export const loader = async ({ request }) => {
     headers: { "Cache-Control": "no-cache, no-store" },
   });
 };
+
