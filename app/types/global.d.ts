@@ -93,14 +93,7 @@ declare module "*/useAppStore.js" {
   export default useAppStore;
 }
 
-declare module "*/SmallComponents.jsx" {
-  import React from "react";
-  export const Confetti: React.FC<{ active: boolean }>;
+>;
   export const TipRotator: React.FC;
 }
 
-declare module "*/Modals.jsx" {
-  import React from "react";
-  export const OnboardModal: React.FC<Record<string, any>>;
-  export const BuyCreditsModal: React.FC<Record<string, any>>;
-}

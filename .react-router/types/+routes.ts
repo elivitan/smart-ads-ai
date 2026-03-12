@@ -35,6 +35,9 @@ type Pages = {
   "/api/credits": {
     params: {};
   };
+  "/api/health": {
+    params: {};
+  };
   "/auth/login": {
     params: {};
   };
@@ -105,7 +108,7 @@ type Pages = {
 type RouteFiles = {
   "root.jsx": {
     id: "root";
-    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/api/health" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/webhooks.app.scopes_update.jsx": {
     id: "routes/webhooks.app.scopes_update";
@@ -134,6 +137,10 @@ type RouteFiles = {
   "routes/api.credits.jsx": {
     id: "routes/api.credits";
     page: "/api/credits";
+  };
+  "routes/api.health.js": {
+    id: "routes/api.health";
+    page: "/api/health";
   };
   "routes/auth.login/route.jsx": {
     id: "routes/auth.login";
@@ -238,6 +245,7 @@ type RouteModules = {
   "routes/styles.index": typeof import("./app/routes/styles.index.js");
   "routes/api.analyze": typeof import("./app/routes/api.analyze.js");
   "routes/api.credits": typeof import("./app/routes/api.credits.jsx");
+  "routes/api.health": typeof import("./app/routes/api.health.js");
   "routes/auth.login": typeof import("./app/routes/auth.login/route.jsx");
   "routes/auth.$": typeof import("./app/routes/auth.$.jsx");
   "routes/_index": typeof import("./app/routes/_index/route.jsx");

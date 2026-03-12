@@ -21,7 +21,7 @@ const fileList = [
   ['subscriber', 'app/components/SubscriberHome.jsx'],
   ['wizard',     'app/components/campaigns/CampaignWizard.jsx'],
   ['styles',     'app/routes/styles.index.js'],
-  ['modals',     'app/components/Modals.jsx'],
+  ['modals',     'app/components/Modals.tsx'],
 ];
 
 console.log('\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
@@ -212,8 +212,8 @@ if (FILES.index) {
   }
 
   const lc = FILES.index.split(/\r?\n/).length;
-  if (lc > 1300) fail('D2: app._index.jsx = ' + lc + ' lines (OVER 1300!)');
-  else if (lc > 1280) warn('D2: app._index.jsx = ' + lc + ' lines (close to 1300)');
+  if (lc > 600) fail('D2: app._index.jsx = ' + lc + ' lines (OVER 600!)');
+  else if (lc > 580) warn('D2: app._index.jsx = ' + lc + ' lines (close to 600)');
   else pass('D2: app._index.jsx = ' + lc + ' lines');
 }
 

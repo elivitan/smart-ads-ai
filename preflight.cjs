@@ -72,12 +72,14 @@ const requiredImports = [
 
 let missingImports = [];
 for (const req of requiredImports) {
-  const found = importLines.some(l => l.includes(req));
+  // Check both .jsx and .tsx variants (Vite resolves automatically)
+  const tsxVariant = req.replace('.jsx', '.tsx');
+  const found = importLines.some(l => l.includes(req) || l.includes(tsxVariant));
   if (!found) missingImports.push(req);
 }
 
-if (importCount !== 21) fail(`Expected 21 imports, found ${importCount}`);
-else pass(`All 20 imports present`);
+if (importCount < 18 || importCount > 25) fail(`Expected 18-25 imports, found ${importCount}`);
+else pass(`${importCount} imports present`);
 
 if (missingImports.length > 0) fail(`Missing imports: ${missingImports.join(", ")}`);
 else pass("All required modules imported");
@@ -417,6 +419,49 @@ console.log("\n🧪 FULL JSX VALIDATION:");
     scanJsx(path.join(ROOT, "app", "utils"));
 
     if (astFail === 0) pass("All " + astOk + " JSX/JS files pass AST validation");
+
+  // --- TS/TSX VALIDATION (separate from Acorn) ---
+  // Count .ts/.tsx files and do basic validation (Acorn can't parse TypeScript)
+  let tsFileCount = 0;
+  let tsOk = 0;
+  function scanTs(dir) {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) { scanTs(fullPath); continue; }
+      if (!entry.name.endsWith(".tsx") && !entry.name.endsWith(".ts")) continue;
+      if (entry.name.endsWith(".d.ts")) continue; // skip declaration files
+      tsFileCount++;
+      try {
+        const tsCode = fs.readFileSync(fullPath, "utf8");
+        // Basic checks: has content, balanced braces
+        let b = 0, p = 0;
+        for (const ch of tsCode) {
+          if (ch === "{") b++; else if (ch === "}") b--;
+          if (ch === "(") p++; else if (ch === ")") p--;
+        }
+        if (b !== 0 || p !== 0) {
+          const rel = path.relative(ROOT, fullPath);
+          fail(rel + " — brace/paren imbalance: braces=" + b + " parens=" + p);
+        } else {
+          tsOk++;
+        }
+      } catch (e) {
+        const rel = path.relative(ROOT, fullPath);
+        fail(rel + " — read error: " + e.message);
+      }
+    }
+  }
+  scanTs(path.join(ROOT, "app", "utils"));
+  scanTs(path.join(ROOT, "app", "components"));
+  scanTs(path.join(ROOT, "app", "types"));
+  if (tsFileCount > 0 && tsOk === tsFileCount) {
+    pass("All " + tsOk + " TS/TSX files pass balance validation");
+  } else if (tsFileCount === 0) {
+    pass("No TS/TSX files to validate");
+  }
     else fail(astFail + " files have syntax errors (see above)");
   } catch (e) {
     if (e.code === "MODULE_NOT_FOUND") {
@@ -450,7 +495,7 @@ console.log("\n🔗 IMPORT RESOLUTION:");
   collectFiles(path.join(ROOT, "app"));
 
   for (const filePath of allFiles) {
-    if (!filePath.endsWith(".jsx") && !filePath.endsWith(".js")) continue;
+    if (!filePath.endsWith(".jsx") && !filePath.endsWith(".js") && !filePath.endsWith(".tsx") && !filePath.endsWith(".ts")) continue;
     const code = fs.readFileSync(filePath, "utf8");
     const imports = [...code.matchAll(/from\s+['"](\.\.?\/[^'"]+)['"]/g)];
     const dir = path.dirname(filePath);

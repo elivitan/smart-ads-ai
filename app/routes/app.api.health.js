@@ -5,9 +5,9 @@
 // Used by: Pingdom, UptimeRobot, internal monitoring
 // ════════════════════════════════════════════
 import prisma from "../db.server.js";
-import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter.js";
-import { logger } from "../utils/logger.js";
-import { getCircuitStatus } from "../utils/retry.js";
+import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter.ts";
+import { logger } from "../utils/logger.ts";
+import { getCircuitStatus } from "../utils/retry.ts";
 
 const START_TIME = Date.now();
 const APP_VERSION = "1.0.0-beta";
