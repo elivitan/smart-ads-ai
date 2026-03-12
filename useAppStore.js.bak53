@@ -2,22 +2,7 @@
 // Phase 2: replaces 39 useState hooks in app._index.jsx
 // NOTE: Uses createStore (vanilla) + useStore (react) to avoid SSR issues
 import { createStore } from "zustand/vanilla";
-import React from "react";
-
-// Custom useStore that uses getState() for BOTH client and server snapshots.
-// Zustand's default useStore uses getInitialState() for server snapshot,
-// which causes infinite loop when state is mutated during hydration.
-function useStore(api, selector = (s) => s, equalityFn) {
-  const getSnapshot = React.useCallback(() => selector(api.getState()), [api, selector]);
-  // CRITICAL: Use getState() (not getInitialState()) for server snapshot too
-  const getServerSnapshot = getSnapshot;
-  const slice = React.useSyncExternalStore(
-    api.subscribe,
-    getSnapshot,
-    getServerSnapshot
-  );
-  return slice;
-}
+import { useStore } from "zustand/react";
 
 const appStore = createStore((set, get) => ({
 
@@ -420,11 +405,13 @@ const appStore = createStore((set, get) => ({
   },
 }));
 
-const identitySelector = (s) => s;
-
+// React hook wrapper — only uses React when called inside a component
+// Accepts optional equalityFn (e.g. shallow) for multi-field selectors
 export default function useAppStore(selector, equalityFn) {
-  const sel = selector || identitySelector;
-  return useStore(appStore, sel, equalityFn);
+  if (equalityFn) {
+    return useStore(appStore, selector || ((s) => s), equalityFn);
+  }
+  return useStore(appStore, selector || ((s) => s));
 }
 
 // Export vanilla store for direct setState (e.g. init from DB)

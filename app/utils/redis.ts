@@ -86,6 +86,60 @@ export const cache: CacheHelper = {
   },
 };
 
+/**
+ * Stale-While-Revalidate cache pattern.
+ * Returns cached data immediately (even if stale), then refreshes in background.
+ * - staleMultiplier: how many times the TTL before data is considered too old (default 2x)
+ * - If cache miss: calls fetchFn, caches result, returns it
+ * - If cache hit but stale: returns cached data, refreshes in background
+ * - If cache hit and fresh: returns cached data
+ */
+export async function cacheWithSWR<T>(
+  key: string,
+  fetchFn: () => Promise<T>,
+  ttlSeconds: number = 3600,
+  staleMultiplier: number = 2
+): Promise<T> {
+  const redis = getRedis();
+  if (!redis) return fetchFn();
+
+  try {
+    const raw = await redis.get(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { data: T; cachedAt: number };
+      const ageSeconds = (Date.now() - parsed.cachedAt) / 1000;
+      const isStale = ageSeconds > ttlSeconds;
+      const isTooOld = ageSeconds > ttlSeconds * staleMultiplier;
+
+      if (!isTooOld) {
+        // Return cached data
+        if (isStale) {
+          // Background refresh (fire and forget)
+          fetchFn().then(freshData => {
+            const wrapped = JSON.stringify({ data: freshData, cachedAt: Date.now() });
+            redis.setex(key, ttlSeconds * staleMultiplier, wrapped).catch(() => {});
+          }).catch(err => {
+            logger.warn("[SWR]", `Background refresh failed for ${key}: ${(err as Error).message}`);
+          });
+        }
+        return parsed.data;
+      }
+    }
+  } catch (e) {
+    logger.warn("[SWR]", `Cache read failed for ${key}: ${(e as Error).message}`);
+  }
+
+  // Cache miss or too old — fetch fresh
+  const freshData = await fetchFn();
+  try {
+    const wrapped = JSON.stringify({ data: freshData, cachedAt: Date.now() });
+    await redis.setex(key, ttlSeconds * staleMultiplier, wrapped);
+  } catch (e) {
+    logger.warn("[SWR]", `Cache write failed for ${key}: ${(e as Error).message}`);
+  }
+  return freshData;
+}
+
 // TTL constants (seconds)
 export const TTL = {
   SCAN_RESULT: 24 * 3600,      // 24h — competitor data

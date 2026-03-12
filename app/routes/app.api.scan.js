@@ -11,6 +11,8 @@ import crypto from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger";
 import { rateLimit, rateLimitResponse } from "../utils/rate-limiter";
+import { withDbRetry } from "../utils/db-health";
+import { cache, TTL } from "../utils/redis";
 import { addScanJob } from "../utils/queue";
 
 // Zod schemas
@@ -41,7 +43,7 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
     const hash = productHash(sourceProduct);
 
     try {
-      await prisma.aiAnalysis.upsert({
+      await withDbRetry(`scan-save-ai-${productId}`, () => prisma.aiAnalysis.upsert({
         where: { productId },
         create: {
           productId,
@@ -78,7 +80,7 @@ async function saveAiResultsToDB(shop, products, aiProducts) {
           analyzedAt: new Date(),
           productHash: hash,
         },
-      });
+      }));
       saved++;
     } catch (err) {
       logger.error("scan.saveDB", `Failed to save AI analysis for ${productId}`, { error: err.message });
@@ -140,11 +142,11 @@ export const action = async ({ request }) => {
       // Save products to DB so AiAnalysis foreign key works
       for (const p of products) {
         try {
-          await prisma.product.upsert({
+          await withDbRetry(`scan-save-product-${p.id}`, () => prisma.product.upsert({
             where: { id: p.id },
             create: { id: p.id, shop, title: p.title, description: p.description, handle: p.handle, image: p.image, price: p.price },
             update: { title: p.title, description: p.description, handle: p.handle, image: p.image, price: p.price, syncedAt: new Date() },
-          });
+          }));
         } catch (err) { logger.warn("scan.fetch", "Failed to save product", { extra: { id: p.id, error: err.message } }); }
       }
       logger.info("scan.fetch", "Saved products to DB", { shop, extra: { count: products.length } });
@@ -175,12 +177,23 @@ export const action = async ({ request }) => {
         return Response.json({ success: true, queued: true, jobId: queueResult.jobId, message: "Scan queued for background processing" });
       }
       // Fallback: run synchronously
+      // Cache check: use product IDs + storeDomain as cache key
+      const cacheKey = `scan:${shop}:${products.map(p => p.id).sort().join(",")}`;
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        logger.info("scan.cache", "Returning cached scan results", { shop });
+        return Response.json({ success: true, result: cached, savedToDb: 0, fromCache: true });
+      }
+
       const result = await analyzeBatch(products, storeDomain);
 
       // SAVE TO DATABASE
       const aiProducts = result?.products || [];
       const savedCount = await saveAiResultsToDB(shop, products, aiProducts);
       logger.info("scan.analyze-batch", "AI analyses saved to DB", { shop, extra: { saved: savedCount, total: aiProducts.length } });
+
+      // Save to cache for future requests
+      await cache.set(cacheKey, result, TTL.AI_ANALYSIS);
 
       // DEDUCT CREDIT after successful scan
       await useScanCredit(shop);

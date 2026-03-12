@@ -37,21 +37,17 @@ interface SubscriberHomeProps {
 // ── Helpers ──
 
 function AnimNum({ end, pre = "", suf = "" }) {
-  const [v, setV] = useState(end);
-  const prevEnd = React.useRef(end);
+  const [v, setV] = useState(0);
   const hasAnimated = React.useRef(false);
   useEffect(() => {
-    // Skip if end hasn't changed and we already animated
-    if (prevEnd.current === end && hasAnimated.current) return;
-    prevEnd.current = end;
-    if (end === 0) { setV(0); hasAnimated.current = true; return; }
+    if (end === 0) { setV(0); return; }
     if (hasAnimated.current) { setV(end); return; }
     hasAnimated.current = true;
-    let frame: number;
+    let frame;
     const duration = 1000;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
+    const start = performance.now();
+    const animate = (now) => {
+      const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
       setV(progress * end);
       if (progress < 1) frame = requestAnimationFrame(animate);
