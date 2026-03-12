@@ -169,11 +169,11 @@ type RouteFiles = {
     id: "routes/app.api.campaign-status";
     page: "/app/api/campaign-status";
   };
-  "routes/app.api.store-analytics.js": {
+  "routes/app.api.store-analytics.ts": {
     id: "routes/app.api.store-analytics";
     page: "/app/api/store-analytics";
   };
-  "routes/app.api.market-intel.js": {
+  "routes/app.api.market-intel.ts": {
     id: "routes/app.api.market-intel";
     page: "/app/api/market-intel";
   };
@@ -185,7 +185,7 @@ type RouteFiles = {
     id: "routes/app.api.ai-improve";
     page: "/app/api/ai-improve";
   };
-  "routes/app.api.job-status.js": {
+  "routes/app.api.job-status.ts": {
     id: "routes/app.api.job-status";
     page: "/app/api/job-status";
   };
@@ -197,7 +197,7 @@ type RouteFiles = {
     id: "routes/app.api.campaign";
     page: "/app/api/campaign";
   };
-  "routes/app.api.keywords.js": {
+  "routes/app.api.keywords.ts": {
     id: "routes/app.api.keywords";
     page: "/app/api/keywords";
   };
@@ -259,14 +259,14 @@ type RouteModules = {
   "routes/app": typeof import("./app/routes/app.jsx");
   "routes/app.api.campaign-manage": typeof import("./app/routes/app.api.campaign-manage.js");
   "routes/app.api.campaign-status": typeof import("./app/routes/app.api.campaign-status.js");
-  "routes/app.api.store-analytics": typeof import("./app/routes/app.api.store-analytics.js");
-  "routes/app.api.market-intel": typeof import("./app/routes/app.api.market-intel.js");
+  "routes/app.api.store-analytics": typeof import("./app/routes/app.api.store-analytics.ts");
+  "routes/app.api.market-intel": typeof import("./app/routes/app.api.market-intel.ts");
   "routes/app.api.subscription": typeof import("./app/routes/app.api.subscription.js");
   "routes/app.api.ai-improve": typeof import("./app/routes/app.api.ai-improve.js");
-  "routes/app.api.job-status": typeof import("./app/routes/app.api.job-status.js");
+  "routes/app.api.job-status": typeof import("./app/routes/app.api.job-status.ts");
   "routes/app.api.ai-engine": typeof import("./app/routes/app.api.ai-engine.js");
   "routes/app.api.campaign": typeof import("./app/routes/app.api.campaign.js");
-  "routes/app.api.keywords": typeof import("./app/routes/app.api.keywords.js");
+  "routes/app.api.keywords": typeof import("./app/routes/app.api.keywords.ts");
   "routes/app.additional": typeof import("./app/routes/app.additional.jsx");
   "routes/app.api.health": typeof import("./app/routes/app.api.health.js");
   "routes/app.api.state": typeof import("./app/routes/app.api.state.js");
