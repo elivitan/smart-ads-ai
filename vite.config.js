@@ -1,6 +1,7 @@
 import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
 // Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the Vite server.
@@ -48,8 +49,27 @@ export default defineConfig({
       allow: ["app", "node_modules"],
     },
   },
-  plugins: [reactRouter(), tsconfigPaths()],
+  plugins: [
+    reactRouter(),
+    tsconfigPaths(),
+    // Sentry source maps — uploads on production build, skipped in dev
+    sentryVitePlugin({
+      org: "vitan-yazamut",
+      project: "javascript-react-router",
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: {
+        filesToDeleteAfterUpload: [
+          "./build/**/client/**/*.map",
+        ],
+      },
+      // Don't fail the build if upload fails
+      errorHandler: (err) => {
+        console.warn("[Sentry] Source map upload warning:", err.message);
+      },
+    }),
+  ],
   build: {
+    sourcemap: "hidden",
     assetsInlineLimit: 0,
   },
   optimizeDeps: {
