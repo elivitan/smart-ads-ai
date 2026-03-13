@@ -39,7 +39,7 @@ export const CAMPAIGN_STATES = {
 };
 
 // ── Idempotency key generator ────────────────────────────────────────────
-function generateIdempotencyKey(shop, payload) {
+function generateIdempotencyKey(shop: any, payload: any) {
   const raw = `${shop}|${payload.productTitle}|${payload.campaignType}|${Date.now()}`;
   return `idem_${Buffer.from(raw).toString("base64").slice(0, 32)}`;
 }
@@ -48,8 +48,8 @@ function generateIdempotencyKey(shop, payload) {
  * Validate payload before sending to Google.
  * @returns {{ valid: boolean, errors: string[] }}
  */
-function validatePayload(payload) {
-  const errors = [];
+function validatePayload(payload: any) {
+  const errors: any[] = [];
 
   if (!payload.productTitle || payload.productTitle.trim().length === 0) {
     errors.push("Product title is required");
@@ -68,7 +68,7 @@ function validatePayload(payload) {
   if (headlines.length < 3) {
     errors.push("At least 3 headlines required");
   }
-  const tooLong = headlines.filter((h) => h.length > 30);
+  const tooLong = headlines.filter((h: any) => h.length > 30);
   if (tooLong.length > 0) {
     errors.push(`${tooLong.length} headline(s) exceed 30 chars`);
   }
@@ -88,10 +88,10 @@ function validatePayload(payload) {
  * @param {object} payload - Campaign creation payload from Wizard
  * @returns {object} { success, launchId, campaignId, state, steps }
  */
-export async function launchCampaign(shop, payload) {
+export async function launchCampaign(shop: any, payload: any) {
   const launchId = `launch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const idempotencyKey = generateIdempotencyKey(shop, payload);
-  const steps = [];
+  const steps: any[] = [];
 
   // ── Check idempotency (prevent duplicate launches) ─────────────────
   let launchRecord;
@@ -123,16 +123,16 @@ export async function launchCampaign(shop, payload) {
         attempts: 1,
       },
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(
       "[SmartAds] CampaignJob table not available, proceeding without lifecycle tracking:",
-      err.message,
+      (err as Error).message,
     );
     launchRecord = null;
   }
 
   // ── State update helper ────────────────────────────────────────────
-  async function updateState(state, meta = {}) {
+  async function updateState(state: any, meta: any = {}) {
     steps.push({ state, timestamp: new Date().toISOString(), ...meta });
     if (launchRecord) {
       try {
@@ -227,7 +227,7 @@ export async function launchCampaign(shop, payload) {
       steps,
       message: result.message,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     const errorMsg =
       err?.errors?.[0]?.message || err?.message || "Campaign creation failed";
     const retryable = isRetryableError(err);
@@ -244,7 +244,7 @@ export async function launchCampaign(shop, payload) {
       await updateState(CAMPAIGN_STATES.FAILED_PARTIAL, {
         error: errorMsg,
         lastSuccessStep: lastStep,
-        campaignId: steps.find((s) => s.campaignId)?.campaignId || null,
+        campaignId: steps.find((s: any) => s.campaignId)?.campaignId || null,
       });
     } else {
       await updateState(CAMPAIGN_STATES.FAILED, { error: errorMsg });
@@ -269,7 +269,7 @@ export async function launchCampaign(shop, payload) {
  * @param {string} launchId - ID of the failed launch
  * @returns {object} Same as launchCampaign
  */
-export async function retryCampaign(launchId) {
+export async function retryCampaign(launchId: any) {
   let record;
   try {
     record = await withDbRetry("launch-retry-find", () => prisma.campaignJob.findUnique({ where: { id: launchId } }));
@@ -307,7 +307,7 @@ export async function retryCampaign(launchId) {
  * @param {string} launchId
  * @returns {object} { success, message }
  */
-export async function rollbackCampaign(launchId) {
+export async function rollbackCampaign(launchId: any) {
   let record;
   try {
     record = await withDbRetry("launch-rollback-find", () => prisma.campaignJob.findUnique({ where: { id: launchId } }));
@@ -327,7 +327,7 @@ export async function rollbackCampaign(launchId) {
   }
 
   const steps = JSON.parse(record.stepsJson || "[]");
-  const campaignId = steps.find((s) => s.campaignId)?.campaignId;
+  const campaignId = steps.find((s: any) => s.campaignId)?.campaignId;
 
   if (!campaignId) {
     await withDbRetry("launch-rollback-no-campaign", () => prisma.campaignJob.update({
@@ -349,7 +349,7 @@ export async function rollbackCampaign(launchId) {
     // Attempt to pause the partially created campaign via Google Ads API
     const res = await withRetry(
       async () => {
-        const response = await fetch(
+        const response: any = await fetch(
           `${process.env.APP_URL || ""}/app/api/campaign-manage`,
           {
             method: "POST",
@@ -376,10 +376,10 @@ export async function rollbackCampaign(launchId) {
         ? `Campaign ${campaignId} paused and marked for rollback.`
         : `Rollback attempted but Google returned: ${res.error}. Campaign may need manual cleanup.`,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: `Rollback failed: ${err.message}. Campaign ${campaignId} may need manual cleanup in Google Ads.`,
+      error: `Rollback failed: ${(err as Error).message}. Campaign ${campaignId} may need manual cleanup in Google Ads.`,
     };
   }
 }
@@ -389,7 +389,7 @@ export async function rollbackCampaign(launchId) {
  * @param {string} launchId
  * @returns {object|null}
  */
-export async function getCampaignStatus(launchId) {
+export async function getCampaignStatus(launchId: any) {
   try {
     const record = await withDbRetry("launch-status-find", () => prisma.campaignJob.findUnique({
       where: { id: launchId },
@@ -411,7 +411,7 @@ export async function getCampaignStatus(launchId) {
 /**
  * Check if an error is retryable.
  */
-function isRetryableError(err) {
+function isRetryableError(err: any) {
   const msg = err?.message || "";
   const status = err?.status || err?.statusCode;
   return (

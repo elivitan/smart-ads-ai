@@ -12,17 +12,17 @@ import { withDbRetry } from "./utils/db-health";
 
 // ─── Helpers ───
 
-function productHash(title, price, description, image) {
+function productHash(title: any, price: any, description: any, image: any) {
   const str = `${title}|${price}|${(description || "").slice(0, 200)}|${(image || "").slice(0, 100)}`;
   return crypto.createHash("md5").update(str).digest("hex");
 }
 
-function mapGraphQLProduct(node) {
+function mapGraphQLProduct(node: any) {
   const totalInventory =
     node.totalInventory != null
       ? node.totalInventory
       : (node.variants?.edges || []).reduce(
-          (sum, v) => sum + (v.node?.inventoryQuantity || 0),
+          (sum: any, v: any) => sum + (v.node?.inventoryQuantity || 0),
           0,
         );
 
@@ -49,7 +49,7 @@ function mapGraphQLProduct(node) {
  * Fetch ALL products from Shopify via paginated GraphQL and upsert into DB.
  * Returns { synced, created, updated, deleted, needsAi }
  */
-export async function fullSync(admin, shop) {
+export async function fullSync(admin: any, shop: any) {
   const log = await withDbRetry("sync-log-start", () => prisma.syncLog.create({
     data: {
       shop,
@@ -61,13 +61,13 @@ export async function fullSync(admin, shop) {
 
   try {
     // Fetch all products via pagination
-    const allProducts = [];
+    const allProducts: any[] = [];
     let hasNextPage = true;
     let cursor = null;
 
     while (hasNextPage) {
-      const afterClause = cursor ? `, after: "${cursor}"` : "";
-      const response = await admin.graphql(`{
+      const afterClause: any = cursor ? `, after: "${cursor}"` : "";
+      const response: any = await admin.graphql(`{
         products(first: 50${afterClause}) {
           edges {
             cursor
@@ -83,7 +83,7 @@ export async function fullSync(admin, shop) {
       }`);
 
       const { data } = await response.json();
-      const edges = data.products.edges || [];
+      const edges: any = data.products.edges || [];
       for (const edge of edges) {
         allProducts.push(mapGraphQLProduct(edge.node));
         cursor = edge.cursor;
@@ -96,13 +96,13 @@ export async function fullSync(admin, shop) {
       where: { shop },
       select: { id: true },
     }));
-    const existingIds = new Set(existing.map((p) => p.id));
-    const fetchedIds = new Set(allProducts.map((p) => p.id));
+    const existingIds = new Set(existing.map((p: any) => p.id));
+    const fetchedIds = new Set(allProducts.map((p: any) => p.id));
 
     let created = 0,
       updated = 0,
       deleted = 0;
-    const needsAi = [];
+    const needsAi: any[] = [];
 
     // Upsert all fetched products
     for (const product of allProducts) {
@@ -134,7 +134,7 @@ export async function fullSync(admin, shop) {
     }
 
     // Delete products that no longer exist in Shopify
-    const toDelete = [...existingIds].filter((id) => !fetchedIds.has(id));
+    const toDelete = [...existingIds].filter((id: any) => !fetchedIds.has(id));
     if (toDelete.length > 0) {
       await withDbRetry("sync-delete-stale", () => prisma.product.deleteMany({ where: { id: { in: toDelete } } }));
       deleted = toDelete.length;
@@ -159,10 +159,10 @@ export async function fullSync(admin, shop) {
       needsAi: needsAi.length,
       needsAiIds: needsAi,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     await withDbRetry("sync-log-fail", () => prisma.syncLog.update({
       where: { id: log.id },
-      data: { status: "failed", error: err.message, completedAt: new Date() },
+      data: { status: "failed", error: (err as Error).message, completedAt: new Date() },
     }));
     throw err;
   }
@@ -174,7 +174,7 @@ export async function fullSync(admin, shop) {
  * Handle product create/update webhook from Shopify.
  * Shopify sends the REST product object, not GraphQL.
  */
-export async function handleProductWebhook(shop, shopifyProduct, eventType) {
+export async function handleProductWebhook(shop: any, shopifyProduct: any, eventType: any) {
   const log = await withDbRetry("sync-webhook-log", () => prisma.syncLog.create({
     data: {
       shop,
@@ -187,7 +187,7 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
   try {
     const productId = `gid://shopify/Product/${shopifyProduct.id}`;
     const totalInventory = (shopifyProduct.variants || []).reduce(
-      (sum, v) => sum + (v.inventory_quantity || 0),
+      (sum: any, v: any) => sum + (v.inventory_quantity || 0),
       0,
     );
 
@@ -240,10 +240,10 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
     }));
 
     return { productId, needsAi };
-  } catch (err) {
+  } catch (err: unknown) {
     await withDbRetry("sync-webhook-log-fail", () => prisma.syncLog.update({
       where: { id: log.id },
-      data: { status: "failed", error: err.message, completedAt: new Date() },
+      data: { status: "failed", error: (err as Error).message, completedAt: new Date() },
     }));
     throw err;
   }
@@ -252,7 +252,7 @@ export async function handleProductWebhook(shop, shopifyProduct, eventType) {
 /**
  * Handle product delete webhook.
  */
-export async function handleProductDelete(shop, shopifyProductId) {
+export async function handleProductDelete(shop: any, shopifyProductId: any) {
   const productId = `gid://shopify/Product/${shopifyProductId}`;
 
   await withDbRetry("sync-delete-log", () => prisma.syncLog.create({
@@ -277,7 +277,7 @@ export async function handleProductDelete(shop, shopifyProductId) {
 /**
  * Save AI analysis results for a product.
  */
-export async function saveAiAnalysis(productId, shop, aiResult) {
+export async function saveAiAnalysis(productId: any, shop: any, aiResult: any) {
   const product = await withDbRetry("sync-ai-product-find", () => prisma.product.findUnique({
     where: { id: productId },
     select: { title: true, price: true, description: true },
@@ -347,7 +347,7 @@ export async function getShopProducts(
   }));
 
   return products
-    .map((p) => ({
+    .map((p: any) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -381,13 +381,13 @@ export async function getShopProducts(
           }
         : null,
     }))
-    .filter((p) => !withAiOnly || p.hasAiAnalysis);
+    .filter((p: any) => !withAiOnly || p.hasAiAnalysis);
 }
 
 /**
  * Get sync status summary for a shop.
  */
-export async function getSyncStatus(shop) {
+export async function getSyncStatus(shop: any) {
   const [totalProducts, inStockProducts, analyzedProducts, lastSync] =
     await withDbRetry("sync-status", () => Promise.all([
       prisma.product.count({ where: { shop } }),
@@ -415,7 +415,7 @@ export async function getSyncStatus(shop) {
  * Get credit balances for a shop from DB.
  * Used by /app/api/credits to give client the authoritative values.
  */
-export async function getShopCredits(shop) {
+export async function getShopCredits(shop: any) {
   try {
     const record = await withDbRetry("sync-credits-find", () => prisma.shopSubscription.findUnique({
       where: { shop },
@@ -434,8 +434,8 @@ export async function getShopCredits(shop) {
 /**
  * Update credit balances for a shop.
  */
-export async function updateShopCredits(shop, { scanCredits, aiCredits } = {}) {
-  const data = {};
+export async function updateShopCredits(shop: any, { scanCredits: any, aiCredits }: any = {}) {
+  const data: any = {};
   if (typeof scanCredits === "number") data.scanCredits = scanCredits;
   if (typeof aiCredits === "number") data.aiCredits = aiCredits;
   if (Object.keys(data).length === 0) return;

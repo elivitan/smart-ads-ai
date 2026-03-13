@@ -145,7 +145,7 @@ type RouteFiles = {
     id: "routes/api.health";
     page: "/api/health";
   };
-  "routes/auth.login/route.jsx": {
+  "routes/auth.login/route.tsx": {
     id: "routes/auth.login";
     page: "/auth/login";
   };
@@ -253,7 +253,7 @@ type RouteModules = {
   "routes/api.analyze": typeof import("./app/routes/api.analyze.ts");
   "routes/api.credits": typeof import("./app/routes/api.credits.ts");
   "routes/api.health": typeof import("./app/routes/api.health.js");
-  "routes/auth.login": typeof import("./app/routes/auth.login/route.jsx");
+  "routes/auth.login": typeof import("./app/routes/auth.login/route.tsx");
   "routes/auth.$": typeof import("./app/routes/auth.$.tsx");
   "routes/_index": typeof import("./app/routes/_index/route.jsx");
   "routes/app": typeof import("./app/routes/app.tsx");
