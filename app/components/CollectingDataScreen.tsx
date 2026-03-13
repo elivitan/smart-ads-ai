@@ -316,6 +316,7 @@ function CollectingDataScreen(props) {
               top: (15 + (i * 11) % 70) + "%",
               animationDelay: (i * 0.3) + "s",
               animationDuration: (3.5 + (i % 3) * 0.8) + "s",
+              animationPlayState: isPaused ? "paused" : "running",
             }}>{w}</div>
           );
         })}
@@ -323,9 +324,9 @@ function CollectingDataScreen(props) {
 
       <div className="cds-center">
         <div className="cds-radar">
-          <div className="cds-ring cds-ring-1"/>
-          <div className="cds-ring cds-ring-2"/>
-          <div className="cds-ring cds-ring-3"/>
+          <div className="cds-ring cds-ring-1" style={isPaused ? {animationPlayState:"paused"} : undefined}/>
+          <div className="cds-ring cds-ring-2" style={isPaused ? {animationPlayState:"paused"} : undefined}/>
+          <div className="cds-ring cds-ring-3" style={isPaused ? {animationPlayState:"paused"} : undefined}/>
           <div className="cds-radar-dot" style={
             isDone ? {background:"#22c55e",boxShadow:"0 0 24px #22c55e"}
             : isPaused ? {background:"#f59e0b",boxShadow:"0 0 24px #f59e0b"}
@@ -346,8 +347,8 @@ function CollectingDataScreen(props) {
 
         <div className="cds-progress-wrap">
           <div className="cds-progress-bar">
-            <div className="cds-progress-fill" style={{ width: displayProgress + "%", transition: "width 0.3s ease" }}/>
-            <div className="cds-progress-glow" style={{ left: Math.min(displayProgress, 98) + "%" }}/>
+            <div className="cds-progress-fill" style={{ width: displayProgress + "%", transition: isPaused ? "none" : "width 0.3s ease" }}/>
+            <div className="cds-progress-glow" style={{ left: Math.min(displayProgress, 98) + "%", transition: isPaused ? "none" : "left 0.3s ease" }}/>
           </div>
           <div className="cds-progress-pct">{displayProgress}%</div>
         </div>
@@ -358,7 +359,7 @@ function CollectingDataScreen(props) {
             var active = !isDone && i === phaseIdx;
             return (
               <div key={i} className={"cds-step " + (done ? "cds-step-done" : active ? "cds-step-active" : "cds-step-waiting")}>
-                <div className="cds-step-icon">{done ? "\u2713" : active ? <span className="cds-step-spinner"/> : "\u25CB"}</div>
+                <div className="cds-step-icon">{done ? "\u2713" : active ? <span className="cds-step-spinner" style={isPaused ? {animationPlayState:"paused"} : undefined}/> : "\u25CB"}</div>
                 <span className="cds-step-label">{step.icon} {step.label}</span>
                 {done && <span className="cds-step-done-badge">done</span>}
               </div>
