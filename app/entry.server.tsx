@@ -5,6 +5,8 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import * as Sentry from "@sentry/node";
+import type { EntryContext } from "react-router";
+
 
 // ── Initialize Sentry (server side) ──
 Sentry.init({
@@ -23,15 +25,15 @@ Sentry.init({
 // ── Start BullMQ workers (in-process) ──
 import("./utils/queue.js").then(({ startWorkers }) => {
   startWorkers();
-}).catch((e) => {
-  console.warn("[Queue] Worker startup skipped:", e.message);
+}).catch((e: unknown) => {
+  console.warn("[Queue] Worker startup skipped:", (e as Error).message);
 });
 
 
 // ── Graceful Shutdown ──
 // On SIGTERM/SIGINT: close queues, disconnect DB, flush Sentry
-let isShuttingDown = false;
-async function gracefulShutdown(signal) {
+let isShuttingDown: boolean = false;
+async function gracefulShutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log(`[Shutdown] ${signal} received. Closing gracefully...`);
@@ -44,20 +46,20 @@ async function gracefulShutdown(signal) {
       new Promise(r => setTimeout(r, 5000)),
     ]);
     console.log("[Shutdown] BullMQ workers closed");
-  } catch (e) { console.warn("[Shutdown] BullMQ close failed:", e.message); }
+  } catch (e: unknown) { console.warn("[Shutdown] BullMQ close failed:", (e as Error).message); }
   
   try {
     // Flush Sentry events (max 2s)
     await Sentry.flush(2000);
     console.log("[Shutdown] Sentry flushed");
-  } catch (e) { console.warn("[Shutdown] Sentry flush failed:", e.message); }
+  } catch (e: unknown) { console.warn("[Shutdown] Sentry flush failed:", (e as Error).message); }
   
   try {
     // Disconnect Prisma
     const { default: prisma } = await import("./db.server.js");
     await prisma.$disconnect();
     console.log("[Shutdown] Prisma disconnected");
-  } catch (e) { console.warn("[Shutdown] Prisma disconnect failed:", e.message); }
+  } catch (e: unknown) { console.warn("[Shutdown] Prisma disconnect failed:", (e as Error).message); }
   
   try {
     // Close Redis
@@ -67,7 +69,7 @@ async function gracefulShutdown(signal) {
       await redis.quit();
       console.log("[Shutdown] Redis closed");
     }
-  } catch (e) { console.warn("[Shutdown] Redis close failed:", e.message); }
+  } catch (e: unknown) { console.warn("[Shutdown] Redis close failed:", (e as Error).message); }
   
   console.log("[Shutdown] Clean shutdown complete");
   process.exit(0);
@@ -76,9 +78,9 @@ async function gracefulShutdown(signal) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-export const streamTimeout = 5000;
+export const streamTimeout: number = 5000;
 
-export const handleError = (error, { request }) => {
+export const handleError = (error: unknown, { request }: { request: Request }) => {
   if (!request.signal.aborted) {
     Sentry.captureException(error);
     console.error(error);
@@ -86,10 +88,10 @@ export const handleError = (error, { request }) => {
 };
 
 export default async function handleRequest(
-  request,
-  responseStatusCode,
-  responseHeaders,
-  reactRouterContext,
+  request: Request,
+  responseStatusCode: number,
+  responseHeaders: Headers,
+  reactRouterContext: EntryContext,
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
   const userAgent = request.headers.get("user-agent");

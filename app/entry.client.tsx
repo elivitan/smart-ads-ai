@@ -2,6 +2,18 @@ import { hydrateRoot } from "react-dom/client";
 import { HydratedRouter } from "react-router/dom";
 import * as Sentry from "@sentry/react-router";
 
+// ── Extend Window for ENV injected by root loader ──
+declare global {
+  interface Window {
+    ENV?: {
+      SENTRY_DSN?: string;
+      NODE_ENV?: string;
+      [key: string]: string | undefined;
+    };
+  }
+}
+
+
 // ── Initialize Sentry (client side) ──
 Sentry.init({
   dsn: window.ENV?.SENTRY_DSN || "",

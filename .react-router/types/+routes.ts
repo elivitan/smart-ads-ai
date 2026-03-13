@@ -109,7 +109,7 @@ type Pages = {
 };
 
 type RouteFiles = {
-  "root.jsx": {
+  "root.tsx": {
     id: "root";
     page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/api/health" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
@@ -244,7 +244,7 @@ type RouteFiles = {
 };
 
 type RouteModules = {
-  "root": typeof import("./app/root.jsx");
+  "root": typeof import("./app/root.tsx");
   "routes/webhooks.app.scopes_update": typeof import("./app/routes/webhooks.app.scopes_update.tsx");
   "routes/webhooks.app.uninstalled": typeof import("./app/routes/webhooks.app.uninstalled.tsx");
   "routes/webhooks.products-delete": typeof import("./app/routes/webhooks.products-delete.tsx");
