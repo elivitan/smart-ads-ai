@@ -32,7 +32,7 @@ var STEPS = [
   { label: "Preparing your dashboard",            icon: "\uD83D\uDCCA" },
 ];
 
-function CollectingDataScreen(props) {
+function CollectingDataScreen(props: CollectingDataScreenProps) {
   var totalProducts = props.totalProducts || 0;
   var onComplete = props.onComplete;
   var onCancel = props.onCancel;
@@ -63,7 +63,7 @@ function CollectingDataScreen(props) {
 
   // ── Smooth progress animation ──
   useEffect(function() {
-    var raf;
+    var raf: number;
     function animate() {
       // Skip animation frame when paused — prevents CSS from drifting
       if (pausedRef.current) {
@@ -103,10 +103,10 @@ function CollectingDataScreen(props) {
     // Phase boundaries (% ranges)
     var PB = [[0, 15], [15, 35], [35, 60], [60, 82], [82, 96]];
 
-    function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+    function sleep(ms: number) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
     // Show messages one by one with smooth progress
-    async function runPhase(pi, msgs) {
+    async function runPhase(pi: number, msgs: string[]) {
       var bounds = PB[pi];
       var minMs = durations[pi];
       var interval = Math.max(Math.floor(minMs / msgs.length), 800);
