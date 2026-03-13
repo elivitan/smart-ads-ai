@@ -42,7 +42,7 @@ const client = new GoogleAdsApi({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getCustomer(): any {
+export function getCustomer(): any {
   const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
   return client.Customer({
     customer_id: customerId,
@@ -64,7 +64,7 @@ async function createBudget(customer: any, productTitle: string, dailyBudget: nu
 
 // ── Search Campaign ──────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createSearchCampaign(customer: any, {
+export async function createSearchCampaign(customer: any, {
   productTitle, headlines, descriptions, keywords, finalUrl, budgetResourceName, bidding,
 }: SearchCampaignConfig): Promise<string> {
   // Campaign
@@ -126,7 +126,7 @@ async function createSearchCampaign(customer: any, {
 
 // ── Performance Max Campaign ─────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createPMaxCampaign(customer: any, {
+export async function createPMaxCampaign(customer: any, {
   productTitle, headlines, descriptions, finalUrl, budgetResourceName, imageUrls, videoUrls, longHeadlines,
 }: PMaxCampaignConfig): Promise<string> {
   // PMax campaign
