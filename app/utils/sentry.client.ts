@@ -1,14 +1,23 @@
-// sentry.client.js
+// sentry.client.ts
 // ═══════════════════════════════════════════════════
 // Sentry Client-Side Initialization for Smart Ads AI
 // Captures browser errors, performance, and session replays
 // ═══════════════════════════════════════════════════
 
 import * as Sentry from "@sentry/react-router";
-import { useLocation, useMatches } from "@remix-run/react";
-import { useEffect } from "react";
 
-export function initSentryClient() {
+// ── Extend Window for ENV injected by root loader ──
+declare global {
+  interface Window {
+    ENV?: {
+      SENTRY_DSN?: string;
+      NODE_ENV?: string;
+      [key: string]: string | undefined;
+    };
+  }
+}
+
+export function initSentryClient(): void {
   // Only initialize if DSN is available
   const dsn = typeof window !== "undefined" && window.ENV?.SENTRY_DSN;
   if (!dsn) {
@@ -29,12 +38,8 @@ export function initSentryClient() {
     tracesSampleRate: window.ENV?.NODE_ENV === "production" ? 0.2 : 1.0,
 
     integrations: [
-      // Browser performance tracing with Remix router
-      Sentry.browserTracingIntegration({
-        useEffect,
-        useLocation,
-        useMatches,
-      }),
+      // React Router tracing (replaces legacy browserTracingIntegration with hooks)
+      Sentry.reactRouterTracingIntegration(),
       // Session Replay — capture 10% normally, 100% on error
       Sentry.replayIntegration({
         maskAllText: false, // We want to see what users typed

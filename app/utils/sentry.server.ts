@@ -1,4 +1,4 @@
-// sentry.server.js
+// sentry.server.ts
 // ═══════════════════════════════════════════════════
 // Sentry Server-Side Initialization for Smart Ads AI
 // Captures API errors, loader/action failures, and slow queries
@@ -6,9 +6,18 @@
 
 import * as Sentry from "@sentry/node";
 
+// ── Types ──
+interface ErrorContext {
+  shop?: string;
+  route?: string;
+  action?: string;
+  userId?: string;
+  [key: string]: unknown;
+}
+
 let initialized = false;
 
-export function initSentryServer() {
+export function initSentryServer(): void {
   if (initialized) return;
 
   const dsn = process.env.SENTRY_DSN;
@@ -20,7 +29,6 @@ export function initSentryServer() {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV || "development",
-    autoInstrumentRemix: true,
 
     // ── Error Tracking ──
     sampleRate: 1.0, // Capture all errors
@@ -60,7 +68,7 @@ export function initSentryServer() {
 }
 
 // ── Helper: Capture error with extra context ──
-export function captureApiError(error, context = {}) {
+export function captureApiError(error: unknown, context: ErrorContext = {}): void {
   Sentry.withScope((scope) => {
     if (context.shop) scope.setTag("shop", context.shop);
     if (context.route) scope.setTag("route", context.route);
@@ -79,7 +87,7 @@ export function captureApiError(error, context = {}) {
 }
 
 // ── Helper: Track slow operations ──
-export function trackSlowOperation(name, durationMs, threshold = 5000) {
+export function trackSlowOperation(name: string, durationMs: number, threshold: number = 5000): void {
   if (durationMs > threshold) {
     Sentry.withScope((scope) => {
       scope.setTag("slow_operation", name);

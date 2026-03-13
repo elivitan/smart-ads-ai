@@ -1,24 +1,33 @@
-// sentry-wrapper.server.js
+// sentry-wrapper.server.ts
 // ═══════════════════════════════════════════════════
 // Wraps API route handlers with Sentry error tracking
 // Drop-in enhancement for existing withTimeout pattern
 // ═══════════════════════════════════════════════════
 
-import { captureApiError, trackSlowOperation } from "./sentry.server.js";
+import { captureApiError, trackSlowOperation } from "./sentry.server";
+
+// ── Types ──
+interface HandlerArgs {
+  request?: Request;
+  params?: Record<string, string | undefined>;
+  context?: unknown;
+}
+
+type RouteHandler = (args: HandlerArgs) => Promise<Response | unknown>;
 
 /**
  * Wraps an API route handler with Sentry monitoring.
  * Use INSTEAD of or AROUND withTimeout for full monitoring.
  * 
  * Usage in any API route:
- *   import { withSentryMonitoring } from "../utils/sentry-wrapper.server.js";
+ *   import { withSentryMonitoring } from "../utils/sentry-wrapper.server";
  *   
  *   export const action = withSentryMonitoring("api.scan", async ({ request }) => {
  *     // your existing handler code
  *   });
  */
-export function withSentryMonitoring(routeName, handler) {
-  return async function sentryWrappedHandler(args) {
+export function withSentryMonitoring(routeName: string, handler: RouteHandler): RouteHandler {
+  return async function sentryWrappedHandler(args: HandlerArgs) {
     const startTime = Date.now();
     let shop = "unknown";
 
@@ -69,7 +78,7 @@ export function withSentryMonitoring(routeName, handler) {
  *     return json({ error: "Something went wrong" }, { status: 500 });
  *   }
  */
-export function reportRouteError(error, routeName, shop = "unknown") {
+export function reportRouteError(error: unknown, routeName: string, shop: string = "unknown"): void {
   captureApiError(error, {
     route: routeName,
     shop,
