@@ -162,6 +162,27 @@ model AiPromptLog {
   @@index([shop, action, createdAt])
 }
 
+model OptimizationLog {
+  id             String   @id @default(cuid())
+  shop           String
+  campaignId     String
+  campaignName   String   @default("")
+  action         String   // "pause_campaign", "adjust_budget", "pause_keyword", "enable_campaign"
+  reason         String   @db.Text
+  previousValue  String?  // e.g. "budget:50" or "status:ENABLED"
+  newValue       String?  // e.g. "budget:35" or "status:PAUSED"
+  aiGrade        String?  // A-F from getDailyAdvice
+  executedBy     String   @default("auto") // "auto" or "manual"
+  success        Boolean  @default(true)
+  error          String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([shop])
+  @@index([campaignId])
+  @@index([shop, createdAt])
+  @@index([createdAt])
+}
+
 model UserState {
   id              String   @id @default(cuid())
   shop            String   @unique

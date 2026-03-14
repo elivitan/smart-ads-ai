@@ -448,6 +448,107 @@ export async function diagnoseCampaigns() {
   };
 }
 
+// ── Auto-optimization API calls ─────────────────────────────────────────
+
+/**
+ * Update the daily budget for a campaign.
+ * Change is capped at ±30% of current budget for safety.
+ */
+export async function updateCampaignBudget(campaignId: string, newDailyBudget: number) {
+  const customer = getCustomer();
+  const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
+  const cid = campaignId.includes("/") ? campaignId.split("/").pop()! : campaignId;
+
+  // Fetch current budget resource
+  const rows = await customer.query(`
+    SELECT campaign.id, campaign_budget.resource_name, campaign_budget.amount_micros
+    FROM campaign
+    WHERE campaign.id = ${cid}
+    LIMIT 1
+  `);
+  if (!rows.length) throw new Error(`Campaign ${cid} not found`);
+
+  const budgetResource = rows[0].campaign_budget?.resource_name;
+  const currentMicros = parseInt(rows[0].campaign_budget?.amount_micros || "0");
+  const currentBudget = currentMicros / 1_000_000;
+
+  // Safety: cap change at ±30%
+  const minAllowed = currentBudget * 0.7;
+  const maxAllowed = currentBudget * 1.3;
+  const safeBudget = Math.max(1, Math.min(maxAllowed, Math.max(minAllowed, newDailyBudget)));
+  const newMicros = Math.round(safeBudget * 1_000_000);
+
+  await customer.campaignBudgets.update([{
+    resource_name: budgetResource,
+    amount_micros: newMicros,
+  }]);
+
+  return {
+    campaignId: cid,
+    previousBudget: currentBudget,
+    newBudget: safeBudget,
+    requestedBudget: newDailyBudget,
+    wasCapped: safeBudget !== newDailyBudget,
+  };
+}
+
+/**
+ * Get keyword-level performance data for a campaign.
+ */
+export async function getKeywordPerformance(campaignId: string) {
+  const customer = getCustomer();
+  const cid = campaignId.includes("/") ? campaignId.split("/").pop()! : campaignId;
+
+  const rows = await customer.query(`
+    SELECT
+      ad_group_criterion.criterion_id,
+      ad_group_criterion.keyword.text,
+      ad_group_criterion.keyword.match_type,
+      ad_group_criterion.status,
+      ad_group.id,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.cost_micros,
+      metrics.conversions,
+      metrics.ctr
+    FROM keyword_view
+    WHERE campaign.id = ${cid}
+    AND ad_group_criterion.status != 'REMOVED'
+    AND segments.date DURING LAST_30_DAYS
+    ORDER BY metrics.cost_micros DESC
+    LIMIT 100
+  `);
+
+  return rows.map((row: any) => ({
+    keywordId: row.ad_group_criterion?.criterion_id,
+    text: row.ad_group_criterion?.keyword?.text || "",
+    matchType: row.ad_group_criterion?.keyword?.match_type || "BROAD",
+    status: row.ad_group_criterion?.status || "ENABLED",
+    adGroupId: row.ad_group?.id,
+    impressions: parseInt(row.metrics?.impressions || 0),
+    clicks: parseInt(row.metrics?.clicks || 0),
+    cost: parseInt(row.metrics?.cost_micros || 0) / 1_000_000,
+    conversions: parseFloat(row.metrics?.conversions || 0),
+    ctr: (parseFloat(row.metrics?.ctr || 0) * 100).toFixed(2),
+  }));
+}
+
+/**
+ * Pause a specific keyword in a campaign.
+ */
+export async function pauseKeyword(adGroupId: string, keywordId: string) {
+  const customer = getCustomer();
+  const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
+  const resourceName = `customers/${customerId}/adGroupCriteria/${adGroupId}~${keywordId}`;
+
+  await customer.adGroupCriteria.update([{
+    resource_name: resourceName,
+    status: enums.AdGroupCriterionStatus.PAUSED,
+  }]);
+
+  return { adGroupId, keywordId, newStatus: "PAUSED" };
+}
+
 // ── Test connection ──────────────────────────────────────────────────────
 export async function testConnection() {
   try {

@@ -44,6 +44,13 @@ import("./utils/queue.js").then(({ startWorkers }) => {
 });
 
 
+// ── Start optimization scheduler ──
+import("./utils/optimizer-scheduler.server.js").then(({ startOptimizationScheduler }) => {
+  startOptimizationScheduler();
+}).catch((e: unknown) => {
+  console.warn("[Optimizer] Scheduler startup skipped:", (e as Error).message);
+});
+
 // ── Graceful Shutdown ──
 // On SIGTERM/SIGINT: close queues, disconnect DB, flush Sentry
 let isShuttingDown: boolean = false;
@@ -61,7 +68,14 @@ async function gracefulShutdown(signal: string) {
     ]);
     console.log("[Shutdown] BullMQ workers closed");
   } catch (e: unknown) { console.warn("[Shutdown] BullMQ close failed:", (e as Error).message); }
-  
+
+  try {
+    // Stop optimization scheduler
+    const { stopOptimizationScheduler } = await import("./utils/optimizer-scheduler.server.js");
+    stopOptimizationScheduler();
+    console.log("[Shutdown] Optimizer scheduler stopped");
+  } catch (e: unknown) { console.warn("[Shutdown] Optimizer stop failed:", (e as Error).message); }
+
   try {
     // Flush Sentry events (max 2s)
     await Sentry.flush(2000);
