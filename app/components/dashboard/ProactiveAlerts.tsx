@@ -21,7 +21,7 @@ import { AlertCircleIcon, ArrowUpIcon, TargetIcon } from "@shopify/polaris-icons
 
 interface Alert {
   id: string;
-  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health";
+  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio";
   title: string;
   message: string;
   urgency: "now" | "today" | "this_week";
@@ -40,6 +40,9 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   seasonal: { tone: "info", icon: ArrowUpIcon },
   competitor: { tone: "warning", icon: AlertCircleIcon },
   health: { tone: "critical", icon: AlertCircleIcon },
+  detective: { tone: "warning", icon: AlertCircleIcon },
+  creative_fatigue: { tone: "warning", icon: ArrowUpIcon },
+  portfolio: { tone: "info", icon: TargetIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
@@ -111,6 +114,10 @@ export function generateAlerts(data: {
   budgetPacing?: { dailyBudget: number; spentToday: number; hoursElapsed: number };
   conversionHealth?: { daysWithoutConversions: number; hasImpressions: boolean };
   performanceChanges?: { ctrChange: number; period: string };
+  creativeFatigue?: Array<{ campaignName: string; weeksOfDecline: number; declinePercent: number }>;
+  portfolioHealth?: { cannibalizationCount: number; totalWastedSpend: number; rebalanceCount: number };
+  detectiveReports?: Array<{ campaignName: string; narrative: string }>;
+  learningInsights?: { overallSuccessRate: number; totalActionsLearned: number };
 }): Alert[] {
   const alerts: Alert[] = [];
   const now = Date.now();
@@ -255,6 +262,67 @@ export function generateAlerts(data: {
         urgency: "today",
       });
     }
+  }
+
+  // Creative fatigue alerts
+  if (data.creativeFatigue) {
+    for (const fatigue of data.creativeFatigue) {
+      alerts.push({
+        id: `fatigue-${fatigue.campaignName}-${now}`,
+        type: "creative_fatigue",
+        title: "המודעות מתישנות",
+        message: `"${fatigue.campaignName}" — ${fatigue.weeksOfDecline} שבועות רצופים של ירידה (${Math.round(fatigue.declinePercent)}%). הגיע הזמן לרענן את הטקסטים.`,
+        urgency: fatigue.declinePercent > 40 ? "now" : "today",
+      });
+    }
+  }
+
+  // Portfolio health alerts
+  if (data.portfolioHealth) {
+    const { cannibalizationCount, totalWastedSpend, rebalanceCount } = data.portfolioHealth;
+    if (cannibalizationCount > 0) {
+      alerts.push({
+        id: `portfolio-cannibal-${now}`,
+        type: "portfolio",
+        title: "קמפיינים מתחרים זה בזה",
+        message: `${cannibalizationCount} מילות מפתח מופיעות ביותר מקמפיין אחד — $${Math.round(totalWastedSpend)} בזבוז. כדאי לחלק מילים או לאחד קמפיינים.`,
+        urgency: totalWastedSpend > 50 ? "now" : "this_week",
+      });
+    }
+    if (rebalanceCount > 0) {
+      alerts.push({
+        id: `portfolio-rebalance-${now}`,
+        type: "portfolio",
+        title: "הזדמנות לאיזון תקציב",
+        message: `זיהינו שכדאי להעביר כסף מקמפיין חלש לחזק — ${rebalanceCount} העברות מומלצות.`,
+        urgency: "today",
+      });
+    }
+  }
+
+  // Detective reports
+  if (data.detectiveReports) {
+    for (const report of data.detectiveReports) {
+      alerts.push({
+        id: `detective-${report.campaignName}-${now}`,
+        type: "detective",
+        title: `חקירה: ${report.campaignName}`,
+        message: report.narrative,
+        urgency: "today",
+      });
+    }
+  }
+
+  // Self-learning milestone
+  if (data.learningInsights && data.learningInsights.totalActionsLearned >= 10) {
+    const successPct = Math.round(data.learningInsights.overallSuccessRate * 100);
+    alerts.push({
+      id: `learning-milestone-${now}`,
+      type: "milestone",
+      title: "המערכת לומדת ומשתפרת",
+      message: `המערכת ביצעה ${data.learningInsights.totalActionsLearned} פעולות ולמדה מהתוצאות. שיעור הצלחה: ${successPct}%.`,
+      urgency: "this_week",
+    });
   }
 
   return alerts;

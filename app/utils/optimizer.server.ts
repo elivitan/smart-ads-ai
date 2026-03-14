@@ -31,6 +31,7 @@ import {
 } from "../google-ads.server.js";
 import { getDailyAdvice } from "../ai-brain.server.js";
 import { getStoreProfile } from "../store-context.server.js";
+import { getCompetitorTrends } from "../competitor-intel.server.js";
 import { logger } from "./logger.js";
 
 const narrativeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -204,8 +205,64 @@ export async function runOptimization(shop: string): Promise<OptResult> {
       });
     }
 
+    // 2.5 Load self-learning insights to adjust thresholds
+    const learning = await getLearningInsights(shop);
+    const effectiveRules = { ...RULES };
+    const kwLearning = learning.byActionType["pause_keyword"];
+    if (kwLearning?.adjustedThreshold != null) {
+      (effectiveRules as any).KEYWORD_PAUSE_CLICKS = kwLearning.adjustedThreshold;
+    }
+
     // 3. Apply optimization rules to each campaign
     const plannedActions: OptAction[] = [];
+
+    // 2.6 Portfolio Brain — cross-campaign intelligence
+    if (enabledCampaigns.length >= 2) {
+      try {
+        const portfolio = await analyzeCampaignPortfolio(enabledCampaigns, minRoas);
+        if (portfolio.cannibalization.length > 0) {
+          const topCannibal = portfolio.cannibalization[0];
+          const campaignNames = topCannibal.campaigns.map((c) => `"${c.name}"`).join(" ו-");
+          logger.info("optimizer", `Portfolio: cannibalization detected on "${topCannibal.keyword}"`, { extra: { campaigns: campaignNames } });
+        }
+        // Inject portfolio rebalancing as planned actions
+        for (const rebalance of portfolio.budgetRebalancing) {
+          plannedActions.push({
+            campaignId: rebalance.fromCampaign.id,
+            campaignName: rebalance.fromCampaign.name,
+            action: "adjust_budget",
+            reason: rebalance.reason,
+            previousValue: `budget:${rebalance.fromCampaign.currentBudget}`,
+            newValue: `budget:${Math.max(1, rebalance.fromCampaign.currentBudget - rebalance.amount)}`,
+            aiGrade: result.aiGrade,
+          });
+          plannedActions.push({
+            campaignId: rebalance.toCampaign.id,
+            campaignName: rebalance.toCampaign.name,
+            action: "adjust_budget",
+            reason: rebalance.reason,
+            previousValue: `budget:${rebalance.toCampaign.currentBudget}`,
+            newValue: `budget:${rebalance.toCampaign.currentBudget + rebalance.amount}`,
+            aiGrade: result.aiGrade,
+          });
+        }
+        // Cannibalization alerts
+        for (const cannibal of portfolio.cannibalization.slice(0, 2)) {
+          const names = cannibal.campaigns.map((c) => `"${c.name}"`).join(" ו-");
+          plannedActions.push({
+            campaignId: cannibal.campaigns[0].id,
+            campaignName: cannibal.campaigns[0].name,
+            action: "alert_cannibalization",
+            reason: `הקמפיינים ${names} מתחרים על מילת המפתח "${cannibal.keyword}" — אתה משלם פעמיים על אותם לקוחות ($${cannibal.wastedSpend.toFixed(0)} בזבוז). כדאי לאחד או לחלק מילות מפתח.`,
+            aiGrade: result.aiGrade,
+          });
+        }
+      } catch (err: unknown) {
+        logger.warn("optimizer", "Portfolio analysis failed, continuing", {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
 
     for (const campaign of enabledCampaigns) {
       const cost = parseFloat(campaign.cost);
@@ -513,11 +570,20 @@ export async function runOptimization(shop: string): Promise<OptResult> {
               const ctrChangePct = ((recentCtr - previousCtr) / previousCtr) * 100;
 
               if (ctrChangePct < -RULES.CTR_CHANGE_ALERT_PCT) {
+                // Performance Detective — investigate WHY
+                let detectiveReason = `פחות אנשים לוחצים על המודעות — ירידה של ${Math.abs(Math.round(ctrChangePct))}% בשבוע האחרון.`;
+                try {
+                  const report = await diagnosePerformanceChange(shop, campaign.id, campaign.name, "ctr_drop");
+                  if (report.rootCauses.length > 0) {
+                    detectiveReason = report.hebrewNarrative;
+                  }
+                } catch { /* use default reason */ }
+
                 plannedActions.push({
                   campaignId: campaign.id,
                   campaignName: campaign.name,
                   action: "alert_performance_drop",
-                  reason: `פחות אנשים לוחצים על המודעות — ירידה של ${Math.abs(Math.round(ctrChangePct))}% בשבוע האחרון. כדאי לרענן את טקסט המודעות או לבדוק שמתחרה חדש לא נכנס.`,
+                  reason: detectiveReason,
                   aiGrade: result.aiGrade,
                 });
               } else if (ctrChangePct > RULES.CTR_CHANGE_ALERT_PCT && canAddAction()) {
@@ -536,6 +602,20 @@ export async function runOptimization(shop: string): Promise<OptResult> {
         }
       }
 
+      // ── Creative Fatigue Detection ──────────────────────────────
+      if (campaign.status === "ENABLED" && canAddAction()) {
+        const fatigue = await detectCreativeFatigue(campaign.id, campaign.name);
+        if (fatigue && fatigue.fatigueLevel !== "mild") {
+          plannedActions.push({
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            action: "alert_creative_fatigue",
+            reason: `המודעות שלך מתחילות "להתיש" את הקהל — ${fatigue.weeksOfDecline} שבועות רצופים של ירידה בלחיצות (מ-${fatigue.peakCtr.toFixed(1)}% ל-${fatigue.currentCtr.toFixed(1)}%). הגיע הזמן לרענן את הטקסטים.`,
+            aiGrade: result.aiGrade,
+          });
+        }
+      }
+
       if (plannedActions.length >= RULES.MAX_ACTIONS_PER_RUN) break;
     }
 
@@ -549,7 +629,8 @@ export async function runOptimization(shop: string): Promise<OptResult> {
       // Alert-type actions are always logged, never executed
       const isAlert = action.action.startsWith("alert_") ||
                        action.action === "warn_keyword" ||
-                       action.action === "suggest_keyword";
+                       action.action === "suggest_keyword" ||
+                       action.action === "feedback_check";
 
       if (isAlert) {
         await logAction(shop, action, true, undefined, narrative);
@@ -734,6 +815,9 @@ async function generateNarrative(action: OptAction, mode: "auto" | "manual"): Pr
       alert_performance_drop: "ירידה בביצועים",
       alert_performance_boost: "עלייה בביצועים",
       alert_day_pattern: "דפוס יומי בביצועים",
+      alert_creative_fatigue: "המודעות מתישנות — צריך רענון",
+      alert_cannibalization: "קמפיינים מתחרים אחד בשני",
+      feedback_check: "בדיקת תוצאות המלצה קודמת",
     };
 
     const response = await narrativeClient.messages.create({
@@ -825,33 +909,58 @@ export async function checkRecommendationOutcomes(): Promise<void> {
       },
     });
 
+    // Load campaigns once for all recs
+    let allCampaigns: any[] = [];
+    try {
+      allCampaigns = await listSmartAdsCampaigns();
+    } catch { /* ignore */ }
+
     for (const rec of recs) {
       try {
-        const campaigns = await listSmartAdsCampaigns();
-        const campaign = campaigns.find((c: any) => c.id === rec.campaignId);
+        const campaign = allCampaigns.find((c: any) => c.id === rec.campaignId);
         if (!campaign) continue;
 
         const currentRoas = parseFloat(campaign.cost) > 0
           ? parseFloat(campaign.conversionValue) / parseFloat(campaign.cost)
           : 0;
 
-        let outcome = "לא ניתן לבדוק";
+        // Estimate previous ROAS from log history
+        let previousRoas = currentRoas;
+        try {
+          const prevLog = await prisma.optimizationLog.findFirst({
+            where: { shop: rec.shop, campaignId: rec.campaignId, createdAt: { lt: rec.resolvedAt || rec.createdAt } },
+            orderBy: { createdAt: "desc" },
+          });
+          if (prevLog?.reason) {
+            const match = prevLog.reason.match(/(\d+\.?\d*)x/);
+            if (match) previousRoas = parseFloat(match[1]);
+          }
+        } catch { /* ignore */ }
+
+        // Classify outcome and feed Self-Learning
+        const { outcome, roasImpact } = classifyOutcome(rec.action, rec.previousValue, currentRoas, previousRoas);
+        await updateLearningFromOutcome(rec.shop, rec.action, outcome, roasImpact);
+
+        const outcomeEmoji = outcome === "success" ? "✅" : outcome === "failure" ? "⚠️" : "➖";
+        let feedbackMsg: string;
         if (rec.action === "adjust_budget" && rec.previousValue) {
           const prevBudget = parseFloat(rec.previousValue.replace("budget:", ""));
           const currBudget = parseFloat(campaign.dailyBudget);
           const budgetDir = currBudget > prevBudget ? "הועלה" : "הופחת";
-          outcome = `תקציב ${budgetDir}. תשואה נוכחית: ${currentRoas.toFixed(1)}x.`;
+          feedbackMsg = `${outcomeEmoji} תקציב ${budgetDir}. תשואה: ${currentRoas.toFixed(1)}x (${roasImpact >= 0 ? "+" : ""}${roasImpact.toFixed(1)}).`;
         } else if (rec.action === "pause_keyword") {
-          outcome = `מילת מפתח הושהתה. חיסכון מאז האישור.`;
+          feedbackMsg = `${outcomeEmoji} מילת מפתח הושהתה. ${outcome === "success" ? "ביצועים השתפרו!" : "לא ראינו שינוי משמעותי."}`;
         } else if (rec.action === "add_negative_keyword") {
-          outcome = `חיפושים לא רלוונטיים נחסמו.`;
+          feedbackMsg = `${outcomeEmoji} חיפושים לא רלוונטיים נחסמו. ${outcome === "success" ? "פחות בזבוז!" : "ההשפעה מינימלית."}`;
+        } else {
+          feedbackMsg = `${outcomeEmoji} ${outcome === "success" ? "הפעולה הצליחה" : "תוצאות לא חד-משמעיות"}.`;
         }
 
         await logAction(rec.shop, {
           campaignId: rec.campaignId,
           campaignName: rec.campaignName,
           action: "feedback_check",
-          reason: outcome,
+          reason: feedbackMsg,
           aiGrade: rec.aiGrade || undefined,
         }, true);
 
@@ -870,6 +979,454 @@ export async function checkRecommendationOutcomes(): Promise<void> {
       extra: { error: err instanceof Error ? err.message : String(err) },
     });
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// INNOVATION ENGINE — Features that make agencies raise an eyebrow
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Self-Learning: Track what works and adapt ───────────────────────────
+
+interface LearningInsights {
+  byActionType: Record<string, ActionLearning>;
+  overallSuccessRate: number;
+  totalActionsLearned: number;
+}
+
+interface ActionLearning {
+  actionType: string;
+  successRate: number;
+  totalAttempts: number;
+  confidenceLevel: "learning" | "low" | "medium" | "high";
+  avgRoasImpact: number | null;
+  adjustedThreshold: number | null;
+}
+
+export async function getLearningInsights(shop: string): Promise<LearningInsights> {
+  const learnings = await prisma.optimizerLearning.findMany({ where: { shop } });
+
+  const byActionType: Record<string, ActionLearning> = {};
+  let totalSuccess = 0;
+  let totalAttempts = 0;
+
+  for (const l of learnings) {
+    byActionType[l.actionType] = {
+      actionType: l.actionType,
+      successRate: l.successRate,
+      totalAttempts: l.totalAttempts,
+      confidenceLevel: l.confidenceLevel as ActionLearning["confidenceLevel"],
+      avgRoasImpact: l.avgImpactRoas,
+      adjustedThreshold: calculateAdjustedThreshold(l.actionType, l.successRate, l.confidenceLevel),
+    };
+    totalSuccess += l.successCount;
+    totalAttempts += l.totalAttempts;
+  }
+
+  return {
+    byActionType,
+    overallSuccessRate: totalAttempts > 0 ? totalSuccess / totalAttempts : 0.5,
+    totalActionsLearned: totalAttempts,
+  };
+}
+
+function calculateAdjustedThreshold(
+  actionType: string,
+  successRate: number,
+  confidence: string,
+): number | null {
+  if (confidence === "learning" || confidence === "low") return null;
+
+  // High success → lower threshold (act faster). Low success → raise threshold (be cautious)
+  if (actionType === "pause_keyword") {
+    const base = RULES.KEYWORD_PAUSE_CLICKS;
+    if (successRate > 0.8) return Math.round(base * 0.8);
+    if (successRate < 0.4) return Math.round(base * 1.3);
+  }
+  if (actionType === "adjust_budget") {
+    if (successRate > 0.8) return Math.round(RULES.MAX_BUDGET_INCREASE_PCT * 100 * 1.2);
+    if (successRate < 0.4) return Math.round(RULES.MAX_BUDGET_INCREASE_PCT * 100 * 0.7);
+  }
+  return null;
+}
+
+async function updateLearningFromOutcome(
+  shop: string,
+  actionType: string,
+  outcome: "success" | "failure" | "neutral",
+  roasImpact: number | null,
+): Promise<void> {
+  try {
+    const existing = await prisma.optimizerLearning.findUnique({
+      where: { shop_actionType: { shop, actionType } },
+    });
+
+    const prev = existing || { totalAttempts: 0, successCount: 0, failureCount: 0, neutralCount: 0, successRate: 0.5, avgImpactRoas: null };
+    const newTotal = prev.totalAttempts + 1;
+    const newSuccess = prev.successCount + (outcome === "success" ? 1 : 0);
+    const newFailure = prev.failureCount + (outcome === "failure" ? 1 : 0);
+    const newNeutral = prev.neutralCount + (outcome === "neutral" ? 1 : 0);
+
+    // Exponential moving average — recent outcomes weigh more
+    const newRate = prev.successRate * 0.8 + (outcome === "success" ? 1 : 0) * 0.2;
+
+    // Update average ROAS impact
+    const newAvgRoas = roasImpact != null
+      ? (prev.avgImpactRoas != null ? prev.avgImpactRoas * 0.7 + roasImpact * 0.3 : roasImpact)
+      : prev.avgImpactRoas;
+
+    const confidence =
+      newTotal < 5 ? "learning" :
+      newTotal < 15 ? "low" :
+      newTotal < 30 ? "medium" : "high";
+
+    await prisma.optimizerLearning.upsert({
+      where: { shop_actionType: { shop, actionType } },
+      create: {
+        shop, actionType,
+        totalAttempts: newTotal, successCount: newSuccess, failureCount: newFailure, neutralCount: newNeutral,
+        successRate: newRate, confidenceLevel: confidence, avgImpactRoas: newAvgRoas,
+      },
+      update: {
+        totalAttempts: newTotal, successCount: newSuccess, failureCount: newFailure, neutralCount: newNeutral,
+        successRate: newRate, confidenceLevel: confidence, avgImpactRoas: newAvgRoas,
+      },
+    });
+  } catch (err: unknown) {
+    logger.warn("optimizer", "Failed to update learning", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+function classifyOutcome(
+  action: string,
+  previousValue: string | null,
+  currentRoas: number,
+  previousRoas: number,
+): { outcome: "success" | "failure" | "neutral"; roasImpact: number } {
+  const roasImpact = currentRoas - previousRoas;
+
+  if (action === "pause_campaign") {
+    // Success = we stopped bleeding money (no further loss)
+    return { outcome: "success", roasImpact: 0 };
+  }
+  if (action === "adjust_budget") {
+    const prevBudget = parseFloat((previousValue || "").replace("budget:", "") || "0");
+    const wasIncrease = prevBudget > 0 && currentRoas >= previousRoas * 0.9;
+    if (wasIncrease && roasImpact >= -0.2) return { outcome: "success", roasImpact };
+    if (roasImpact < -0.5) return { outcome: "failure", roasImpact };
+    return { outcome: "neutral", roasImpact };
+  }
+  if (action === "pause_keyword") {
+    return { outcome: roasImpact > 0 ? "success" : roasImpact < -0.3 ? "failure" : "neutral", roasImpact };
+  }
+  if (action === "add_negative_keyword") {
+    return { outcome: roasImpact >= 0 ? "success" : "neutral", roasImpact };
+  }
+  return { outcome: "neutral", roasImpact };
+}
+
+// ── Creative Fatigue Detection ──────────────────────────────────────────
+
+interface FatigueReport {
+  campaignId: string;
+  campaignName: string;
+  weeksOfDecline: number;
+  ctrTrend: number[];
+  peakCtr: number;
+  currentCtr: number;
+  declinePercent: number;
+  fatigueLevel: "mild" | "moderate" | "severe";
+}
+
+async function detectCreativeFatigue(
+  campaignId: string,
+  campaignName: string,
+): Promise<FatigueReport | null> {
+  try {
+    const dailyData = await getCampaignPerformanceByDate(campaignId, 28);
+    if (dailyData.length < 14) return null; // Need at least 2 weeks
+
+    // Group by week (most recent first)
+    const weeks: number[][] = [[], [], [], []];
+    for (let i = 0; i < dailyData.length; i++) {
+      const weekIdx = Math.floor(i / 7);
+      if (weekIdx < 4) weeks[weekIdx].push(dailyData[i].ctr);
+    }
+
+    const weeklyCtr = weeks
+      .filter((w) => w.length >= 3) // Need at least 3 days per week
+      .map((w) => w.reduce((s, v) => s + v, 0) / w.length);
+
+    if (weeklyCtr.length < 3) return null;
+
+    // Check for consecutive decline (week 0 is most recent)
+    let weeksOfDecline = 0;
+    for (let i = 0; i < weeklyCtr.length - 1; i++) {
+      if (weeklyCtr[i] < weeklyCtr[i + 1]) weeksOfDecline++;
+      else break;
+    }
+
+    if (weeksOfDecline < 2) return null;
+
+    const peakCtr = Math.max(...weeklyCtr);
+    const currentCtr = weeklyCtr[0];
+    const declinePercent = peakCtr > 0 ? ((peakCtr - currentCtr) / peakCtr) * 100 : 0;
+
+    const fatigueLevel: FatigueReport["fatigueLevel"] =
+      weeksOfDecline >= 3 && declinePercent > 40 ? "severe" :
+      weeksOfDecline >= 3 || declinePercent > 20 ? "moderate" : "mild";
+
+    return {
+      campaignId, campaignName,
+      weeksOfDecline, ctrTrend: weeklyCtr,
+      peakCtr, currentCtr, declinePercent, fatigueLevel,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Portfolio Brain: Cross-Campaign Intelligence ────────────────────────
+
+interface CannibalizationReport {
+  keyword: string;
+  campaigns: Array<{ id: string; name: string; cost: number; conversions: number }>;
+  wastedSpend: number;
+}
+
+interface BudgetRebalance {
+  fromCampaign: { id: string; name: string; currentBudget: number; roas: number };
+  toCampaign: { id: string; name: string; currentBudget: number; roas: number };
+  amount: number;
+  reason: string;
+}
+
+interface PortfolioAnalysis {
+  cannibalization: CannibalizationReport[];
+  budgetRebalancing: BudgetRebalance[];
+  portfolioHealth: "healthy" | "fragmented" | "cannibalized";
+  totalWastedSpend: number;
+}
+
+async function analyzeCampaignPortfolio(
+  campaigns: any[],
+  minRoas: number,
+): Promise<PortfolioAnalysis> {
+  const result: PortfolioAnalysis = {
+    cannibalization: [],
+    budgetRebalancing: [],
+    portfolioHealth: "healthy",
+    totalWastedSpend: 0,
+  };
+
+  if (campaigns.length < 2) return result;
+
+  // 1. Keyword cannibalization — find same keywords across campaigns
+  const keywordMap = new Map<string, Array<{ id: string; name: string; cost: number; conversions: number }>>();
+
+  for (const c of campaigns) {
+    if (c.status !== "ENABLED") continue;
+    try {
+      const keywords = await getKeywordPerformance(c.id);
+      for (const kw of keywords) {
+        const key = kw.text.toLowerCase().trim();
+        if (kw.cost < 1) continue; // Skip low-spend keywords
+        if (!keywordMap.has(key)) keywordMap.set(key, []);
+        keywordMap.get(key)!.push({
+          id: c.id, name: c.name,
+          cost: kw.cost, conversions: kw.conversions,
+        });
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // Find keywords appearing in 2+ campaigns with meaningful spend
+  for (const [keyword, entries] of keywordMap) {
+    if (entries.length < 2) continue;
+    const totalSpend = entries.reduce((s, e) => s + e.cost, 0);
+    if (totalSpend < 5) continue;
+
+    // The campaign with worse performance is "wasting" money
+    const sorted = [...entries].sort((a, b) => {
+      const roasA = a.conversions > 0 ? a.conversions / a.cost : 0;
+      const roasB = b.conversions > 0 ? b.conversions / b.cost : 0;
+      return roasB - roasA;
+    });
+    const wastedSpend = sorted.slice(1).reduce((s, e) => s + e.cost, 0);
+
+    result.cannibalization.push({ keyword, campaigns: entries, wastedSpend });
+    result.totalWastedSpend += wastedSpend;
+  }
+
+  // Sort by wasted spend, keep top 5
+  result.cannibalization.sort((a, b) => b.wastedSpend - a.wastedSpend);
+  result.cannibalization = result.cannibalization.slice(0, 5);
+
+  // 2. Budget rebalancing — shift money from weak to strong
+  const campaignPerformance = campaigns
+    .filter((c: any) => c.status === "ENABLED" && parseFloat(c.cost) > 5)
+    .map((c: any) => ({
+      id: c.id, name: c.name,
+      budget: parseFloat(c.dailyBudget || "0"),
+      cost: parseFloat(c.cost),
+      roas: parseFloat(c.cost) > 0 ? parseFloat(c.conversionValue || "0") / parseFloat(c.cost) : 0,
+    }));
+
+  if (campaignPerformance.length >= 2) {
+    const stars = campaignPerformance.filter((c) => c.roas >= minRoas * 1.5);
+    const drains = campaignPerformance.filter((c) => c.roas < minRoas * 0.8 && c.roas > 0);
+
+    for (const drain of drains.slice(0, 2)) {
+      const bestStar = stars[0];
+      if (!bestStar || bestStar.id === drain.id) continue;
+
+      const shiftAmount = Math.round(drain.budget * RULES.BUDGET_DECREASE_PCT);
+      if (shiftAmount < 1) continue;
+
+      result.budgetRebalancing.push({
+        fromCampaign: { id: drain.id, name: drain.name, currentBudget: drain.budget, roas: drain.roas },
+        toCampaign: { id: bestStar.id, name: bestStar.name, currentBudget: bestStar.budget, roas: bestStar.roas },
+        amount: shiftAmount,
+        reason: `"${drain.name}" מחזיר רק ${(drain.roas * 100).toFixed(0)}₪ על כל 100₪, אבל "${bestStar.name}" מחזיר ${(bestStar.roas * 100).toFixed(0)}₪. מעביר $${shiftAmount} מהחלש לחזק.`,
+      });
+    }
+  }
+
+  // Health assessment
+  if (result.cannibalization.length >= 3 || result.totalWastedSpend > 50) {
+    result.portfolioHealth = "cannibalized";
+  } else if (result.cannibalization.length >= 1 || result.budgetRebalancing.length > 0) {
+    result.portfolioHealth = "fragmented";
+  }
+
+  return result;
+}
+
+// ── Performance Detective: Root Cause Analysis ──────────────────────────
+
+interface RootCause {
+  factor: string;
+  likelihood: "high" | "medium" | "low";
+  evidence: string;
+}
+
+interface DetectiveReport {
+  rootCauses: RootCause[];
+  hebrewNarrative: string;
+}
+
+async function diagnosePerformanceChange(
+  shop: string,
+  campaignId: string,
+  campaignName: string,
+  changeType: "ctr_drop" | "ctr_spike" | "conversion_drop" | "spend_spike",
+): Promise<DetectiveReport> {
+  const rootCauses: RootCause[] = [];
+
+  // Investigation 1: Quality Score changes
+  try {
+    const keywords = await getKeywordPerformance(campaignId);
+    const kwsWithQs = keywords.filter((kw: any) => kw.qualityScore != null);
+    if (kwsWithQs.length >= 3) {
+      const avgQs = kwsWithQs.reduce((s: number, kw: any) => s + kw.qualityScore, 0) / kwsWithQs.length;
+      if (avgQs < 5) {
+        rootCauses.push({
+          factor: "quality_score",
+          likelihood: changeType === "ctr_drop" ? "high" : "medium",
+          evidence: `גוגל נותן ציון נמוך למודעות (${avgQs.toFixed(1)}/10) — כל קליק עולה יותר ופחות אנשים רואים את המודעות`,
+        });
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Investigation 2: Competitor changes
+  try {
+    const trends = await getCompetitorTrends(shop);
+    const newCompetitors = trends.filter((t) => t.isNew);
+    const spendIncreases = trends.filter((t) => t.spendChange >= 30);
+
+    if (newCompetitors.length > 0) {
+      rootCauses.push({
+        factor: "new_competitor",
+        likelihood: "high",
+        evidence: `מתחרה חדש נכנס לתחרות: ${newCompetitors.map((c) => c.domain).join(", ")} — דוחף את המחירים למעלה`,
+      });
+    }
+    if (spendIncreases.length > 0) {
+      rootCauses.push({
+        factor: "competitor_spend",
+        likelihood: "medium",
+        evidence: `מתחרים הגדילו פרסום: ${spendIncreases.map((c) => `${c.domain} (+${Math.round(c.spendChange)}%)`).join(", ")}`,
+      });
+    }
+  } catch { /* ignore */ }
+
+  // Investigation 3: Search term pollution
+  try {
+    const searchTerms = await getSearchTermReport(campaignId);
+    const wasteful = searchTerms.filter((st) => st.cost >= 3 && st.conversions === 0 && st.clicks >= 2);
+    if (wasteful.length >= 3) {
+      const totalWaste = wasteful.reduce((s, t) => s + t.cost, 0);
+      const topTerms = wasteful.slice(0, 3).map((t) => `"${t.searchTerm}"`).join(", ");
+      rootCauses.push({
+        factor: "search_term_pollution",
+        likelihood: "high",
+        evidence: `חיפושים לא רלוונטיים שורפים כסף: ${topTerms} — סך בזבוז $${totalWaste.toFixed(0)}`,
+      });
+    }
+  } catch { /* ignore */ }
+
+  // Investigation 4: Budget pacing
+  try {
+    const dailyData = await getCampaignPerformanceByDate(campaignId, 7);
+    if (dailyData.length >= 3) {
+      const recentSpend = dailyData.slice(0, 3).reduce((s, d) => s + d.cost, 0) / 3;
+      const previousSpend = dailyData.length >= 7
+        ? dailyData.slice(3, 7).reduce((s, d) => s + d.cost, 0) / Math.min(4, dailyData.length - 3)
+        : recentSpend;
+      if (recentSpend > previousSpend * 1.5 && changeType === "spend_spike") {
+        rootCauses.push({
+          factor: "budget_spike",
+          likelihood: "high",
+          evidence: `הוצאה יומית קפצה מ-$${previousSpend.toFixed(0)} ל-$${recentSpend.toFixed(0)} — ייתכן שגוגל העלה הצעות אוטומטית`,
+        });
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Investigation 5: Creative fatigue
+  const fatigue = await detectCreativeFatigue(campaignId, campaignName);
+  if (fatigue && fatigue.fatigueLevel !== "mild" && changeType === "ctr_drop") {
+    rootCauses.push({
+      factor: "creative_fatigue",
+      likelihood: "medium",
+      evidence: `${fatigue.weeksOfDecline} שבועות רצופים של ירידה בלחיצות (מ-${fatigue.peakCtr.toFixed(1)}% ל-${fatigue.currentCtr.toFixed(1)}%) — הקהל התעייף מהמודעות`,
+    });
+  }
+
+  // Sort by likelihood
+  const likelihoodOrder = { high: 0, medium: 1, low: 2 };
+  rootCauses.sort((a, b) => likelihoodOrder[a.likelihood] - likelihoodOrder[b.likelihood]);
+
+  // Build Hebrew narrative
+  let narrative: string;
+  if (rootCauses.length === 0) {
+    narrative = `בדקנו את "${campaignName}" לעומק ולא מצאנו סיבה ברורה לשינוי. ייתכן שזו תנודה טבעית — נמשיך לעקוב.`;
+  } else {
+    const mainCause = rootCauses[0];
+    narrative = `חקרנו למה "${campaignName}" השתנה. `;
+    if (rootCauses.length === 1) {
+      narrative += `הסיבה הסבירה: ${mainCause.evidence}.`;
+    } else {
+      narrative += `הסיבה העיקרית: ${mainCause.evidence}. `;
+      narrative += `גם: ${rootCauses[1].evidence}.`;
+    }
+  }
+
+  return { rootCauses, hebrewNarrative: narrative };
 }
 
 // ── Get optimization history ─────────────────────────────────────────────

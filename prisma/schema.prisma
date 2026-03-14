@@ -238,6 +238,24 @@ model CompetitorSnapshot {
   @@index([createdAt])
 }
 
+model OptimizerLearning {
+  id              String   @id @default(cuid())
+  shop            String
+  actionType      String
+  totalAttempts   Int      @default(0)
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  neutralCount    Int      @default(0)
+  successRate     Float    @default(0.5)
+  confidenceLevel String   @default("learning") // "learning" | "low" | "medium" | "high"
+  avgImpactRoas   Float?
+  lastUpdated     DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([shop, actionType])
+  @@index([shop])
+}
+
 model OptimizationRecommendation {
   id             String    @id @default(cuid())
   shop           String
