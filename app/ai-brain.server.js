@@ -17,6 +17,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server";
 import { logPrompt } from "./utils/prompt-logger.server.js";
+import { sanitizeForPrompt, safeParseAiJson } from "./utils/ai-safety.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -473,8 +474,9 @@ CRITICAL RULES:
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { productsCount: products?.length || 0 } });
 
     const text = response.content[0].text.trim();
-    const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
-    return JSON.parse(cleaned);
+    const { data, error: parseError } = safeParseAiJson(text);
+    if (!data) throw new Error(`AI response parse failed: ${parseError}`);
+    return data;
   } catch (err) {
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Market analysis failed:", err.message);
@@ -606,8 +608,8 @@ RULES:
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "campaign_builder", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { goal, productsCount: products?.length || 0 } });
 
     const text = response.content[0].text.trim();
-    const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
-    const result = JSON.parse(cleaned);
+    const { data: result, error: parseError } = safeParseAiJson(text);
+    if (!result) throw new Error(`AI response parse failed: ${parseError}`);
 
     // Enforce character limits
     if (result.headlines) result.headlines = result.headlines.map(h => h.slice(0, 30));
@@ -692,8 +694,9 @@ Rules:
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
 
     const text = response.content[0].text.trim();
-    const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
-    return JSON.parse(cleaned);
+    const { data, error: parseError } = safeParseAiJson(text);
+    if (!data) throw new Error(`AI response parse failed: ${parseError}`);
+    return data;
   } catch (err) {
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Daily advice failed:", err.message);

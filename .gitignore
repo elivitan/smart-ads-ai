@@ -17,6 +17,16 @@ api-restore/
 routes-restore/
 /routes/
 .hooks-count
+
+# Generated / build artifacts
+.react-router/
+test-results/
+
+# Session archives and temp files
+*.zip
+session-temp/
+*-fixed.*
+
 # Allow CI/CD essential files
 !preflight.cjs
 !test-flows.cjs

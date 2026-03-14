@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Check npm dependencies daily for security updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    # Only create PRs for security updates (not version bumps)
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+  # Check GitHub Actions for updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ci"

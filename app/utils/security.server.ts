@@ -25,6 +25,22 @@ export function addSecurityHeaders(headers: Headers): void {
 
   // Strict Transport Security (HTTPS only, 1 year)
   headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+
+  // Content Security Policy — Shopify app embedded in iframe
+  // Allow Shopify CDN, own origin, and inline styles (Polaris requires it)
+  if (!headers.has("Content-Security-Policy")) {
+    headers.set("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self' https://cdn.shopify.com https://extensions.shopifycdn.com 'unsafe-inline'",
+      "style-src 'self' https://cdn.shopify.com 'unsafe-inline'",
+      "img-src 'self' https://cdn.shopify.com https://*.googleusercontent.com data: blob:",
+      "font-src 'self' https://cdn.shopify.com",
+      "connect-src 'self' https://*.myshopify.com https://*.shopify.com https://extensions.shopifycdn.com",
+      "frame-ancestors https://*.myshopify.com https://admin.shopify.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; "));
+  }
 }
 
 /**
