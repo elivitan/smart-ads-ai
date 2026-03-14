@@ -29,6 +29,14 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/react-dom"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-import-resolver-typescript"
+        update-types: ["version-update:semver-major"]
 
   # Check GitHub Actions for updates
   - package-ecosystem: "github-actions"
