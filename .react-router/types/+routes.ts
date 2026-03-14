@@ -79,6 +79,9 @@ type Pages = {
   "/app/api/keywords": {
     params: {};
   };
+  "/app/api/metrics": {
+    params: {};
+  };
   "/app/additional": {
     params: {};
   };
@@ -111,7 +114,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/api/health" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/" | "/webhooks/app/scopes_update" | "/webhooks/app/uninstalled" | "/webhooks/products-delete" | "/webhooks/products" | "/styles/index" | "/api/analyze" | "/api/credits" | "/api/health" | "/auth/login" | "/auth/*" | "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/api/metrics" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/webhooks.app.scopes_update.tsx": {
     id: "routes/webhooks.app.scopes_update";
@@ -159,7 +162,7 @@ type RouteFiles = {
   };
   "routes/app.tsx": {
     id: "routes/app";
-    page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
+    page: "/app" | "/app/api/campaign-manage" | "/app/api/campaign-status" | "/app/api/store-analytics" | "/app/api/market-intel" | "/app/api/subscription" | "/app/api/ai-improve" | "/app/api/job-status" | "/app/api/ai-engine" | "/app/api/campaign" | "/app/api/keywords" | "/app/api/metrics" | "/app/additional" | "/app/api/health" | "/app/api/state" | "/app/campaigns" | "/app/api/scan" | "/app/api/sync" | "/app/keywords" | "/app/settings" | "/app/saved";
   };
   "routes/app.api.campaign-manage.ts": {
     id: "routes/app.api.campaign-manage";
@@ -200,6 +203,10 @@ type RouteFiles = {
   "routes/app.api.keywords.ts": {
     id: "routes/app.api.keywords";
     page: "/app/api/keywords";
+  };
+  "routes/app.api.metrics.ts": {
+    id: "routes/app.api.metrics";
+    page: "/app/api/metrics";
   };
   "routes/app.additional.tsx": {
     id: "routes/app.additional";
@@ -267,6 +274,7 @@ type RouteModules = {
   "routes/app.api.ai-engine": typeof import("./app/routes/app.api.ai-engine.ts");
   "routes/app.api.campaign": typeof import("./app/routes/app.api.campaign.ts");
   "routes/app.api.keywords": typeof import("./app/routes/app.api.keywords.ts");
+  "routes/app.api.metrics": typeof import("./app/routes/app.api.metrics.ts");
   "routes/app.additional": typeof import("./app/routes/app.additional.tsx");
   "routes/app.api.health": typeof import("./app/routes/app.api.health.ts");
   "routes/app.api.state": typeof import("./app/routes/app.api.state.ts");
