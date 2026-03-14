@@ -3,6 +3,7 @@
 // Health Check Endpoint (upgraded Session 56)
 // GET → Returns system health: DB, Redis, API keys, circuits, queues, uptime
 // Used by: Pingdom, UptimeRobot, internal monitoring
+// Note: action export handles POST requests (Shopify session middleware)
 // ════════════════════════════════════════════
 import prisma from "../db.server";
 import { checkRateLimit, rateLimitResponse } from "../utils/rate-limiter";
@@ -28,7 +29,8 @@ interface HealthResults {
 const START_TIME = Date.now();
 const APP_VERSION = "1.1.0-beta";
 
-export const loader = async ({ request }: LoaderArgs): Promise<Response> => {
+// Handle both GET (loader) and POST (action) — Shopify session middleware sends POST
+async function healthCheck({ request }: LoaderArgs): Promise<Response> {
   // Basic rate limiting (prevent abuse)
   const limit = await checkRateLimit("_health", "health", 30, 60000);
   if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds ?? 0);
@@ -150,5 +152,8 @@ export const loader = async ({ request }: LoaderArgs): Promise<Response> => {
     status: results.status === "ok" ? 200 : 503,
     headers: { "Cache-Control": "no-cache, no-store" },
   });
-};
+}
+
+export const loader = healthCheck;
+export const action = healthCheck;
 
