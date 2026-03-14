@@ -24,6 +24,7 @@ interface OptAction {
   action: string;
   campaignName: string;
   reason: string;
+  narrative?: string | null;
   previousValue?: string;
   newValue?: string;
   aiGrade?: string;
@@ -133,9 +134,9 @@ export function OptimizationFeed({ history, stats, onRunOptimization }: Optimiza
                         {item.campaignName}
                       </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {item.reason.length > 80
-                          ? item.reason.substring(0, 80) + "..."
-                          : item.reason}
+                        {(item.narrative || item.reason).length > 100
+                          ? (item.narrative || item.reason).substring(0, 100) + "..."
+                          : (item.narrative || item.reason)}
                       </Text>
                     </BlockStack>
                   </InlineStack>

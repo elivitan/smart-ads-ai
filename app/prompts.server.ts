@@ -25,6 +25,15 @@ interface PromptCompetitor {
   snippet?: string;
 }
 
+/**
+ * Inject store business context into any prompt.
+ * If contextBlock is empty, returns prompt unchanged.
+ */
+export function withStoreContext(prompt: string, contextBlock: string): string {
+  if (!contextBlock) return prompt;
+  return `${contextBlock}\n\nUse the store context above to tailor your analysis — consider profit margins for bid/budget recommendations, audience demographics for ad copy tone, and brand positioning for messaging strategy.\n\n${prompt}`;
+}
+
 export const PROMPTS = {
 
   /**

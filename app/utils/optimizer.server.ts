@@ -6,8 +6,13 @@
  * - Adjusts budgets based on performance
  * - Pauses underperforming keywords
  * - Logs every decision for transparency
+ *
+ * Supports two modes:
+ * - AUTO: executes actions immediately
+ * - MANUAL: creates recommendations for user approval
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import prisma from "../db.server.js";
 import {
   listSmartAdsCampaigns,
@@ -18,6 +23,8 @@ import {
 } from "../google-ads.server.js";
 import { getDailyAdvice } from "../ai-brain.server.js";
 import { logger } from "./logger.js";
+
+const narrativeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Optimization Rules (tunable) ─────────────────────────────────────────
 
@@ -230,21 +237,55 @@ export async function runOptimization(shop: string): Promise<OptResult> {
 
     result.actionsPlanned = plannedActions.length;
 
-    // 4. Execute planned actions
+    // 4. Determine campaign mode for each action
+    // If campaign type is "auto" (PMax) → execute. If "manual" (Search) → recommend.
     for (const action of plannedActions) {
-      try {
-        await executeAction(action);
-        await logAction(shop, action, true);
-        result.actionsExecuted++;
-        result.actions.push({ ...action, success: true });
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        await logAction(shop, action, false, errorMsg);
-        result.actionsFailed++;
-        result.actions.push({ ...action, success: false, error: errorMsg });
-        logger.error("optimizer", `Action failed: ${action.action}`, {
-          extra: { campaignId: action.campaignId, error: errorMsg },
-        });
+      const campaignMode = await getCampaignMode(action.campaignId);
+      const narrative = await generateNarrative(action, campaignMode);
+
+      if (campaignMode === "manual") {
+        // Manual mode → save recommendation, don't execute
+        try {
+          await prisma.optimizationRecommendation.create({
+            data: {
+              shop,
+              campaignId: action.campaignId,
+              campaignName: action.campaignName,
+              action: action.action,
+              reason: action.reason,
+              narrative,
+              previousValue: action.previousValue,
+              newValue: action.newValue,
+              aiGrade: action.aiGrade,
+              status: "pending",
+            },
+          });
+          result.actions.push({ ...action, success: true });
+          result.actionsExecuted++;
+          logger.info("optimizer", `Recommendation created for manual campaign: ${action.action}`, {
+            extra: { campaignId: action.campaignId },
+          });
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          result.actionsFailed++;
+          result.actions.push({ ...action, success: false, error: errorMsg });
+        }
+      } else {
+        // Auto mode → execute action immediately
+        try {
+          await executeAction(action);
+          await logAction(shop, action, true, undefined, narrative);
+          result.actionsExecuted++;
+          result.actions.push({ ...action, success: true });
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          await logAction(shop, action, false, errorMsg, narrative);
+          result.actionsFailed++;
+          result.actions.push({ ...action, success: false, error: errorMsg });
+          logger.error("optimizer", `Action failed: ${action.action}`, {
+            extra: { campaignId: action.campaignId, error: errorMsg },
+          });
+        }
       }
     }
 
@@ -311,7 +352,8 @@ async function logAction(
   shop: string,
   action: OptAction,
   success: boolean,
-  error?: string
+  error?: string,
+  _narrative?: string
 ): Promise<void> {
   try {
     await prisma.optimizationLog.create({
@@ -334,6 +376,126 @@ async function logAction(
       extra: { error: err instanceof Error ? err.message : String(err) },
     });
   }
+}
+
+// ── Get campaign mode (auto/manual) ─────────────────────────────────────
+
+async function getCampaignMode(campaignId: string): Promise<"auto" | "manual"> {
+  try {
+    const job = await prisma.campaignJob.findFirst({
+      where: { googleCampaignId: campaignId },
+      select: { payload: true },
+    });
+    if (job?.payload) {
+      const payload = JSON.parse(job.payload);
+      // PMax campaigns are auto, Search campaigns are manual
+      if (payload.campaignType === "pmax") return "auto";
+      if (payload.campaignType === "search") return "manual";
+    }
+  } catch {
+    // Default to auto if we can't determine
+  }
+  return "auto";
+}
+
+// ── Generate human-like narrative in Hebrew ────────────────────────────
+
+async function generateNarrative(action: OptAction, mode: "auto" | "manual"): Promise<string> {
+  try {
+    const verb = mode === "auto" ? "ביצעתי" : "אני ממליץ";
+    const actionLabels: Record<string, string> = {
+      pause_campaign: "להשהות את הקמפיין",
+      enable_campaign: "להפעיל את הקמפיין",
+      adjust_budget: "לשנות את התקציב",
+      pause_keyword: "להשהות מילת מפתח",
+    };
+
+    const response = await narrativeClient.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 150,
+      messages: [{
+        role: "user",
+        content: `כתוב משפט אחד בעברית כמנהל חשבון בסוכנות פרסום. ${mode === "auto" ? "הפעולה כבר בוצעה." : "זו המלצה בלבד."}
+
+פעולה: ${actionLabels[action.action] || action.action}
+קמפיין: ${action.campaignName}
+סיבה: ${action.reason}
+${action.previousValue ? `ערך קודם: ${action.previousValue}` : ""}
+${action.newValue ? `ערך חדש: ${action.newValue}` : ""}
+
+כתוב תשובה קצרה וברורה. התחל עם "${verb}". אל תוסיף סימני markdown.`,
+      }],
+    });
+
+    const text = (response.content[0] as { type: string; text: string }).text.trim();
+    return text;
+  } catch {
+    // Fallback to simple narrative
+    const actionLabels: Record<string, string> = {
+      pause_campaign: "השהיית קמפיין",
+      enable_campaign: "הפעלת קמפיין",
+      adjust_budget: "התאמת תקציב",
+      pause_keyword: "השהיית מילת מפתח",
+    };
+    const label = actionLabels[action.action] || action.action;
+    if (mode === "auto") {
+      return `ביצעתי ${label} עבור "${action.campaignName}" — ${action.reason}`;
+    }
+    return `אני ממליץ על ${label} עבור "${action.campaignName}" — ${action.reason}`;
+  }
+}
+
+// ── Execute recommendation (when user approves) ────────────────────────
+
+export async function approveRecommendation(recommendationId: string): Promise<void> {
+  const rec = await prisma.optimizationRecommendation.findUnique({
+    where: { id: recommendationId },
+  });
+  if (!rec || rec.status !== "pending") {
+    throw new Error("Recommendation not found or already resolved");
+  }
+
+  // Execute the action
+  await executeAction({
+    campaignId: rec.campaignId,
+    campaignName: rec.campaignName,
+    action: rec.action,
+    reason: rec.reason,
+    previousValue: rec.previousValue || undefined,
+    newValue: rec.newValue || undefined,
+    aiGrade: rec.aiGrade || undefined,
+  });
+
+  // Mark as approved
+  await prisma.optimizationRecommendation.update({
+    where: { id: recommendationId },
+    data: { status: "approved", resolvedAt: new Date() },
+  });
+
+  // Log the action
+  await logAction(rec.shop, {
+    campaignId: rec.campaignId,
+    campaignName: rec.campaignName,
+    action: rec.action,
+    reason: rec.reason,
+    previousValue: rec.previousValue || undefined,
+    newValue: rec.newValue || undefined,
+    aiGrade: rec.aiGrade || undefined,
+  }, true);
+}
+
+export async function dismissRecommendation(recommendationId: string): Promise<void> {
+  await prisma.optimizationRecommendation.update({
+    where: { id: recommendationId },
+    data: { status: "dismissed", resolvedAt: new Date() },
+  });
+}
+
+export async function getPendingRecommendations(shop: string) {
+  return prisma.optimizationRecommendation.findMany({
+    where: { shop, status: "pending" },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 // ── Get optimization history ─────────────────────────────────────────────

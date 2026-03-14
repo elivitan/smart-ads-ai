@@ -10,6 +10,8 @@ import { LivePulse } from "./dashboard/LivePulse";
 import { ProductModal } from "./ProductModal";
 import { MarketAlert } from "./MarketAlert";
 import { StoreAnalyticsWidget } from "./StoreAnalytics";
+import { ProactiveAlerts, generateAlerts } from "./dashboard/ProactiveAlerts";
+import { StoreOnboardingBanner } from "./StoreOnboarding";
 import useAppStore from "../stores/useAppStore";
 import { shallow } from "zustand/shallow";
 
@@ -36,6 +38,10 @@ interface DashboardViewProps {
   onViewProduct: (p: any) => void;
   onAddKeyword: (gap: any) => void;
   hasScanAccess: boolean;
+  hasStoreProfile?: boolean;
+  onStartOnboarding?: () => void;
+  marketAlerts?: any[];
+  profitMargin?: number | null;
 }
 
 interface LockedOverlayProps {
@@ -82,7 +88,8 @@ export function DashboardView({
   doScan, handleProductClick, navigate,
   handlePauseCampaign, handleRemoveCampaign,
   StyleTag,
-}) {
+  hasStoreProfile, onStartOnboarding, marketAlerts, profitMargin,
+}: any) {
   // ── Computed values (moved from app._index.jsx) ──
   const mockCampaigns = analyzedCount > 0 ? Math.min(Math.floor(analyzedCount * 0.6), 12) : 0;
   const mockRoas = analyzedCount > 0 ? (1.8 + avgScore * 0.028).toFixed(1) : "0";
@@ -149,6 +156,16 @@ export function DashboardView({
       <div className="sr dk"><StyleTag/>
         <Confetti active={showConfetti}/>
         <div className="bg-m"/>
+
+        {/* STORE ONBOARDING BANNER + PROACTIVE ALERTS */}
+        <div style={{padding:"0 32px",maxWidth:1600,margin:"0 auto",width:"100%",boxSizing:"border-box",display:"flex",flexDirection:"column",gap:12}}>
+          {!hasStoreProfile && onStartOnboarding && (
+            <StoreOnboardingBanner onStart={onStartOnboarding} />
+          )}
+          {marketAlerts && marketAlerts.length > 0 && (
+            <ProactiveAlerts alerts={marketAlerts} />
+          )}
+        </div>
 
         {/* STATUS BAR — two rows */}
         <div style={{padding:"8px 32px 0",maxWidth:1600,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>

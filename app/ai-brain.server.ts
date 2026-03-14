@@ -127,6 +127,7 @@ interface AnalyzeMarketInput {
   products: Product[];
   storeInfo: StoreInfo;
   seasonalContext: SeasonalContext;
+  storeContext?: string;
 }
 
 interface BuildCampaignInput {
@@ -134,6 +135,7 @@ interface BuildCampaignInput {
   competitorData: CompetitorData;
   goal?: string;
   storeInfo: StoreInfo;
+  storeContext?: string;
 }
 
 interface Campaign {
@@ -151,6 +153,7 @@ interface DailyAdviceInput {
   campaigns: Campaign[];
   competitorData: CompetitorData;
   storeInfo: StoreInfo;
+  storeContext?: string;
 }
 
 interface ImproveAdCopyInput {
@@ -158,6 +161,7 @@ interface ImproveAdCopyInput {
   type: "headline" | "description";
   productTitle: string;
   competitorAds?: AdEntry[];
+  storeContext?: string;
 }
 
 /**
@@ -491,9 +495,12 @@ export async function analyzeMarket(data: AnalyzeMarketInput): Promise<Record<st
     products,        // store products with prices
     storeInfo,       // { domain, category, size }
     seasonalContext,  // { month, holidays, seasonal }
+    storeContext,     // business context (margins, audience, positioning)
   } = data;
 
-  const prompt = `You are a senior Google Ads campaign manager at a top advertising agency. You have 15 years of experience managing campaigns for small e-commerce businesses competing against big retailers.
+  const contextBlock = storeContext ? `${storeContext}\n\nUse the store context above to tailor budget recommendations (consider profit margins), keyword strategy (consider audience), and risk assessment.\n\n` : "";
+
+  const prompt = `${contextBlock}You are a senior Google Ads campaign manager at a top advertising agency. You have 15 years of experience managing campaigns for small e-commerce businesses competing against big retailers.
 
 Your client is a SMALL online store. This is critical — they don't have Amazon's budget. Your job is to find smart opportunities where they can win, and warn them when they'll waste money.
 
@@ -625,7 +632,10 @@ export async function buildCampaignStrategy(data: BuildCampaignInput): Promise<R
     competitorData,  // from collectCompetitorData
     goal,            // "sales" | "traffic" | "leads"
     storeInfo,
+    storeContext,     // business context
   } = data;
+
+  const contextBlock = storeContext ? `${storeContext}\n\nUse the store context above to tailor campaign messaging to the brand positioning and target audience.\n\n` : "";
 
   const productList = products.slice(0, 5).map(p =>
     `- "${p.title}" — $${p.price}${p.description ? ` — ${p.description.slice(0, 80)}` : ""}`
@@ -635,7 +645,7 @@ export async function buildCampaignStrategy(data: BuildCampaignInput): Promise<R
     `- ${s.source}: ${s.price} for "${s.title?.slice(0, 50)}"`
   ).join("\n") || "No competitor pricing data";
 
-  const prompt = `You are building a Google Ads campaign for a small e-commerce store. You have real market data. Design the optimal campaign.
+  const prompt = `${contextBlock}You are building a Google Ads campaign for a small e-commerce store. You have real market data. Design the optimal campaign.
 
 ═══ REAL DATA ═══
 
@@ -760,13 +770,16 @@ export async function getDailyAdvice(data: DailyAdviceInput): Promise<Record<str
     campaigns,        // live campaign data from Google Ads
     competitorData,   // fresh competitor check
     storeInfo,
+    storeContext,      // business context
   } = data;
+
+  const contextBlock = storeContext ? `${storeContext}\n\nUse the store context to frame your advice — consider profit margins when evaluating ROAS, and business goals when prioritizing actions.\n\n` : "";
 
   const campaignSummary = (campaigns || []).slice(0, 5).map(c =>
     `- "${c.name}" | Status: ${c.status} | Spend: $${c.cost || 0} | Clicks: ${c.clicks || 0} | Conversions: ${c.conversions || 0} | ROAS: ${c.roas || "N/A"}x | CPC: $${c.avgCpc || "N/A"}`
   ).join("\n") || "No active campaigns";
 
-  const prompt = `You are reviewing today's campaign performance for a small e-commerce store. Give a brief, actionable daily briefing.
+  const prompt = `${contextBlock}You are reviewing today's campaign performance for a small e-commerce store. Give a brief, actionable daily briefing.
 
 ═══ TODAY'S DATA ═══
 
@@ -843,6 +856,7 @@ export async function improveAdCopy(data: ImproveAdCopyInput): Promise<string | 
     type,             // "headline" or "description"
     productTitle,
     competitorAds,    // real competitor ad copy from SerpAPI
+    storeContext,      // business context
   } = data;
 
   const maxChars = type === "headline" ? 30 : 90;
@@ -850,7 +864,9 @@ export async function improveAdCopy(data: ImproveAdCopyInput): Promise<string | 
     .map(a => `- ${a.domain}: "${a.title}"`)
     .join("\n");
 
-  const prompt = `Google Ads copywriter. Improve this ${type} to beat competitors.
+  const contextBlock = storeContext ? `${storeContext}\n\nMatch the copy tone to the brand positioning above.\n\n` : "";
+
+  const prompt = `${contextBlock}Google Ads copywriter. Improve this ${type} to beat competitors.
 
 CURRENT ${type.toUpperCase()}: "${text}"
 PRODUCT: "${productTitle}"

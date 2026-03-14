@@ -262,6 +262,47 @@ const _action = async ({ request }: RouteHandlerArgs): Promise<Response> => {
       return Response.json({ success: true, data: competitorData });
     }
 
+    // ── Auto-Build Campaign ────────────────────────────────
+    if (actionType === "auto-build-campaign") {
+      const goal = formData.get("goal") as string || "sales";
+      const productsJson = formData.get("products") as string;
+      const products = productsJson ? JSON.parse(productsJson) : [];
+
+      // Collect competitor data for the products
+      const topKeywords = products.slice(0, 3).map((p: any) => p.title);
+      const competitorData = await collectCompetitorData(topKeywords, shop);
+
+      // Build campaign strategy
+      const strategy = await buildCampaignStrategy({
+        products: products.map((p: any) => ({
+          title: p.title,
+          price: p.price,
+          description: p.description,
+        })),
+        competitorData,
+        goal,
+        storeInfo: { domain: shop, category: "ecommerce" },
+      });
+
+      return Response.json({
+        success: true,
+        data: {
+          products: products.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            score: p.score || 70,
+            reason: "AI selected based on market analysis",
+          })),
+          strategy: strategy || {},
+          competitorData: {
+            competitorCount: competitorData?.competitorCount || 0,
+            bigPlayers: competitorData?.bigPlayers || [],
+          },
+        },
+      });
+    }
+
     return Response.json({ success: false, error: "Unknown action type" }, { status: 400 });
 
   } catch (err: unknown) {
