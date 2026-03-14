@@ -379,6 +379,64 @@ console.log('\n🔧 SECTION: Phase 9b TypeScript Validation\n');
   if (importsOk) pass("Phase 9b: All server TS files import with .js extensions");
 }
 
+// ═══ Section G: API Route Protection Validation ═══
+console.log('\n🛡️  SECTION G: API Route Protection\n');
+{
+  const routesDir = path.join(ROOT, "app", "routes");
+  const apiRoutes = fs.readdirSync(routesDir).filter(f => f.startsWith("app.api.") && f.endsWith(".ts"));
+
+  let sentryOk = true;
+  let rateLimitOk = true;
+  let loggingOk = true;
+  const sentryMissing = [];
+  const rateLimitMissing = [];
+
+  for (const route of apiRoutes) {
+    if (route === "app.api.health.ts") continue; // health has its own pattern
+    const content = fs.readFileSync(path.join(routesDir, route), "utf8").replace(/\r/g, "");
+
+    if (!content.includes("withSentryMonitoring") && !content.includes("reportRouteError")) {
+      sentryMissing.push(route);
+      sentryOk = false;
+    }
+
+    if (!content.includes("rateLimit.") && !content.includes("checkRateLimit")) {
+      rateLimitMissing.push(route);
+      rateLimitOk = false;
+    }
+
+    if (!content.includes("withRequestLogging") && !content.includes("logger.")) {
+      loggingOk = false;
+    }
+  }
+
+  if (sentryOk) {
+    pass("G1: All API routes use Sentry monitoring (" + apiRoutes.length + " routes)");
+  } else {
+    warn("G1: " + sentryMissing.length + " API route(s) missing Sentry: " + sentryMissing.join(", "));
+  }
+
+  if (rateLimitOk) {
+    pass("G2: All API routes use rate limiting (" + apiRoutes.length + " routes)");
+  } else {
+    warn("G2: " + rateLimitMissing.length + " API route(s) missing rate limit: " + rateLimitMissing.join(", "));
+  }
+
+  // Check catch blocks use (err: unknown) pattern
+  let catchOk = true;
+  for (const route of apiRoutes) {
+    const content = fs.readFileSync(path.join(routesDir, route), "utf8").replace(/\r/g, "");
+    if (content.includes("catch (err)") && !content.includes("catch (err:")) {
+      catchOk = false;
+    }
+  }
+  if (catchOk) {
+    pass("G3: All API routes use typed catch blocks (err: unknown)");
+  } else {
+    warn("G3: Some API routes have untyped catch blocks");
+  }
+}
+
 console.log('  RESULTS: ' + passed + ' passed, ' + failed + ' failed, ' + warnings + ' warnings');
 console.log('\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
 
