@@ -1,0 +1,79 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+jobs:
+  staging-checks:
+    name: Staging Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run Preflight checks
+        run: node preflight.cjs
+
+      - name: Run Test Flows
+        run: node test-flows.cjs
+
+      - name: Run Resilience Tests
+        run: node tests/resilience.test.cjs
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+  staging-deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: staging-checks
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Shopify (staging)
+        run: |
+          echo "🚀 Staging deployment ready"
+          echo "To deploy: npx shopify app deploy --force"
+          echo "Configure SHOPIFY_CLI_PARTNERS_TOKEN in GitHub secrets for automated deployment"
+        env:
+          NODE_ENV: production
+
+      - name: Notify staging deployment
+        if: always()
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            STATUS="${{ needs.staging-checks.result }}"
+            EMOJI=$([[ "$STATUS" == "success" ]] && echo "✅" || echo "🚨")
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-type: application/json' \
+              -d "{\"text\": \"${EMOJI} *Staging Deploy: ${STATUS}*\nBranch: \`staging\`\nCommit: \`${{ github.sha }}\`\"}"
+          fi

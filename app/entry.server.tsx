@@ -6,7 +6,15 @@ import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import * as Sentry from "@sentry/node";
 import type { EntryContext } from "react-router";
+import { validateEnv } from "./utils/env.server.js";
+import { addSecurityHeaders } from "./utils/security.server.js";
 
+// ── Validate environment on startup ──
+try {
+  validateEnv();
+} catch (e: unknown) {
+  console.error("[Startup] ENV validation failed — app may not work correctly");
+}
 
 // ── Initialize Sentry (server side) ──
 Sentry.init({
@@ -94,6 +102,7 @@ export default async function handleRequest(
   reactRouterContext: EntryContext,
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
+  addSecurityHeaders(responseHeaders);
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 

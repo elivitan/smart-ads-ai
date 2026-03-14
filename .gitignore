@@ -23,3 +23,6 @@ routes-restore/
 !playwright.config.cjs
 !setup-playwright.cjs
 !tests/resilience.test.cjs
+!tests/load-test.cjs
+!tests/helpers.cjs
+!tests/*.spec.cjs

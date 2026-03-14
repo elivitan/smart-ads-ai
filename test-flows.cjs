@@ -437,6 +437,101 @@ console.log('\n🛡️  SECTION G: API Route Protection\n');
   }
 }
 
+// ═══ Section H: Infrastructure Hardening Validation ═══
+console.log('\n🏗️  SECTION H: Infrastructure Hardening\n');
+{
+  // H1: ENV validation module exists
+  const envFile = path.join(ROOT, "app", "utils", "env.server.ts");
+  if (fs.existsSync(envFile)) {
+    const content = fs.readFileSync(envFile, "utf8");
+    if (content.includes("z.object") && content.includes("validateEnv")) {
+      pass("H1: ENV validation with Zod schema exists");
+    } else {
+      fail("H1: env.server.ts exists but missing Zod schema or validateEnv");
+    }
+  } else {
+    fail("H1: app/utils/env.server.ts not found");
+  }
+
+  // H2: Security headers module exists
+  const secFile = path.join(ROOT, "app", "utils", "security.server.ts");
+  if (fs.existsSync(secFile)) {
+    const content = fs.readFileSync(secFile, "utf8");
+    if (content.includes("X-Content-Type-Options") && content.includes("Strict-Transport-Security")) {
+      pass("H2: Security headers module with OWASP headers");
+    } else {
+      fail("H2: security.server.ts exists but missing key headers");
+    }
+  } else {
+    fail("H2: app/utils/security.server.ts not found");
+  }
+
+  // H3: Security headers wired into entry.server
+  const entryFile = path.join(ROOT, "app", "entry.server.tsx");
+  const entryContent = fs.readFileSync(entryFile, "utf8");
+  if (entryContent.includes("addSecurityHeaders")) {
+    pass("H3: Security headers wired into entry.server.tsx");
+  } else {
+    fail("H3: addSecurityHeaders not called in entry.server.tsx");
+  }
+
+  // H4: ENV validation wired into entry.server
+  if (entryContent.includes("validateEnv")) {
+    pass("H4: ENV validation wired into entry.server.tsx");
+  } else {
+    fail("H4: validateEnv not called in entry.server.tsx");
+  }
+
+  // H5: Feature flags module exists
+  const ffFile = path.join(ROOT, "app", "utils", "feature-flags.server.ts");
+  if (fs.existsSync(ffFile) && fs.readFileSync(ffFile, "utf8").includes("isFeatureEnabled")) {
+    pass("H5: Feature flags management module exists");
+  } else {
+    fail("H5: feature-flags.server.ts not found or incomplete");
+  }
+
+  // H6: Performance monitor exists
+  const perfFile = path.join(ROOT, "app", "utils", "perf-monitor.server.ts");
+  if (fs.existsSync(perfFile) && fs.readFileSync(perfFile, "utf8").includes("recordMetric")) {
+    pass("H6: Performance monitoring module exists");
+  } else {
+    fail("H6: perf-monitor.server.ts not found or incomplete");
+  }
+
+  // H7: Health check module exists
+  const hcFile = path.join(ROOT, "app", "utils", "health-check.server.ts");
+  if (fs.existsSync(hcFile) && fs.readFileSync(hcFile, "utf8").includes("runHealthChecks")) {
+    pass("H7: Health check module exists");
+  } else {
+    fail("H7: health-check.server.ts not found or incomplete");
+  }
+
+  // H8: CI has Playwright + Slack notification
+  const ciFile = path.join(ROOT, ".github", "workflows", "ci.yml");
+  const ciContent = fs.readFileSync(ciFile, "utf8");
+  if (ciContent.includes("playwright") || ciContent.includes("Playwright")) {
+    pass("H8: Playwright E2E in CI pipeline");
+  } else {
+    warn("H8: Playwright not found in CI pipeline");
+  }
+
+  // H9: Staging workflow exists
+  const stagingFile = path.join(ROOT, ".github", "workflows", "staging.yml");
+  if (fs.existsSync(stagingFile)) {
+    pass("H9: Staging deployment workflow exists");
+  } else {
+    warn("H9: staging.yml not found");
+  }
+
+  // H10: Load test exists
+  const loadTestFile = path.join(ROOT, "tests", "load-test.cjs");
+  if (fs.existsSync(loadTestFile)) {
+    pass("H10: Load test script exists");
+  } else {
+    warn("H10: tests/load-test.cjs not found");
+  }
+}
+
 console.log('  RESULTS: ' + passed + ' passed, ' + failed + ' failed, ' + warnings + ' warnings');
 console.log('\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
 
