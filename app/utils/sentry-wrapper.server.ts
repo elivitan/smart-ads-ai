@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════
 
 import { captureApiError, trackSlowOperation } from "./sentry.server";
+import { recordMetric } from "./perf-monitor.server.js";
 
 // ── Types ──
 export interface HandlerArgs {
@@ -45,9 +46,10 @@ export function withSentryMonitoring(routeName: string, handler: RouteHandler): 
       // Run the actual handler
       const result = await handler(args);
       
-      // Track slow operations
+      // Track performance metrics
       const duration = Date.now() - startTime;
       trackSlowOperation(routeName, duration);
+      recordMetric(routeName, duration);
 
       return result;
     } catch (error) {
@@ -61,6 +63,9 @@ export function withSentryMonitoring(routeName: string, handler: RouteHandler): 
         method: args?.request?.method || "unknown",
         url: args?.request?.url || "unknown",
       });
+
+      // Record error metric
+      recordMetric(routeName, duration, true, (error as Error).message);
 
       // Re-throw so withTimeout / existing error handling still works
       throw error;

@@ -26,3 +26,4 @@ routes-restore/
 !tests/load-test.cjs
 !tests/helpers.cjs
 !tests/*.spec.cjs
+!tests/uptime-check.cjs

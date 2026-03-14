@@ -8,6 +8,7 @@ import * as Sentry from "@sentry/node";
 import type { EntryContext } from "react-router";
 import { validateEnv } from "./utils/env.server.js";
 import { addSecurityHeaders } from "./utils/security.server.js";
+import { getRequestId, addRequestIdHeader } from "./utils/request-id.server.js";
 
 // ── Validate environment on startup ──
 try {
@@ -29,6 +30,11 @@ Sentry.init({
     return event;
   },
 });
+
+// ── Warm caches on startup ──
+import("./utils/cache-warming.server.js").then(({ warmCaches }) => {
+  warmCaches();
+}).catch(() => {});
 
 // ── Start BullMQ workers (in-process) ──
 import("./utils/queue.js").then(({ startWorkers }) => {
@@ -103,6 +109,7 @@ export default async function handleRequest(
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
   addSecurityHeaders(responseHeaders);
+  addRequestIdHeader(responseHeaders, getRequestId(request));
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 

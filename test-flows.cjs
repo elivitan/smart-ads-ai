@@ -530,6 +530,77 @@ console.log('\n🏗️  SECTION H: Infrastructure Hardening\n');
   } else {
     warn("H10: tests/load-test.cjs not found");
   }
+
+  // H11: Request ID tracing
+  const reqIdFile = path.join(ROOT, "app", "utils", "request-id.server.ts");
+  if (fs.existsSync(reqIdFile) && entryContent.includes("addRequestIdHeader")) {
+    pass("H11: Request ID tracing wired in");
+  } else {
+    fail("H11: Request ID tracing missing");
+  }
+
+  // H12: CORS configuration
+  const corsFile = path.join(ROOT, "app", "utils", "cors.server.ts");
+  if (fs.existsSync(corsFile) && fs.readFileSync(corsFile, "utf8").includes("isAllowedOrigin")) {
+    pass("H12: CORS configuration module exists");
+  } else {
+    fail("H12: cors.server.ts not found or incomplete");
+  }
+
+  // H13: DB alerts to Sentry
+  const dbAlertsFile = path.join(ROOT, "app", "utils", "db-alerts.server.ts");
+  if (fs.existsSync(dbAlertsFile) && fs.readFileSync(dbAlertsFile, "utf8").includes("trackDbQuery")) {
+    pass("H13: DB slow query alerts module exists");
+  } else {
+    fail("H13: db-alerts.server.ts not found or incomplete");
+  }
+
+  // H14: Dead letter queue
+  const dlqFile = path.join(ROOT, "app", "utils", "dead-letter.server.ts");
+  if (fs.existsSync(dlqFile) && fs.readFileSync(dlqFile, "utf8").includes("addToDeadLetter")) {
+    pass("H14: Dead letter queue module exists");
+  } else {
+    fail("H14: dead-letter.server.ts not found or incomplete");
+  }
+
+  // H15: Cache warming
+  if (entryContent.includes("warmCaches")) {
+    pass("H15: Cache warming wired into startup");
+  } else {
+    fail("H15: Cache warming not in entry.server.tsx");
+  }
+
+  // H16: API response compression
+  const compFile = path.join(ROOT, "app", "utils", "compression.server.ts");
+  if (fs.existsSync(compFile) && fs.readFileSync(compFile, "utf8").includes("compressJsonResponse")) {
+    pass("H16: API response compression module exists");
+  } else {
+    fail("H16: compression.server.ts not found or incomplete");
+  }
+
+  // H17: Metrics endpoint
+  const metricsRoute = path.join(ROOT, "app", "routes", "app.api.metrics.ts");
+  if (fs.existsSync(metricsRoute) && fs.readFileSync(metricsRoute, "utf8").includes("getMetrics")) {
+    pass("H17: Metrics API endpoint exists");
+  } else {
+    fail("H17: app.api.metrics.ts not found or incomplete");
+  }
+
+  // H18: Perf monitor wired into Sentry wrapper
+  const wrapperContent = fs.readFileSync(path.join(ROOT, "app", "utils", "sentry-wrapper.server.ts"), "utf8");
+  if (wrapperContent.includes("recordMetric")) {
+    pass("H18: Perf monitor auto-tracks all API routes");
+  } else {
+    fail("H18: recordMetric not in sentry-wrapper.server.ts");
+  }
+
+  // H19: Uptime check script
+  const uptimeFile = path.join(ROOT, "tests", "uptime-check.cjs");
+  if (fs.existsSync(uptimeFile)) {
+    pass("H19: Uptime check script exists");
+  } else {
+    warn("H19: tests/uptime-check.cjs not found");
+  }
 }
 
 console.log('  RESULTS: ' + passed + ' passed, ' + failed + ' failed, ' + warnings + ' warnings');
