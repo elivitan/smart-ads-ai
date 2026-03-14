@@ -16,6 +16,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server";
+import { logPrompt } from "./utils/prompt-logger.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -458,6 +459,7 @@ CRITICAL RULES:
 - Be honest: if the market is too competitive, say so
 - Specific > generic: "Target 'organic cotton duvet cover queen' at $0.90 CPC" beats "use long-tail keywords"`;
 
+  const startMs = Date.now();
   try {
     const response = await withRetry(
       () => client.messages.create({
@@ -468,10 +470,13 @@ CRITICAL RULES:
       { label: "AI-Brain:market" }
     );
 
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { productsCount: products?.length || 0 } });
+
     const text = response.content[0].text.trim();
     const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
     return JSON.parse(cleaned);
   } catch (err) {
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Market analysis failed:", err.message);
     return {
       market_signal: "yellow",
@@ -587,6 +592,7 @@ RULES:
 - If competitor prices are lower, don't compete on price — compete on quality/service/niche.
 - Be honest about expected results. Don't overpromise.`;
 
+  const startMs = Date.now();
   try {
     const response = await withRetry(
       () => client.messages.create({
@@ -596,6 +602,8 @@ RULES:
       }),
       { label: "AI-Brain:campaign" }
     );
+
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "campaign_builder", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { goal, productsCount: products?.length || 0 } });
 
     const text = response.content[0].text.trim();
     const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
@@ -612,6 +620,7 @@ RULES:
 
     return result;
   } catch (err) {
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "campaign_builder", model: "claude-sonnet-4-20250514", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Campaign build failed:", err.message);
     return null;
   }
@@ -669,6 +678,7 @@ Rules:
 - Milestones matter: "First sale from ads!" is important for small store owners
 - If campaigns are doing poorly, be honest but constructive`;
 
+  const startMs = Date.now();
   try {
     const response = await withRetry(
       () => client.messages.create({
@@ -679,10 +689,13 @@ Rules:
       { label: "AI-Brain:daily" }
     );
 
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
     const text = response.content[0].text.trim();
     const cleaned = text.startsWith("```") ? text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "") : text;
     return JSON.parse(cleaned);
   } catch (err) {
+    logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Daily advice failed:", err.message);
     return {
       today_summary: "Analysis temporarily unavailable",
@@ -724,6 +737,7 @@ Rules:
 - Include a clear benefit or CTA
 - Return ONLY the improved text, nothing else. No quotes.`;
 
+  const startMs = Date.now();
   try {
     const response = await withRetry(
       () => client.messages.create({
@@ -734,9 +748,12 @@ Rules:
       { label: "AI-Brain:copy" }
     );
 
+    logPrompt({ shop: "unknown", action: "improve", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { type, productTitle } });
+
     const improved = response.content[0].text.trim().replace(/^["']|["']$/g, "");
     return improved.slice(0, maxChars);
   } catch (err) {
+    logPrompt({ shop: "unknown", action: "improve", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Copy improve failed:", err.message);
     return null;
   }

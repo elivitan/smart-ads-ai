@@ -326,6 +326,128 @@ export async function createCampaign({
   };
 }
 
+// ── Campaign Management (list, status update, diagnose) ─────────────────
+
+export async function listSmartAdsCampaigns() {
+  const customer = getCustomer();
+  const query = `
+    SELECT
+      campaign.id, campaign.name, campaign.status,
+      campaign.advertising_channel_type, campaign.bidding_strategy_type,
+      campaign_budget.amount_micros,
+      metrics.impressions, metrics.clicks, metrics.cost_micros,
+      metrics.conversions, metrics.conversions_value,
+      metrics.ctr, metrics.average_cpc, campaign.campaign_budget
+    FROM campaign
+    WHERE campaign.name LIKE 'Smart Ads%'
+    AND campaign.status != 'REMOVED'
+    ORDER BY campaign.id DESC
+    LIMIT 50
+  `;
+  const rows = await customer.query(query);
+  return rows.map((row: any) => ({
+    id: row.campaign.id,
+    name: row.campaign.name,
+    status: row.campaign.status,
+    type: row.campaign.advertising_channel_type,
+    biddingStrategy: row.campaign.bidding_strategy_type,
+    dailyBudget: row.campaign_budget?.amount_micros
+      ? (parseInt(row.campaign_budget.amount_micros) / 1_000_000).toFixed(2) : "0",
+    impressions: parseInt(row.metrics?.impressions || 0),
+    clicks: parseInt(row.metrics?.clicks || 0),
+    cost: row.metrics?.cost_micros
+      ? (parseInt(row.metrics.cost_micros) / 1_000_000).toFixed(2) : "0",
+    conversions: parseFloat(row.metrics?.conversions || 0).toFixed(1),
+    conversionValue: parseFloat(row.metrics?.conversions_value || 0).toFixed(2),
+    ctr: (parseFloat(row.metrics?.ctr || 0) * 100).toFixed(2),
+    avgCpc: row.metrics?.average_cpc
+      ? (parseInt(row.metrics.average_cpc) / 1_000_000).toFixed(2) : "0",
+  }));
+}
+
+export async function updateCampaignStatus(campaignId: string, newStatus: "PAUSED" | "ENABLED" | "REMOVED") {
+  const customer = getCustomer();
+  const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
+  const resourceName = campaignId.includes("/")
+    ? campaignId
+    : `customers/${customerId}/campaigns/${campaignId}`;
+
+  await customer.campaigns.update([{
+    resource_name: resourceName,
+    status: enums.CampaignStatus[newStatus],
+  }]);
+
+  return { campaignId, newStatus };
+}
+
+export async function diagnoseCampaigns() {
+  const customer = getCustomer();
+  const issues: any[] = [];
+
+  // Check ad disapprovals
+  try {
+    const adRows = await customer.query(`
+      SELECT
+        ad_group_ad.ad.id,
+        ad_group_ad.policy_summary.approval_status,
+        ad_group_ad.policy_summary.policy_topic_entries,
+        campaign.name, campaign.id
+      FROM ad_group_ad
+      WHERE campaign.name LIKE 'Smart Ads%'
+      AND ad_group_ad.status != 'REMOVED'
+      LIMIT 50
+    `);
+    for (const row of adRows) {
+      const status = row.ad_group_ad?.policy_summary?.approval_status;
+      if (status && status !== "APPROVED" && status !== "APPROVED_LIMITED") {
+        issues.push({
+          severity: "HIGH",
+          type: "AD_DISAPPROVED",
+          campaign: row.campaign.name,
+          message: `Ad ${row.ad_group_ad.ad.id} is ${status}`,
+          details: (row.ad_group_ad.policy_summary.policy_topic_entries || [])
+            .map((p: any) => `${p.topic} (${p.type})`).join(", "),
+          autoFixable: false,
+        });
+      }
+    }
+  } catch (e) {
+    // Ad policy query may not be available
+  }
+
+  // Check recommendations
+  try {
+    const recRows = await customer.query(`
+      SELECT recommendation.type, recommendation.impact
+      FROM recommendation
+      WHERE recommendation.campaign.name LIKE 'Smart Ads%'
+      LIMIT 50
+    `);
+    const recTypes: Record<string, number> = {};
+    for (const r of recRows) {
+      recTypes[r.recommendation.type] = (recTypes[r.recommendation.type] || 0) + 1;
+    }
+    if (recTypes["KEYWORD"]) {
+      issues.push({ severity: "MEDIUM", type: "KEYWORD_SUGGESTION", message: `${recTypes["KEYWORD"]} keyword recommendations available`, autoFixable: true });
+    }
+    if (recTypes["RESPONSIVE_SEARCH_AD"]) {
+      issues.push({ severity: "MEDIUM", type: "RSA_IMPROVEMENT", message: `${recTypes["RESPONSIVE_SEARCH_AD"]} ad copy improvements suggested`, autoFixable: true });
+    }
+  } catch (e) {
+    // Recommendations query may fail
+  }
+
+  return {
+    totalIssues: issues.length,
+    highSeverity: issues.filter(i => i.severity === "HIGH").length,
+    mediumSeverity: issues.filter(i => i.severity === "MEDIUM").length,
+    lowSeverity: issues.filter(i => i.severity === "LOW").length,
+    issues,
+    autoFixableCount: issues.filter(i => i.autoFixable).length,
+    lastChecked: new Date().toISOString(),
+  };
+}
+
 // ── Test connection ──────────────────────────────────────────────────────
 export async function testConnection() {
   try {

@@ -143,6 +143,25 @@ model CampaignJob {
   @@index([state, createdAt])
 }
 
+model AiPromptLog {
+  id            String    @id @default(cuid())
+  shop          String
+  action        String    // e.g. "analyze", "market_intel", "campaign_builder", "daily_advice", "improve"
+  model         String    @default("claude-sonnet-4-20250514")
+  promptTokens  Int       @default(0)
+  outputTokens  Int       @default(0)
+  durationMs    Int       @default(0)
+  success       Boolean   @default(true)
+  error         String?   @db.Text
+  metadata      String    @default("{}") @db.Text  // JSON: product title, campaign type, etc.
+  createdAt     DateTime  @default(now())
+
+  @@index([shop])
+  @@index([action])
+  @@index([createdAt])
+  @@index([shop, action, createdAt])
+}
+
 model UserState {
   id              String   @id @default(cuid())
   shop            String   @unique

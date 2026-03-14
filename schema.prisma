@@ -5,27 +5,27 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Session {
-  id                  String    @id
-  shop                String
-  state               String
-  isOnline            Boolean   @default(false)
-  scope               String?
-  expires             DateTime?
-  accessToken         String
-  userId              BigInt?
-  firstName           String?
-  lastName            String?
-  email               String?
-  accountOwner        Boolean   @default(false)
-  locale              String?
-  collaborator        Boolean?  @default(false)
-  emailVerified       Boolean?  @default(false)
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 
@@ -33,24 +33,24 @@ model Session {
 }
 
 model Product {
-  id               String    @id
-  shop             String
-  title            String
-  description      String    @default("") @db.Text
-  handle           String    @default("")
-  image            String    @default("") @db.Text
-  price            String    @default("0")
-  status           String    @default("ACTIVE")
-  inventoryTotal   Int       @default(0)
-  inStock          Boolean   @default(true)
-  productType      String    @default("")
-  vendor           String    @default("")
-  tags             String    @default("") @db.Text
+  id              String    @id
+  shop            String
+  title           String
+  description     String    @default("") @db.Text
+  handle          String    @default("")
+  image           String    @default("") @db.Text
+  price           String    @default("0")
+  status          String    @default("ACTIVE")
+  inventoryTotal  Int       @default(0)
+  inStock         Boolean   @default(true)
+  productType     String    @default("")
+  vendor          String    @default("")
+  tags            String    @default("") @db.Text
   shopifyUpdatedAt DateTime?
-  syncedAt         DateTime  @default(now())
-  createdAt        DateTime  @default(now())
+  syncedAt        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
 
-  aiAnalysis AiAnalysis?
+  aiAnalysis      AiAnalysis?
 
   @@index([shop])
   @@index([shop, inStock])
@@ -58,26 +58,26 @@ model Product {
 }
 
 model AiAnalysis {
-  id                 String   @id @default(cuid())
-  productId          String   @unique
-  shop               String
-  adScore            Int      @default(0)
-  adStrength         String   @default("AVERAGE")
-  headlines          String   @default("[]") @db.Text
-  longHeadlines      String?  @default("[]") @db.Text
-  descriptions       String   @default("[]") @db.Text
-  keywords           String   @default("[]") @db.Text
-  negativeKeywords   String   @default("[]") @db.Text
-  path1              String   @default("Shop")
-  path2              String   @default("")
-  recommendedBid     Float    @default(1.0)
-  targetDemographics String   @default("") @db.Text
-  sitelinks          String   @default("[]") @db.Text
-  competitorIntel    String   @default("{}") @db.Text
-  analyzedAt         DateTime @default(now())
-  productHash        String   @default("")
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  shop            String
+  adScore         Int       @default(0)
+  adStrength      String    @default("AVERAGE")
+  headlines       String    @default("[]") @db.Text
+  longHeadlines   String?   @default("[]") @db.Text
+  descriptions    String    @default("[]") @db.Text
+  keywords        String    @default("[]") @db.Text
+  negativeKeywords String   @default("[]") @db.Text
+  path1           String    @default("Shop")
+  path2           String    @default("")
+  recommendedBid  Float     @default(1.0)
+  targetDemographics String @default("") @db.Text
+  sitelinks       String    @default("[]") @db.Text
+  competitorIntel String    @default("{}") @db.Text
+  analyzedAt      DateTime  @default(now())
+  productHash     String    @default("")
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([shop])
   @@index([productId])
@@ -85,15 +85,15 @@ model AiAnalysis {
 }
 
 model SyncLog {
-  id               String    @id @default(cuid())
-  shop             String
-  type             String
-  status           String
-  details          String    @default("") @db.Text
-  productsAffected Int       @default(0)
-  startedAt        DateTime  @default(now())
-  completedAt      DateTime?
-  error            String?   @db.Text
+  id          String    @id @default(cuid())
+  shop        String
+  type        String
+  status      String
+  details     String    @default("") @db.Text
+  productsAffected Int  @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  error       String?   @db.Text
 
   @@index([shop])
   @@index([shop, type])
@@ -101,41 +101,41 @@ model SyncLog {
 }
 
 model ShopSubscription {
-  id               String    @id @default(cuid())
-  shop             String    @unique
-  plan             String    @default("free")
-  status           String    @default("active")
-  scanCredits      Int       @default(0)
-  aiCredits        Int       @default(0)
-  maxProducts      Int       @default(3)
-  maxCampaigns     Int       @default(0)
-  scanCountToday   Int       @default(0)
-  lastScanAt       DateTime?
-  apiCallsToday    Int       @default(0)
-  rateLimitReset   DateTime  @default(now())
-  trialEndsAt      DateTime?
+  id              String    @id @default(cuid())
+  shop            String    @unique
+  plan            String    @default("free")
+  status          String    @default("active")
+  scanCredits     Int       @default(0)
+  aiCredits       Int       @default(0)
+  maxProducts     Int       @default(3)
+  maxCampaigns    Int       @default(0)
+  scanCountToday  Int       @default(0)
+  lastScanAt      DateTime?
+  apiCallsToday   Int       @default(0)
+  rateLimitReset  DateTime  @default(now())
+  trialEndsAt     DateTime?
   billingStartedAt DateTime?
-  cancelledAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([shop])
   @@index([plan])
 }
 
 model CampaignJob {
-  id               String   @id
-  shop             String
-  state            String   @default("QUEUED")
-  payload          String   @default("{}") @db.Text
-  idempotencyKey   String   @default("")
-  attempts         Int      @default(0)
-  stepsJson        String   @default("[]") @db.Text
-  googleCampaignId String?
-  lastError        String?  @db.Text
-  lastStepAt       DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String    @id
+  shop              String
+  state             String    @default("QUEUED")
+  payload           String    @default("{}") @db.Text
+  idempotencyKey    String    @default("")
+  attempts          Int       @default(0)
+  stepsJson         String    @default("[]") @db.Text
+  googleCampaignId  String?
+  lastError         String?   @db.Text
+  lastStepAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([shop])
   @@index([shop, state])
@@ -143,17 +143,38 @@ model CampaignJob {
   @@index([state, createdAt])
 }
 
+model AiPromptLog {
+  id            String    @id @default(cuid())
+  shop          String
+  action        String    // e.g. "analyze", "market_intel", "campaign_builder", "daily_advice", "improve"
+  model         String    @default("claude-sonnet-4-20250514")
+  promptTokens  Int       @default(0)
+  outputTokens  Int       @default(0)
+  durationMs    Int       @default(0)
+  success       Boolean   @default(true)
+  error         String?   @db.Text
+  metadata      String    @default("{}") @db.Text  // JSON: product title, campaign type, etc.
+  createdAt     DateTime  @default(now())
+
+  @@index([shop])
+  @@index([action])
+  @@index([createdAt])
+  @@index([shop, action, createdAt])
+}
+
 model UserState {
-  id                String   @id @default(cuid())
-  shop              String   @unique
-  selectedPlan      String?
-  scanCredits       Int?
-  aiCredits         Int?
-  campaignId        String?
-  autoScanMode      Boolean? @default(false)
-  showDashboard     Boolean? @default(false)
-  lastScanProducts  String?  @db.Text
-  lastAiResults     String?  @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  selectedPlan    String?
+  scanCredits     Int      @default(0)
+  aiCredits       Int      @default(0)
+  campaignId      String?
+  campaignIntent  String?  @db.Text
+  lastScanProducts String? @db.Text
+  lastAiResults   String?  @db.Text
+  autoScanMode    String?
+  showDashboard   Boolean  @default(false)
+  justSubscribed  Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }
