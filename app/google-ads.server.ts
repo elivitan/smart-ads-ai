@@ -505,6 +505,7 @@ export async function getKeywordPerformance(campaignId: string) {
       ad_group_criterion.keyword.text,
       ad_group_criterion.keyword.match_type,
       ad_group_criterion.status,
+      ad_group_criterion.quality_info.quality_score,
       ad_group.id,
       metrics.impressions,
       metrics.clicks,
@@ -530,7 +531,109 @@ export async function getKeywordPerformance(campaignId: string) {
     cost: parseInt(row.metrics?.cost_micros || 0) / 1_000_000,
     conversions: parseFloat(row.metrics?.conversions || 0),
     ctr: (parseFloat(row.metrics?.ctr || 0) * 100).toFixed(2),
+    qualityScore: row.ad_group_criterion?.quality_info?.quality_score ?? null,
   }));
+}
+
+/**
+ * Get search term report — actual search queries that triggered ads.
+ * Gold mine for finding negative keywords and winning search terms.
+ */
+export async function getSearchTermReport(campaignId: string) {
+  const customer = getCustomer();
+  const cid = campaignId.includes("/") ? campaignId.split("/").pop()! : campaignId;
+
+  try {
+    const rows = await customer.query(`
+      SELECT
+        search_term_view.search_term,
+        search_term_view.status,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM search_term_view
+      WHERE campaign.id = ${cid}
+      AND segments.date DURING LAST_30_DAYS
+      ORDER BY metrics.cost_micros DESC
+      LIMIT 200
+    `);
+
+    return rows.map((row: any) => ({
+      searchTerm: row.search_term_view?.search_term || "",
+      status: row.search_term_view?.status || "UNSPECIFIED",
+      impressions: parseInt(row.metrics?.impressions || 0),
+      clicks: parseInt(row.metrics?.clicks || 0),
+      cost: parseInt(row.metrics?.cost_micros || 0) / 1_000_000,
+      conversions: parseFloat(row.metrics?.conversions || 0),
+      conversionValue: parseFloat(row.metrics?.conversions_value || 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Add negative keywords to a campaign — blocks irrelevant search terms.
+ */
+export async function addNegativeKeywords(campaignId: string, keywords: string[]) {
+  const customer = getCustomer();
+  const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
+  const cid = campaignId.includes("/") ? campaignId.split("/").pop()! : campaignId;
+
+  const operations = keywords.map((kw) => ({
+    create: {
+      campaign: `customers/${customerId}/campaigns/${cid}`,
+      negative: true,
+      keyword: {
+        text: kw,
+        match_type: enums.KeywordMatchType.BROAD,
+      },
+    },
+  }));
+
+  await customer.campaignCriteria.create(operations);
+  return { added: keywords.length, keywords };
+}
+
+/**
+ * Get daily performance breakdown — powers day-of-week analysis and budget pacing.
+ */
+export async function getCampaignPerformanceByDate(campaignId: string, days: number = 30) {
+  const customer = getCustomer();
+  const cid = campaignId.includes("/") ? campaignId.split("/").pop()! : campaignId;
+
+  try {
+    const rows = await customer.query(`
+      SELECT
+        segments.date,
+        segments.day_of_week,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value,
+        metrics.ctr
+      FROM campaign
+      WHERE campaign.id = ${cid}
+      AND segments.date DURING LAST_${days}_DAYS
+      ORDER BY segments.date DESC
+    `);
+
+    return rows.map((row: any) => ({
+      date: row.segments?.date || "",
+      dayOfWeek: row.segments?.day_of_week || "UNSPECIFIED",
+      impressions: parseInt(row.metrics?.impressions || 0),
+      clicks: parseInt(row.metrics?.clicks || 0),
+      cost: parseInt(row.metrics?.cost_micros || 0) / 1_000_000,
+      conversions: parseFloat(row.metrics?.conversions || 0),
+      conversionValue: parseFloat(row.metrics?.conversions_value || 0),
+      ctr: parseFloat(row.metrics?.ctr || 0) * 100,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /**

@@ -154,6 +154,10 @@ interface DailyAdviceInput {
   competitorData: CompetitorData;
   storeInfo: StoreInfo;
   storeContext?: string;
+  keywordDetails?: Array<{ text: string; clicks: number; cost: number; conversions: number; qualityScore: number | null }>;
+  wastefulSearchTerms?: Array<{ term: string; clicks: number; cost: number }>;
+  profitMargin?: number | null;
+  competitorTrends?: Array<{ domain: string; spendChange: number; priceChange: number; isNew: boolean }>;
 }
 
 interface ImproveAdCopyInput {
@@ -771,6 +775,10 @@ export async function getDailyAdvice(data: DailyAdviceInput): Promise<Record<str
     competitorData,   // fresh competitor check
     storeInfo,
     storeContext,      // business context
+    keywordDetails,
+    wastefulSearchTerms,
+    profitMargin,
+    competitorTrends,
   } = data;
 
   const contextBlock = storeContext ? `${storeContext}\n\nUse the store context to frame your advice — consider profit margins when evaluating ROAS, and business goals when prioritizing actions.\n\n` : "";
@@ -779,25 +787,61 @@ export async function getDailyAdvice(data: DailyAdviceInput): Promise<Record<str
     `- "${c.name}" | Status: ${c.status} | Spend: $${c.cost || 0} | Clicks: ${c.clicks || 0} | Conversions: ${c.conversions || 0} | ROAS: ${c.roas || "N/A"}x | CPC: $${c.avgCpc || "N/A"}`
   ).join("\n") || "No active campaigns";
 
+  // Keyword-level details
+  const keywordBlock = keywordDetails && keywordDetails.length > 0
+    ? `\nTOP KEYWORDS BY SPEND:\n${keywordDetails.slice(0, 10).map(kw =>
+        `- "${kw.text}": $${kw.cost.toFixed(0)} spent, ${kw.clicks} clicks, ${kw.conversions} sales${kw.qualityScore ? `, Quality ${kw.qualityScore}/10` : ""}`
+      ).join("\n")}`
+    : "";
+
+  // Wasteful search terms
+  const wasteBlock = wastefulSearchTerms && wastefulSearchTerms.length > 0
+    ? `\nWASTEFUL SEARCH TERMS (people searched this but didn't buy):\n${wastefulSearchTerms.slice(0, 10).map(st =>
+        `- "${st.term}": $${st.cost.toFixed(0)} wasted, ${st.clicks} clicks, 0 sales`
+      ).join("\n")}`
+    : "";
+
+  // Profit margin context
+  const marginBlock = profitMargin
+    ? `\nPROFIT MARGIN: ${profitMargin}%. Minimum ROAS to make money: ${(100 / profitMargin * 1.2).toFixed(1)}x`
+    : "";
+
+  // Competitor changes
+  const competitorBlock = competitorTrends && competitorTrends.length > 0
+    ? `\nCOMPETITOR CHANGES:\n${competitorTrends.slice(0, 5).map(t => {
+        const parts: string[] = [t.domain];
+        if (t.isNew) parts.push("NEW competitor!");
+        if (t.spendChange) parts.push(`spend ${t.spendChange > 0 ? "+" : ""}${t.spendChange}%`);
+        if (t.priceChange) parts.push(`price ${t.priceChange > 0 ? "+" : ""}${t.priceChange}%`);
+        return `- ${parts.join(" | ")}`;
+      }).join("\n")}`
+    : "";
+
   const prompt = `${contextBlock}You are reviewing today's campaign performance for a small e-commerce store. Give a brief, actionable daily briefing.
+
+IMPORTANT: Write in simple terms that any store owner understands. No jargon like "ROAS", "CTR", "CPC", "impressions". Instead say "return on ad spend", "click rate", "cost per click", "how many people saw the ad".
 
 ═══ TODAY'S DATA ═══
 
 CAMPAIGN PERFORMANCE:
 ${campaignSummary}
+${keywordBlock}
+${wasteBlock}
+${marginBlock}
 
 COMPETITOR ACTIVITY:
 ${competitorData?.ads?.length || 0} competitors advertising
 ${competitorData?.bigPlayerCount || 0} big players active
 Trend: ${competitorData?.trends?.direction || "unknown"}
+${competitorBlock}
 
 ═══ DAILY BRIEFING ═══
 
 Return ONLY valid JSON:
 {
-  "today_summary": "One sentence — the most important thing to know",
+  "today_summary": "One sentence — the most important thing to know, in simple Hebrew",
   "performance_grade": "A" | "B" | "C" | "D" | "F",
-  "grade_reason": "Why this grade",
+  "grade_reason": "Why this grade, in simple terms",
   "ai_actions_taken": [
     {"action": "What AI did", "reason": "Why", "impact": "Expected result"}
   ],
@@ -805,16 +849,24 @@ Return ONLY valid JSON:
     {"action": "What the user should do", "urgency": "now" | "today" | "this_week", "reason": "Why"}
   ],
   "alerts": [
-    {"type": "warning" | "opportunity" | "milestone", "message": "Short alert message"}
+    {"type": "warning" | "opportunity" | "milestone", "message": "Short alert in simple Hebrew"}
   ],
-  "competitor_update": "One sentence about competitor changes, or null if no changes"
+  "competitor_update": "One sentence about competitor changes, or null",
+  "negative_keyword_suggestions": ["search terms to block"],
+  "profit_analysis": {
+    "total_spend": 0,
+    "estimated_profit_or_loss": 0,
+    "verdict": "making money" | "losing money" | "breaking even"
+  }
 }
 
 Rules:
 - Maximum 3 AI actions, 3 recommended actions, 3 alerts
-- Be specific: "$12.50 spent on 'luxury bedding' with 0 conversions — consider pausing" beats "review keywords"
+- EVERY recommendation MUST include specific keyword/campaign name and exact dollar amounts
+- FORBIDDEN: Generic advice like "review underperforming keywords". REQUIRED: "Keyword 'luxury bedding set' — $45 spent, 0 sales in 30 days — stop it"
 - Milestones matter: "First sale from ads!" is important for small store owners
-- If campaigns are doing poorly, be honest but constructive`;
+- If campaigns lose money, be honest but explain in simple terms: "You spent $50 on ads but only made $30 in sales"
+- Use the profit margin to calculate if the store is actually making money, not just getting sales`;
 
   const startMs = Date.now();
   try {

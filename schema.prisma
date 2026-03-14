@@ -250,6 +250,7 @@ model OptimizationRecommendation {
   newValue       String?
   aiGrade        String?
   status         String    @default("pending") // "pending" | "approved" | "dismissed"
+  outcomeChecked Boolean   @default(false)
   resolvedAt     DateTime?
   createdAt      DateTime  @default(now())
 

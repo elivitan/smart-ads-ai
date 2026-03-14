@@ -500,3 +500,122 @@ export async function getCompetitorIntel(product: CompetitorProduct, storeDomain
   const result = await analyzeProductWithIntel(product, storeDomain, shop);
   return result.competitor_intel || {};
 }
+
+// ── Competitor Trends — Track changes over time ──────────────────────────
+
+export interface CompetitorTrend {
+  domain: string;
+  spendChange: number;   // % change in estimated spend
+  priceChange: number;   // % change in avg price
+  adCountChange: number; // change in ad count
+  latestSpend: number;
+  latestPrice: number;
+  isNew: boolean;        // first seen within last 14 days
+  isGone: boolean;       // no snapshot in last 14 days but had one before
+}
+
+export interface CompetitorAlert {
+  type: "new_competitor" | "spend_increase" | "price_drop" | "competitor_left";
+  domain: string;
+  message: string;
+  urgency: "now" | "today" | "this_week";
+}
+
+export async function getCompetitorTrends(shop: string, days: number = 30): Promise<CompetitorTrend[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  const snapshots = await prisma.competitorSnapshot.findMany({
+    where: { shop, createdAt: { gte: since } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (snapshots.length === 0) return [];
+
+  // Group by domain
+  const byDomain: Record<string, typeof snapshots> = {};
+  for (const s of snapshots) {
+    if (!byDomain[s.competitorDomain]) byDomain[s.competitorDomain] = [];
+    byDomain[s.competitorDomain].push(s);
+  }
+
+  const trends: CompetitorTrend[] = [];
+
+  for (const [domain, snaps] of Object.entries(byDomain)) {
+    const first = snaps[0];
+    const latest = snaps[snaps.length - 1];
+
+    const spendChange = first.estMonthlySpend && first.estMonthlySpend > 0
+      ? ((latest.estMonthlySpend || 0) - first.estMonthlySpend) / first.estMonthlySpend * 100
+      : 0;
+
+    const priceChange = first.avgPrice && first.avgPrice > 0
+      ? ((latest.avgPrice || 0) - first.avgPrice) / first.avgPrice * 100
+      : 0;
+
+    const adCountChange = (latest.adCount || 0) - (first.adCount || 0);
+
+    const isNew = first.createdAt >= fourteenDaysAgo;
+    const isGone = latest.createdAt < fourteenDaysAgo;
+
+    trends.push({
+      domain,
+      spendChange: Math.round(spendChange),
+      priceChange: Math.round(priceChange),
+      adCountChange,
+      latestSpend: latest.estMonthlySpend || 0,
+      latestPrice: latest.avgPrice || 0,
+      isNew,
+      isGone,
+    });
+  }
+
+  // Sort by most significant changes
+  return trends.sort((a, b) =>
+    Math.abs(b.spendChange) + Math.abs(b.priceChange) - Math.abs(a.spendChange) - Math.abs(a.priceChange)
+  );
+}
+
+export function detectCompetitorAlerts(trends: CompetitorTrend[]): CompetitorAlert[] {
+  const alerts: CompetitorAlert[] = [];
+
+  for (const t of trends) {
+    if (t.isNew) {
+      alerts.push({
+        type: "new_competitor",
+        domain: t.domain,
+        message: `מתחרה חדש: ${t.domain} התחיל לפרסם על מילות המפתח שלך.`,
+        urgency: "today",
+      });
+    }
+
+    if (t.isGone) {
+      alerts.push({
+        type: "competitor_left",
+        domain: t.domain,
+        message: `${t.domain} הפסיק לפרסם — הזדמנות לתפוס את הנתח שלו.`,
+        urgency: "this_week",
+      });
+    }
+
+    if (t.spendChange >= 40) {
+      alerts.push({
+        type: "spend_increase",
+        domain: t.domain,
+        message: `${t.domain} הגדיל הוצאות פרסום ב-${t.spendChange}% — ייתכן שהוא מתכונן למבצע או תוקפני יותר.`,
+        urgency: "today",
+      });
+    }
+
+    if (t.priceChange <= -10) {
+      alerts.push({
+        type: "price_drop",
+        domain: t.domain,
+        message: `${t.domain} הוריד מחירים ב-${Math.abs(t.priceChange)}%. שקול אם להדגיש יתרונות אחרים (שירות, איכות, משלוח).`,
+        urgency: "this_week",
+      });
+    }
+  }
+
+  return alerts;
+}
