@@ -21,7 +21,7 @@ import { AlertCircleIcon, ArrowUpIcon, TargetIcon } from "@shopify/polaris-icons
 
 interface Alert {
   id: string;
-  type: "opportunity" | "warning" | "milestone" | "seasonal";
+  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health";
   title: string;
   message: string;
   urgency: "now" | "today" | "this_week";
@@ -38,6 +38,8 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   warning: { tone: "warning", icon: AlertCircleIcon },
   milestone: { tone: "info", icon: TargetIcon },
   seasonal: { tone: "info", icon: ArrowUpIcon },
+  competitor: { tone: "warning", icon: AlertCircleIcon },
+  health: { tone: "critical", icon: AlertCircleIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
@@ -105,6 +107,10 @@ export function generateAlerts(data: {
   holidays?: Array<{ name: string; daysUntil: number; impact: string }>;
   campaigns?: Array<{ name: string; roas?: number; spend?: number }>;
   profitMargin?: number | null;
+  competitorTrends?: Array<{ type: string; domain: string; message: string; urgency: string }>;
+  budgetPacing?: { dailyBudget: number; spentToday: number; hoursElapsed: number };
+  conversionHealth?: { daysWithoutConversions: number; hasImpressions: boolean };
+  performanceChanges?: { ctrChange: number; period: string };
 }): Alert[] {
   const alerts: Alert[] = [];
   const now = Date.now();
@@ -169,9 +175,86 @@ export function generateAlerts(data: {
       id: `competition-high-${now}`,
       type: "warning",
       title: "תחרות גבוהה",
-      message: `${data.competitorCount} מתחרים מפרסמים על מילות המפתח שלך. מומלץ להתמקד ב-long-tail keywords.`,
+      message: `${data.competitorCount} מתחרים מפרסמים על מילות המפתח שלך. כדאי להתמקד בחיפושים יותר ספציפיים שבהם פחות תחרות.`,
       urgency: "this_week",
     });
+  }
+
+  // Competitor trend alerts
+  if (data.competitorTrends) {
+    for (const ct of data.competitorTrends) {
+      alerts.push({
+        id: `competitor-${ct.type}-${ct.domain}-${now}`,
+        type: "competitor",
+        title: ct.type === "new_competitor" ? "מתחרה חדש" :
+               ct.type === "competitor_left" ? "מתחרה עזב" :
+               ct.type === "spend_increase" ? "מתחרה מגדיל פרסום" :
+               "מתחרה הוריד מחירים",
+        message: ct.message,
+        urgency: ct.urgency as "now" | "today" | "this_week",
+      });
+    }
+  }
+
+  // Budget pacing alert
+  if (data.budgetPacing) {
+    const { dailyBudget, spentToday, hoursElapsed } = data.budgetPacing;
+    if (hoursElapsed > 4 && dailyBudget > 0) {
+      const projectedDaily = (spentToday / hoursElapsed) * 24;
+      if (projectedDaily > dailyBudget * 1.3) {
+        alerts.push({
+          id: `pacing-fast-${now}`,
+          type: "warning",
+          title: "התקציב נשרף מהר",
+          message: `כבר הוצאת $${spentToday.toFixed(0)} מתוך $${dailyBudget} יומי. בקצב הזה התקציב ייגמר לפני סוף היום ולא תופיע בחיפושים אחה"צ/ערב.`,
+          urgency: "now",
+        });
+      } else if (hoursElapsed > 12 && projectedDaily < dailyBudget * 0.5) {
+        alerts.push({
+          id: `pacing-slow-${now}`,
+          type: "health",
+          title: "התקציב לא מנוצל",
+          message: `רק $${spentToday.toFixed(0)} מתוך $${dailyBudget} נוצלו היום. ייתכן שמילות המפתח צרות מדי או שההצעות נמוכות.`,
+          urgency: "today",
+        });
+      }
+    }
+  }
+
+  // Conversion tracking health
+  if (data.conversionHealth) {
+    const { daysWithoutConversions, hasImpressions } = data.conversionHealth;
+    if (daysWithoutConversions >= 5 && hasImpressions) {
+      alerts.push({
+        id: `conversion-health-${now}`,
+        type: "health",
+        title: "אין מכירות מהפרסום",
+        message: `${daysWithoutConversions} ימים בלי אף מכירה למרות שאנשים רואים את המודעות. ייתכן שמעקב ההמרות לא מוגדר נכון — כדאי לבדוק.`,
+        urgency: "now",
+      });
+    }
+  }
+
+  // Performance changes
+  if (data.performanceChanges) {
+    const { ctrChange } = data.performanceChanges;
+    if (ctrChange < -50) {
+      alerts.push({
+        id: `ctr-drop-${now}`,
+        type: "warning",
+        title: "פחות אנשים לוחצים",
+        message: `ירידה של ${Math.abs(Math.round(ctrChange))}% בכמות הלחיצות בשבוע האחרון. כדאי לרענן את טקסט המודעות או לבדוק שמתחרה חדש לא נכנס.`,
+        urgency: "today",
+      });
+    } else if (ctrChange > 50) {
+      alerts.push({
+        id: `ctr-boost-${now}`,
+        type: "opportunity",
+        title: "יותר אנשים לוחצים!",
+        message: `עלייה של ${Math.round(ctrChange)}% בלחיצות על המודעות! זה הזמן להגדיל תקציב ולנצל את המומנטום.`,
+        urgency: "today",
+      });
+    }
   }
 
   return alerts;

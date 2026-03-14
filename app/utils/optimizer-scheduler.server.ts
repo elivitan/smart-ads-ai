@@ -7,7 +7,7 @@
 
 import * as cron from "node-cron";
 import prisma from "../db.server.js";
-import { runOptimization } from "./optimizer.server.js";
+import { runOptimization, checkRecommendationOutcomes } from "./optimizer.server.js";
 import { logger } from "./logger.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
@@ -28,7 +28,19 @@ export function startOptimizationScheduler(): void {
     await runAllShopsOptimization();
   });
 
-  logger.info("scheduler", "Optimization scheduler started (every 6 hours)");
+  // Daily feedback check at 03:00 — did our recommendations actually work?
+  cron.schedule("0 3 * * *", async () => {
+    logger.info("scheduler", "Starting daily recommendation feedback check");
+    try {
+      await checkRecommendationOutcomes();
+    } catch (err: unknown) {
+      logger.error("scheduler", "Feedback check failed", {
+        extra: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
+  });
+
+  logger.info("scheduler", "Optimization scheduler started (every 6 hours + daily feedback)");
 }
 
 /**
