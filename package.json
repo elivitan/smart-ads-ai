@@ -78,7 +78,7 @@
     "graphql-config": "^5.1.1",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vite": "^6.3.6"
+    "vite": "^8.0.0"
   },
   "workspaces": [
     "extensions/*"
