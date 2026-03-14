@@ -199,3 +199,62 @@ model UserState {
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
 }
+
+model StoreProfile {
+  id                  String    @id @default(cuid())
+  shop                String    @unique
+  profitMargin        Float?
+  targetAgeMin        Int?
+  targetAgeMax        Int?
+  targetGender        String?   // "all" | "male" | "female"
+  brandPositioning    String?   // "premium" | "value" | "eco" | "specialty"
+  avgOrderValue       Float?
+  shippingSpeed       String?   // "fast" | "standard" | "slow"
+  uniqueSellingPoints String?   @db.Text
+  competitiveEdge     String?   @db.Text
+  businessGoal        String?   // "grow_sales" | "build_brand" | "clear_inventory"
+  completedAt         DateTime?
+  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime  @default(now())
+
+  @@index([shop])
+}
+
+model CompetitorSnapshot {
+  id              String   @id @default(cuid())
+  shop            String
+  competitorDomain String
+  productCategory String   @default("")
+  avgPrice        Float?
+  adCount         Int      @default(0)
+  estMonthlySpend Float?
+  keywords        String   @default("[]") @db.Text
+  strengths       String   @default("[]") @db.Text
+  weaknesses      String   @default("[]") @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, competitorDomain])
+  @@index([createdAt])
+}
+
+model OptimizationRecommendation {
+  id             String    @id @default(cuid())
+  shop           String
+  campaignId     String
+  campaignName   String    @default("")
+  action         String
+  reason         String    @db.Text
+  narrative      String?   @db.Text
+  previousValue  String?
+  newValue       String?
+  aiGrade        String?
+  status         String    @default("pending") // "pending" | "approved" | "dismissed"
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([shop])
+  @@index([shop, status])
+  @@index([campaignId])
+  @@index([createdAt])
+}
