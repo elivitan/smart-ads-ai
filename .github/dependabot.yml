@@ -13,6 +13,22 @@ updates:
     allow:
       - dependency-type: "direct"
       - dependency-type: "indirect"
+    # Block breaking major version bumps that need manual migration
+    ignore:
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@shopify/shopify-app-session-storage-prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
 
   # Check GitHub Actions for updates
   - package-ecosystem: "github-actions"
