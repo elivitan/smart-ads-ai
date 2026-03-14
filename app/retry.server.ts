@@ -49,9 +49,9 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       lastError = err;
 
       // Check if this error is retryable
-      const status = (err as Record<string, unknown>)?.status ??
-        (err as Record<string, unknown>)?.statusCode ??
-        ((err as Record<string, Record<string, unknown>>)?.error)?.status;
+      const status = (err as any)?.status ??
+        (err as any)?.statusCode ??
+        ((err as Record<string, any>)?.error)?.status;
       const message = (err instanceof Error) ? err.message : "";
       const isRetryable =
         retryableStatuses.includes(status as number) ||

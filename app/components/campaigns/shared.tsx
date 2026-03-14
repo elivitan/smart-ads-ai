@@ -19,7 +19,7 @@ interface BudgetSliderProps {
 interface CharInputProps {
   defaultValue: string;
   maxLen: number;
-  tag: string;
+  tag?: string;
   placeholder?: string;
 }
 

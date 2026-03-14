@@ -93,7 +93,23 @@ declare module "*/useAppStore.js" {
   export default useAppStore;
 }
 
->;
-  export const TipRotator: React.FC;
+// ═══ Shopify Admin Custom Elements ═══
+// Shopify's admin UI uses custom web components (s-section, s-link, etc.)
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "s-section": any;
+      "s-paragraph": any;
+      "s-link": any;
+      "s-button": any;
+      "s-unordered-list": any;
+      "s-list-item": any;
+      "s-text-field": any;
+      [elemName: `s-${string}`]: any;
+    }
+  }
+  interface Window {
+    __marketIntel?: any;
+  }
 }
 

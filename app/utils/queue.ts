@@ -17,7 +17,7 @@ interface BullMQJob {
 }
 
 interface BullMQQueue {
-  add(name: string, data: unknown, opts?: Record<string, unknown>): Promise<BullMQJob>;
+  add(name: string, data: unknown, opts?: any): Promise<BullMQJob>;
   getJob(id: string): Promise<BullMQJob | null>;
   getJobCounts(): Promise<Record<string, number>>;
 }
@@ -30,11 +30,11 @@ interface BullMQWorker {
 }
 
 interface BullMQConstructor {
-  new (name: string, opts: Record<string, unknown>): BullMQQueue;
+  new (name: string, opts: any): BullMQQueue;
 }
 
 interface BullMQWorkerConstructor {
-  new (name: string, processor: (job: BullMQJob) => Promise<unknown>, opts: Record<string, unknown>): BullMQWorker;
+  new (name: string, processor: (job: BullMQJob) => Promise<unknown>, opts: any): BullMQWorker;
 }
 
 export interface JobResult {
@@ -75,7 +75,7 @@ export interface CampaignJobData {
 }
 
 // ── Redis connection config ──
-function getRedisConnection(): Record<string, unknown> {
+function getRedisConnection(): any {
   const url = process.env.REDIS_URL;
   if (url) {
     // Upstash uses rediss:// (TLS)

@@ -6,7 +6,7 @@ import { GoogleAdsPreview } from "./GoogleAdsPreview";
 interface WizardProgressProps {
   currentStep: number;
   totalSteps: number;
-  steps: { label: string }[];
+  steps: (string | { label: string })[];
 }
 
 interface AIRecommendationProps {
@@ -15,13 +15,13 @@ interface AIRecommendationProps {
 }
 
 interface GoogleGlossaryProps {
-  terms: { term: string; def: string }[];
+  terms: { simple: string; google: string }[];
 }
 
 interface WizardNavProps {
   step: number;
   totalSteps: number;
-  onBack: () => void;
+  onBack?: () => void;
   onNext: () => void;
   onSaveDraft?: () => void;
   nextLabel?: string;
@@ -30,12 +30,12 @@ interface WizardNavProps {
 
 interface CampaignSuccessScreenProps {
   onViewCampaign: () => void;
-  onGoToDashboard: () => void;
+  onGoToDashboard?: () => void;
 }
 
 interface CampaignCreatingAnimationProps {
   onComplete: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 interface CampaignData {
@@ -79,7 +79,7 @@ export function WizardProgress({ currentStep, totalSteps, steps }) {
 
 
 
-export function AIRecommendation({ text, tip }) {
+export function AIRecommendation({ text, tip }: AIRecommendationProps) {
   return (
     <div style={{ background:"linear-gradient(135deg,rgba(99,102,241,.1),rgba(139,92,246,.05))",border:"1px solid rgba(99,102,241,.2)",borderRadius:14,padding:"16px 20px",marginBottom:20,display:"flex",gap:14 }}>
       <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>{"\u{1F9E0}"}</div>
@@ -109,7 +109,7 @@ export function GoogleGlossary({ terms }) {
 
 
 
-export function WizardNav({ step, totalSteps, onBack, onNext, onSaveDraft, nextLabel, nextDisabled }) {
+export function WizardNav({ step, totalSteps, onBack, onNext, onSaveDraft, nextLabel, nextDisabled }: WizardNavProps) {
   return (
     <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:24,paddingTop:16,borderTop:"1px solid rgba(255,255,255,.06)" }}>
       <div style={{ display:"flex",gap:8 }}>
@@ -159,7 +159,7 @@ export function ConfettiCelebration() {
 }
 
 /* ── Campaign Success Screen (shared by auto + manual) ── */
-export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
+export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }: CampaignSuccessScreenProps) {
   return (
     <div style={{ position:"relative",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:500,padding:40,textAlign:"center" }}>
       <ConfettiCelebration />
@@ -208,7 +208,7 @@ export function CampaignSuccessScreen({ onViewCampaign, onGoToDashboard }) {
 
 
 
-export function CampaignCreatingAnimation({ onComplete, onCancel }) {
+export function CampaignCreatingAnimation({ onComplete, onCancel }: CampaignCreatingAnimationProps) {
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState(0);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -287,7 +287,7 @@ export function CampaignCreatingAnimation({ onComplete, onCancel }) {
             <p style={{ fontSize:14,color:"rgba(255,255,255,.5)",marginBottom:24,lineHeight:1.6 }}>The campaign is being created. Are you sure you want to cancel?</p>
             <div style={{ display:"flex",gap:12,justifyContent:"center" }}>
               <button onClick={() => { pausedRef.current = false; setShowCancelConfirm(false); }} style={{ padding:"10px 24px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,color:"rgba(255,255,255,.6)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>Continue Creating</button>
-              <button onClick={() => { setShowCancelConfirm(false); onCancel(); }} style={{ padding:"10px 24px",background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>Yes, Cancel</button>
+              <button onClick={() => { setShowCancelConfirm(false); onCancel?.(); }} style={{ padding:"10px 24px",background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit" }}>Yes, Cancel</button>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function CampaignWizard({ campaign, onComplete, onCancel }) {
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
   const [goal, setGoal] = useState("");
-  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   const [audience, setAudience] = useState({ age:"25-54", gender:"all", location:"United States" });
   const [budget, setBudget] = useState(30);
   const [wizKeywords] = useState([
@@ -468,7 +468,7 @@ export default function CampaignWizard({ campaign, onComplete, onCancel }) {
         <h2 style={{ fontSize:24,fontWeight:800,color:"#fff",margin:"0 0 4px" }}>Write your ad headlines</h2>
         <p style={{ fontSize:14,color:"rgba(255,255,255,.4)",marginBottom:20 }}>The clickable blue titles people see. Google mixes them to find the best combo.</p>
         <AIRecommendation text="We wrote 6 headlines for you. Headlines with prices ('From $49') and offers ('Free Shipping') get 23% more clicks." tip="Google needs at least 3, recommends up to 15." />
-        {wizHeadlines.map((h,i)=>(<CharInput key={"wh"+i} defaultValue={h} maxLen={30} placeholder={"Headline "+(i+1)} />))}
+        {wizHeadlines.map((h,i)=>(<CharInput key={"wh"+i} defaultValue={h} maxLen={30} tag="input" placeholder={"Headline "+(i+1)} />))}
         <div style={{fontSize:13,color:"rgba(255,255,255,.35)",marginTop:4}}>{wizHeadlines.length} headlines</div>
         <GoogleGlossary terms={[{simple:"Headlines",google:"RSA Headlines"},{simple:"30 char limit",google:"Character limit"}]} />
         <WizardNav step={5} totalSteps={totalSteps} onBack={()=>setStep(4)} onNext={()=>setStep(6)} onSaveDraft={()=>{}} />

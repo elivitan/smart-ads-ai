@@ -94,7 +94,7 @@ export async function launchCampaign(shop: any, payload: any) {
   const steps: any[] = [];
 
   // ── Check idempotency (prevent duplicate launches) ─────────────────
-  let launchRecord;
+  let launchRecord: any;
   try {
     const existing = await withDbRetry("launch-idem-check", () => prisma.campaignJob.findFirst({
       where: {
@@ -168,7 +168,7 @@ export async function launchCampaign(shop: any, payload: any) {
     // ── Step 2: CREATING ─────────────────────────────────────────────
     await updateState(CAMPAIGN_STATES.CREATING);
 
-    const result = await createCampaign({
+    const result: any = await createCampaign({
       productTitle: payload.productTitle,
       headlines: payload.headlines || [],
       descriptions: payload.descriptions || [],
@@ -229,7 +229,7 @@ export async function launchCampaign(shop: any, payload: any) {
     };
   } catch (err: unknown) {
     const errorMsg =
-      err?.errors?.[0]?.message || err?.message || "Campaign creation failed";
+      (err as any)?.errors?.[0]?.message || (err as any)?.message || "Campaign creation failed";
     const retryable = isRetryableError(err);
     const lastStep = steps[steps.length - 1]?.state || CAMPAIGN_STATES.QUEUED;
 

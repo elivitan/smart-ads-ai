@@ -20,7 +20,7 @@ interface HealthResults {
   version: string;
   uptime: number;
   timestamp: string;
-  checks: Record<string, unknown>;
+  checks: any;
   responseTime?: number;
 }
 
@@ -31,7 +31,7 @@ const APP_VERSION = "1.1.0-beta";
 export const loader = async ({ request }: LoaderArgs): Promise<Response> => {
   // Basic rate limiting (prevent abuse)
   const limit = await checkRateLimit("_health", "health", 30, 60000);
-  if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
+  if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds ?? 0);
 
   const start = Date.now();
   const results: HealthResults = {

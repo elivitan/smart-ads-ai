@@ -21,6 +21,10 @@ interface KeywordGap {
   competition?: string;
   suggestedBid?: number;
   opportunity_score?: number;
+  estClicks?: number;
+  freq?: number;
+  diffColor?: string;
+  [key: string]: any;
 }
 
 interface CompetitorGapFinderProps {
@@ -33,9 +37,9 @@ interface CompetitorGapFinderProps {
 }
 
 
-function CompetitorModal({ competitor, products, onClose }) {
+function CompetitorModal({ competitor, products, onClose }: CompetitorModalProps) {
   const [loading, setLoading] = useState(true);
-  const [compData, setCompData] = useState(null);
+  const [compData, setCompData] = useState<any>(null);
   const domain = competitor?.domain;
 
   function buildFromMentions(mentions) {
@@ -46,7 +50,7 @@ function CompetitorModal({ competitor, products, onClose }) {
     const estMonthlyTraffic = Math.round(trafficBase*(1+Math.random()*0.4));
     const estAdSpend = Math.round(estMonthlyTraffic*(strength==="strong"?0.9:0.5));
     const allKeywords = [...new Set(mentions.flatMap(m=>m.keywords||[]))].slice(0,8);
-    const brand = domain.split(".")[0];
+    const brand = (domain || "").split(".")[0];
     const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
     const mockAds = [
       { headline:`${cap(brand)} Official Store`, headline2:"Free Shipping On All Orders", headline3:"Shop Now & Save 40%",
@@ -72,7 +76,7 @@ function CompetitorModal({ competitor, products, onClose }) {
       try {
         const res = await fetch("/app/api/competitor-intel", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({domain}), signal:AbortSignal.timeout(8000) });
         if (res.ok) { const d=await res.json(); if(d.success){ setCompData({...buildFromMentions(mentions),...d.data,source:"real"}); setLoading(false); return; } }
-      } catch(err) { console.error("[SmartAds] CompetitorComponents:enrich error:", err.message || err); }
+      } catch(err) { console.error("[SmartAds] CompetitorComponents:enrich error:", (err as Error).message || err); }
       setCompData(buildFromMentions(mentions));
       setLoading(false);
     }
@@ -88,7 +92,7 @@ function CompetitorModal({ competitor, products, onClose }) {
         <button className="modal-close" onClick={onClose}>✕</button>
         <div className="comp-modal-header">
           <div className="comp-modal-favicon">
-            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" onError={e=>{e.target.style.display="none"}} style={{width:28,height:28}}/>
+            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" onError={e=>{(e.target as HTMLElement).style.display="none"}} style={{width:28,height:28}}/>
           </div>
           <div style={{flex:1}}>
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
@@ -131,7 +135,7 @@ function CompetitorModal({ competitor, products, onClose }) {
                       <div className="comp-ad-inner">
                         <div className="comp-ad-sponsored">Sponsored</div>
                         <div className="comp-ad-url-row">
-                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" style={{width:14,height:14}} onError={e=>{e.target.style.display="none"}}/>
+                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" style={{width:14,height:14}} onError={e=>{(e.target as HTMLElement).style.display="none"}}/>
                           <span style={{fontSize:12,color:"#202124"}}>{ad.url}</span>
                         </div>
                         <div className="comp-ad-headline">{ad.headline} | {ad.headline2} | {ad.headline3}</div>
@@ -165,7 +169,7 @@ function CompetitorModal({ competitor, products, onClose }) {
   );
 }
 
-const CompetitorGapFinder = React.memo(function CompetitorGapFinder({ keywordGaps, totalMonthlyGapLoss, analyzedCount, onAddKeyword, canPublish, onUpgrade }) {
+const CompetitorGapFinder = React.memo(function CompetitorGapFinder({ keywordGaps, totalMonthlyGapLoss, analyzedCount, onAddKeyword, canPublish, onUpgrade }: CompetitorGapFinderProps) {
   const [expanded, setExpanded] = useState(false);
   const [addedKeywords, setAddedKeywords] = useState(new Set());
   const [animateTotal, setAnimateTotal] = useState(false);
@@ -177,7 +181,7 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({ keywordGap
   const displayGaps = expanded ? keywordGaps : keywordGaps.slice(0, 4);
 
   function handleAdd(keyword) {
-    if (!canPublish) { onUpgrade(); return; }
+    if (!canPublish) { onUpgrade?.(); return; }
     setAddedKeywords(prev => new Set([...prev, keyword]));
     onAddKeyword && onAddKeyword(keyword);
   }
@@ -213,7 +217,7 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({ keywordGap
           {/* Alert bar */}
           <div className="gap-alert">
             <span className="gap-alert-icon">⚠️</span>
-            <span>Competitors are capturing <strong>{keywordGaps.reduce((a,g)=>a+g.estClicks,0).toLocaleString()} clicks/mo</strong> on keywords you're not bidding on</span>
+            <span>Competitors are capturing <strong>{keywordGaps.reduce((a,g)=>a+(g.estClicks||0),0).toLocaleString()} clicks/mo</strong> on keywords you're not bidding on</span>
           </div>
 
           {/* Gap table */}
@@ -234,7 +238,7 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({ keywordGap
                     <span className="gap-keyword-text">{gap.keyword}</span>
                   </div>
                   <div className="gap-freq">
-                    {Array.from({length: Math.min(gap.freq, 5)}).map((_,j) => (
+                    {Array.from({length: Math.min(gap.freq ?? 0, 5)}).map((_,j) => (
                       <span key={j} className="gap-freq-dot" style={{ background: gap.diffColor }}/>
                     ))}
                     <span className="gap-freq-num">{gap.freq}</span>

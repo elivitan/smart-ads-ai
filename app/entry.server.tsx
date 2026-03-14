@@ -65,8 +65,8 @@ async function gracefulShutdown(signal: string) {
     // Close Redis
     const { getRedis } = await import("./utils/redis.js");
     const redis = getRedis();
-    if (redis && typeof redis.quit === "function") {
-      await redis.quit();
+    if (redis && typeof (redis as any).quit === "function") {
+      await (redis as any).quit();
       console.log("[Shutdown] Redis closed");
     }
   } catch (e: unknown) { console.warn("[Shutdown] Redis close failed:", (e as Error).message); }

@@ -15,7 +15,7 @@ fix*.cjs
 deploy-fix/
 api-restore/
 routes-restore/
-routes/
+/routes/
 .hooks-count
 # Allow CI/CD essential files
 !preflight.cjs

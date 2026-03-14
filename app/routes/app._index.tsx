@@ -88,14 +88,14 @@ function getPlanFromCookie(request: Request): string | null {
 function StyleTag() { return <style dangerouslySetInnerHTML={{__html: CSS}}/>; }
 
 interface IndexLoaderData {
-  products: Array<Record<string, unknown>>;
-  syncStatus: Record<string, unknown>;
+  products: Array<any>;
+  syncStatus: any;
   shop: string;
   planFromCookie: string;
   isPaidServer: boolean;
   needsInitialSync: boolean;
-  subscription: Record<string, unknown>;
-  userState: Record<string, unknown> | null;
+  subscription: any;
+  userState: any | null;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<IndexLoaderData> => {
@@ -107,7 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<IndexLoad
   const dbProducts = await getShopProducts(shop);
   const planFromCookie = getPlanFromCookie(request);
 
-  let subscriptionInfo = null;
+  let subscriptionInfo: any = null;
   try {
     subscriptionInfo = await getSubscriptionInfo(shop);
   } catch (e: unknown) {
@@ -118,7 +118,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<IndexLoad
   const isPaidServer = !!serverPlan && serverPlan !== "free";
 
   // Load persistent user state from DB
-  let userState = null;
+  let userState: any = null;
   try {
     userState = await withDbRetry("index-userstate", () => prisma.userState.findUnique({ where: { shop } }));
   } catch (e: unknown) {
@@ -202,7 +202,7 @@ export default function Index() {
       initSubscription({ isPaidServer, planFromCookie, serverSubscription });
       // Apply DB state (primary source of truth)
       if (userState) {
-        const u = {};
+        const u: any = {};
         if (userState.selectedPlan) u.selectedPlan = userState.selectedPlan;
         if (userState.scanCredits) u.scanCredits = userState.scanCredits;
         if (userState.aiCredits) u.aiCredits = userState.aiCredits;
@@ -241,7 +241,7 @@ export default function Index() {
 
   const revalidator = useRevalidator();
 
-  function getProductUrl(product: Record<string, unknown>): string {
+  function getProductUrl(product: any): string {
     const base = storeUrl;
     if (product?.handle) return `${base}/products/${product.handle}`;
     if (product?.title) {
@@ -251,7 +251,7 @@ export default function Index() {
     return base;
   }
 
-  const allDbProducts = dbProducts || [];
+  const allDbProducts: any[] = dbProducts || [];
   const analyzedDbProducts = allDbProducts.filter(p => p.hasAiAnalysis);
   const totalDbProducts = allDbProducts.length;
 
@@ -323,9 +323,9 @@ export default function Index() {
   [allDbProducts]);
   const topCompetitors = useMemo(() => {
     const allCompetitors = analyzedDbProducts.flatMap(p=>p.aiAnalysis?.competitor_intel?.top_competitors||[]);
-    const competitorMap = {};
+    const competitorMap: any = {};
     allCompetitors.forEach(c => { if (!c.domain) return; if (!competitorMap[c.domain]) competitorMap[c.domain]={count:0,strength:c.strength||"unknown"}; competitorMap[c.domain].count++; });
-    return Object.entries(competitorMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
+    return Object.entries(competitorMap).sort((a: any,b: any)=>b[1].count-a[1].count).slice(0,5);
   }, [analyzedDbProducts]);
   const { keywordGaps, totalMonthlyGapLoss } = useMemo(() => {
     const myKeywords = new Set(
@@ -335,13 +335,13 @@ export default function Index() {
     const competitorKeywords = analyzedDbProducts.flatMap(p => p.aiAnalysis?.competitor_intel?.keyword_gaps||[])
       .map(k => (typeof k==="string"?k:k?.text||k).toLowerCase().trim())
       .filter(Boolean);
-    const gapKeywordCounts = {};
+    const gapKeywordCounts: any = {};
     competitorKeywords.forEach(k => { gapKeywordCounts[k] = (gapKeywordCounts[k]||0)+1; });
     const gaps = Object.entries(gapKeywordCounts)
       .filter(([k]) => !myKeywords.has(k) && k.length > 3)
-      .sort((a,b) => b[1]-a[1])
+      .sort((a,b) => (b[1] as number)-(a[1] as number))
       .slice(0, 8)
-      .map(([keyword, freq]) => ({
+      .map(([keyword, freq]: [string, any]) => ({
         keyword,
         freq,
         estMonthlyLoss: Math.round((freq * 280) * (avgScore < 60 ? 1.4 : 1)),

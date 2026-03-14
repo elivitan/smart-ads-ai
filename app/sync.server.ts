@@ -110,6 +110,7 @@ export async function fullSync(admin: any, shop: any) {
         product.title,
         product.price,
         product.description,
+        product.image,
       );
 
       const dbProduct = await withDbRetry("sync-upsert-" + product.id.slice(-8), () => prisma.product.upsert({
@@ -125,8 +126,8 @@ export async function fullSync(admin: any, shop: any) {
         updated++;
         // Check if product changed since last AI analysis
         if (
-          !dbProduct.aiAnalysis ||
-          dbProduct.aiAnalysis.productHash !== hash
+          !(dbProduct as any).aiAnalysis ||
+          (dbProduct as any).aiAnalysis.productHash !== hash
         ) {
           needsAi.push(product.id);
         }
@@ -213,6 +214,7 @@ export async function handleProductWebhook(shop: any, shopifyProduct: any, event
       productData.title,
       productData.price,
       productData.description,
+      productData.image,
     );
 
     await withDbRetry("sync-webhook-upsert", () => prisma.product.upsert({
@@ -284,7 +286,7 @@ export async function saveAiAnalysis(productId: any, shop: any, aiResult: any) {
   }));
 
   const hash = product
-    ? productHash(product.title, product.price, product.description)
+    ? productHash(product.title, product.price, product.description, "")
     : "";
 
   return withDbRetry("sync-ai-upsert", () => prisma.aiAnalysis.upsert({
@@ -334,10 +336,10 @@ export async function saveAiAnalysis(productId: any, shop: any, aiResult: any) {
  * Get all products for a shop with their AI analysis status.
  */
 export async function getShopProducts(
-  shop,
+  shop: any,
   { inStockOnly = false, withAiOnly = false } = {},
 ) {
-  const where = { shop };
+  const where: any = { shop };
   if (inStockOnly) where.inStock = true;
 
   const products = await withDbRetry("sync-get-products", () => prisma.product.findMany({
@@ -434,7 +436,7 @@ export async function getShopCredits(shop: any) {
 /**
  * Update credit balances for a shop.
  */
-export async function updateShopCredits(shop: any, { scanCredits: any, aiCredits }: any = {}) {
+export async function updateShopCredits(shop: any, { scanCredits, aiCredits }: any = {}) {
   const data: any = {};
   if (typeof scanCredits === "number") data.scanCredits = scanCredits;
   if (typeof aiCredits === "number") data.aiCredits = aiCredits;

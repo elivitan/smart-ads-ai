@@ -26,7 +26,7 @@ interface BudgetSimulatorProps {
 }
 
 
-const StoreHealthScore = React.memo(function StoreHealthScore({ analyzedCount, totalProducts, avgScore, highPotential, competitorCount }) {
+const StoreHealthScore = React.memo(function StoreHealthScore({ analyzedCount, totalProducts, avgScore, highPotential, competitorCount }: StoreHealthScoreProps) {
   const [expanded, setExpanded] = useState(false);
   const [animated, setAnimated] = useState(false);
   useEffect(() => { const t = setTimeout(() => setAnimated(true), 500); return () => clearTimeout(t); }, []);
@@ -142,7 +142,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({ analyzedCount, t
 // ══════════════════════════════════════════════
 
 
-const TopMissedOpportunity = React.memo(function TopMissedOpportunity({ topProduct, avgScore, totalMonthlyGapLoss, analyzedCount, onScan, onViewProduct, hasScanAccess }) {
+const TopMissedOpportunity = React.memo(function TopMissedOpportunity({ topProduct, avgScore, totalMonthlyGapLoss, analyzedCount, onScan, onViewProduct, hasScanAccess }: TopMissedOpportunityProps) {
   if (!topProduct && analyzedCount === 0) {
     // Never scanned — show teaser
     return (
@@ -207,7 +207,7 @@ const TopMissedOpportunity = React.memo(function TopMissedOpportunity({ topProdu
 // BUDGET SIMULATOR
 // ══════════════════════════════════════════════
 
-const BudgetSimulator = React.memo(function BudgetSimulator({ avgScore, avgCpc, canPublish, onUpgrade }) {
+const BudgetSimulator = React.memo(function BudgetSimulator({ avgScore, avgCpc, canPublish, onUpgrade }: BudgetSimulatorProps) {
   const [vals, setVals] = useState({ budget: 20, aov: 80, conv: 2.5 });
 
   // Calculations

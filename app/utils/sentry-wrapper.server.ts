@@ -7,13 +7,13 @@
 import { captureApiError, trackSlowOperation } from "./sentry.server";
 
 // ── Types ──
-interface HandlerArgs {
-  request?: Request;
-  params?: Record<string, string | undefined>;
+export interface HandlerArgs {
+  request: Request;
+  params?: Record<string, string>;
   context?: unknown;
 }
 
-type RouteHandler = (args: HandlerArgs) => Promise<Response | unknown>;
+type RouteHandler = (args: HandlerArgs) => Promise<Response> | Response;
 
 /**
  * Wraps an API route handler with Sentry monitoring.

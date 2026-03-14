@@ -15,7 +15,7 @@ interface LaunchState {
 }
 
 interface LaunchProgressProps {
-  launch: LaunchState;
+  launch: any;
 }
 // getStepInfo — inlined from deleted useCampaignLaunch.js
 function getStepInfo(stepKey) {
@@ -41,7 +41,7 @@ function getStepInfo(stepKey) {
  *     <LaunchProgress launch={launch} />
  *   ) : ( ... normal review step ... )}
  */
-const LaunchProgress = React.memo(function LaunchProgress({ launch }) {
+const LaunchProgress = React.memo(function LaunchProgress({ launch }: LaunchProgressProps) {
   const {
     state,
     steps,

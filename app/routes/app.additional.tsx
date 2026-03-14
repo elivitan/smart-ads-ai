@@ -1,5 +1,6 @@
 export default function AdditionalPage(): JSX.Element {
   return (
+    // @ts-expect-error Shopify web component accepts multiple children at runtime
     <s-page heading="Additional page">
       <s-section heading="Multiple pages">
         <s-paragraph>

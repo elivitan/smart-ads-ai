@@ -21,10 +21,10 @@ const READINESS_CONFIG = {
 };
 
 export function StoreAnalyticsWidget() {
-  const [data, setData] = useState(null);
-  const [readiness, setReadiness] = useState(null);
+  const [data, setData] = useState<any>(null);
+  const [readiness, setReadiness] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<any>(null);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => { fetchData("full"); }, []);
@@ -48,7 +48,7 @@ export function StoreAnalyticsWidget() {
         throw new Error(result.error || "Unknown error");
       }
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -247,7 +247,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap:"wrap" as const,
     gap: 8,
     marginBottom: 14,
   },
@@ -267,13 +267,13 @@ const styles = {
   },
   metricCard: {
     background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "12px 14px",
-    textAlign: "center",
+    textAlign:"center" as const,
   },
   metricIcon: { fontSize: 18, marginBottom: 4 },
   metricVal: { fontSize: 20, fontWeight: 800, color: "rgba(255,255,255,.9)" },
   metricLabel: { fontSize: 11, color: "rgba(255,255,255,.4)", marginTop: 2 },
   topProducts: { marginBottom: 14 },
-  productTags: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 },
+  productTags: { display: "flex", gap: 6, flexWrap:"wrap" as const, marginTop: 6 },
   productTag: {
     padding: "4px 10px", background: "rgba(255,255,255,.05)", borderRadius: 20,
     fontSize: 12, color: "rgba(255,255,255,.7)",
@@ -290,7 +290,7 @@ const styles = {
     marginBottom: 14,
   },
   actionItem: { fontSize: 12, color: "rgba(255,255,255,.7)", marginBottom: 4 },
-  recsRow: { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 },
+  recsRow: { display: "flex", gap: 12, flexWrap:"wrap" as const, marginBottom: 12 },
   recCard: {
     padding: "8px 14px", background: "rgba(255,255,255,.04)", borderRadius: 8,
     minWidth: 100,
@@ -298,14 +298,14 @@ const styles = {
   recLabel: { fontSize: 10, color: "rgba(255,255,255,.4)", textTransform: "uppercase", fontWeight: 600 },
   recVal: { fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,.85)", marginTop: 2 },
   focusProducts: {
-    display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap",
+    display: "flex", gap: 6, alignItems: "center", flexWrap:"wrap" as const,
   },
   focusTag: {
     padding: "3px 10px", background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.15)",
     borderRadius: 20, fontSize: 11, color: "#86efac",
   },
   integrationsRow: {
-    display: "flex", gap: 10, flexWrap: "wrap",
+    display: "flex", gap: 10, flexWrap:"wrap" as const,
   },
   integrationCard: {
     display: "flex", alignItems: "center", gap: 8,

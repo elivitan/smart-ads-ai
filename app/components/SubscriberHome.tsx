@@ -68,7 +68,7 @@ const PLAN_CONFIG = {
 const btnBase = { border: "none", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 };
 const btnSecondary = { ...btnBase, background: "#fff", border: "1px solid #e2e8f0", color: "#475569", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: "0 1px 3px rgba(0,0,0,.04)" };
 const btnPrimary = { ...btnBase, background: "linear-gradient(135deg,#7c3aed,#6d28d9)", color: "#fff", padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, boxShadow: "0 4px 14px rgba(109,40,217,.25)" };
-const card = { background: "#fff", border: "1px solid #e8eaef", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,.03), 0 1px 2px rgba(0,0,0,.02)", position: "relative", overflow: "hidden" };
+const card = { background: "#fff", border: "1px solid #e8eaef", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,.03), 0 1px 2px rgba(0,0,0,.02)", position:"relative" as const, overflow:"hidden" as const };
 
 // ── Main Component ──
 
@@ -126,7 +126,7 @@ export function SubscriberHome({
   else aiTip = `Your store is performing well with an avg score of ${avgScore}/100. Consider increasing budget on your top products to capture more market share.`;
 
   // Urgent actions
-  const alerts = [];
+  const alerts: any[] = [];
   if (gapCount > 3) alerts.push({ t: `${gapCount} keyword gaps vs competitors`, s: "bad", a: "Fix Gaps" });
   if (analyzedCount < totalProducts) alerts.push({ t: `${totalProducts - analyzedCount} products not yet analyzed`, s: "warn", a: "Scan Now" });
   if (highPotential > 0) alerts.push({ t: `${highPotential} products ready to launch`, s: "good", a: "Launch" });
@@ -149,11 +149,11 @@ export function SubscriberHome({
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet"/>
 
       {/* Ambient */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+      <div style={{ position:"fixed" as const, inset: 0, pointerEvents: "none", zIndex: 0,
         background: "radial-gradient(ellipse at 0% 0%, rgba(99,102,241,.04), transparent 40%), radial-gradient(ellipse at 100% 100%, rgba(168,85,247,.03), transparent 40%)",
       }}/>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1060, margin: "0 auto", padding: "32px 28px 48px" }}>
+      <div style={{ position:"relative" as const, zIndex: 1, maxWidth: 1060, margin: "0 auto", padding: "32px 28px 48px" }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, ...anim(0) }}>
@@ -229,7 +229,7 @@ export function SubscriberHome({
             { l: "Keyword Gaps", v: gapCount, icon: <KeyRound size={18} />, c: "#dc2626" },
           ].map((k, i) => (
             <div key={i} style={{ ...card, padding: "16px 16px 12px", ...anim(220 + i * 50) }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent 10%, ${k.c}30, transparent 90%)` }} />
+              <div style={{ position:"absolute" as const, top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent 10%, ${k.c}30, transparent 90%)` }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: .4, marginBottom: 6 }}>{k.l}</div>
@@ -265,7 +265,7 @@ export function SubscriberHome({
                   background: "#fafbfc", borderRadius: 10, border: "1px solid #f1f5f9", cursor: "pointer",
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{p.title}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", overflow:"hidden" as const, textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{p.title}</div>
                     <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#94a3b8", alignItems: "center" }}>
                       <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MousePointerClick size={10} /> ~{estClicks}/mo</span>
                       <span style={{ display: "flex", alignItems: "center", gap: 3 }}><DollarSign size={10} /> ${estSpend}/day</span>
@@ -276,7 +276,7 @@ export function SubscriberHome({
                 </div>
               );
             }) : (
-              <div style={{ textAlign: "center", padding: "24px 0", color: "#94a3b8", fontSize: 13 }}>
+              <div style={{ textAlign:"center" as const, padding: "24px 0", color: "#94a3b8", fontSize: 13 }}>
                 <Package size={24} style={{ marginBottom: 8, opacity: .4 }} /><div>Run a scan to see your top products</div>
               </div>
             )}
@@ -312,7 +312,7 @@ export function SubscriberHome({
                 { l: "Google Rank", v: googleRank, c: "#0ea5e9", bg: "rgba(14,165,233,.05)", border: "rgba(14,165,233,.12)", sub: rankTrending, icon: <Globe size={13} /> },
                 { l: "Gap Loss/mo", v: `$${gapLoss.toLocaleString()}`, c: "#dc2626", bg: "rgba(220,38,38,.05)", border: "rgba(220,38,38,.12)", icon: <DollarSign size={13} /> },
               ].map((m, i) => (
-                <div key={i} style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: 10, padding: 12, textAlign: "center" }}>
+                <div key={i} style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: 10, padding: 12, textAlign:"center" as const }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 5 }}>
                     <span style={{ color: m.c, opacity: .6 }}>{m.icon}</span>
                     <span style={{ fontSize: 9, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>{m.l}</span>
@@ -371,7 +371,7 @@ export function SubscriberHome({
           display: "flex", alignItems: "center", justifyContent: "space-between",
           cursor: "pointer", ...anim(660),
         }}>
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, #7c3aed, #6366f1, #0ea5e9)", opacity: .4 }} />
+          <div style={{ position:"absolute" as const, bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, #7c3aed, #6366f1, #0ea5e9)", opacity: .4 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{
               width: 48, height: 48, borderRadius: 12,

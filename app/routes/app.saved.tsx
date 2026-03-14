@@ -38,7 +38,7 @@ export default function SavedCampaigns() {
   const storeAiResults = useAppStore((s) => s.aiResults);
   const [products] = useState(() => storeProducts || []);
   const [aiResults] = useState(() => storeAiResults || null);
-  const [selProduct, setSelProduct] = useState<Record<string, unknown> | null>(null);
+  const [selProduct, setSelProduct] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("score");
   const [lastScan] = useState(() => new Date().toISOString());

@@ -7,7 +7,7 @@ interface GoogleAdsPreviewProps {
 }
 
 /* ── Google Ads Live Preview ── */
-export function GoogleAdsPreview({ headlines, descriptions, url }) {
+export function GoogleAdsPreview({ headlines, descriptions, url }: GoogleAdsPreviewProps) {
   const [activeTab, setActiveTab] = useState("desktop");
   const displayUrl = url || "textilura.com";
   const allHeadlines = headlines.length > 0 ? headlines : ["Your Headline Here"];
@@ -28,7 +28,7 @@ export function GoogleAdsPreview({ headlines, descriptions, url }) {
   ];
 
   /* Reusable Google Search Ad block */
-  const SearchAd = ({ titleParts, desc, mobile, callouts, sitelinks }) => (
+  const SearchAd = ({ titleParts, desc, mobile, callouts, sitelinks }: { titleParts: any; desc: any; mobile?: any; callouts?: any; sitelinks?: any }) => (
     <div style={{ background:"#fff",borderRadius:mobile?10:12,padding:mobile?"16px":"24px",maxWidth:mobile?360:600,fontFamily:"arial,sans-serif" }}>
       {/* Search bar */}
       <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:mobile?14:20,padding:mobile?"8px 12px":"10px 16px",background:"#fff",border:"1px solid #dfe1e5",borderRadius:24,boxShadow:"0 1px 6px rgba(32,33,36,.18)" }}>

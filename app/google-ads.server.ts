@@ -36,9 +36,9 @@ interface PMaxCampaignConfig {
 
 
 const client = new GoogleAdsApi({
-  client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-  client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-  developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+  client_id: process.env.GOOGLE_ADS_CLIENT_ID as string,
+  client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET as string,
+  developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,7 +46,7 @@ export function getCustomer(): any {
   const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/-/g, "");
   return client.Customer({
     customer_id: customerId,
-    refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+    refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN || "",
   });
 }
 
@@ -152,7 +152,7 @@ export async function createPMaxCampaign(customer: any, {
   const assetGroupResourceName = assetGroupResults[0];
 
   // Text assets (headlines + descriptions)
-  const textAssets = [];
+  const textAssets: any[] = [];
   for (const h of headlines.slice(0, 15)) {
     textAssets.push({
       asset_group: assetGroupResourceName,
@@ -186,7 +186,7 @@ export async function createPMaxCampaign(customer: any, {
 
   // ?? Image Assets (if provided) ??????????????????????????????????
   if (imageUrls && imageUrls.length > 0) {
-    const imageAssets = [];
+    const imageAssets: any[] = [];
     for (const url of imageUrls.slice(0, 5)) {
       try {
         const imgRes = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -217,7 +217,7 @@ export async function createPMaxCampaign(customer: any, {
 
   // ?? Video Assets (if provided) ??????????????????????????????????
   if (videoUrls && videoUrls.length > 0) {
-    const videoAssets = [];
+    const videoAssets: any[] = [];
     for (const ytUrl of videoUrls.slice(0, 3)) {
       try {
         const { results: vResults } = await customer.assets.create([{

@@ -269,7 +269,7 @@ RULES: Headlines EXACTLY 15 max 30 chars each. Descriptions EXACTLY 4 max 90 cha
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function analyzeWithCompetitorIntel(products: CompetitorProduct[], storeDomain: string): Promise<{ products: any[] }> {
-  const results = [];
+  const results: any[] = [];
   for (const product of products) {
     try {
       const result = await analyzeProductWithIntel(product, storeDomain);

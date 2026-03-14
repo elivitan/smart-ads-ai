@@ -29,6 +29,7 @@ interface Product {
 }
 
 interface AdPreviewPanelProps {
+  [key: string]: any;
   topProduct: Product | null;
   mockCampaigns: number;
   canPublish: boolean;
@@ -37,14 +38,14 @@ interface AdPreviewPanelProps {
   shop?: string;
 }
 
-const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCampaigns, canPublish, onLaunch, onViewProduct, shop }) {
+const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCampaigns, canPublish, onLaunch, onViewProduct, shop }: AdPreviewPanelProps) {
   const [tab, setTab] = useState("search");
 
   const isActive = mockCampaigns > 0 && canPublish;
   const ai = topProduct?.aiAnalysis || topProduct?.ai || {};
-  const headlines = (ai.headlines || []).map(h => typeof h === "string" ? h : h?.text || h).filter(Boolean);
-  const descriptions = (ai.descriptions || []).map(d => typeof d === "string" ? d : d?.text || d).filter(Boolean);
-  const keywords = (ai.keywords || []).map(k => typeof k === "string" ? k : k?.text || k).filter(Boolean);
+  const headlines = (ai.headlines || []).map(h => typeof h === "string" ? h : h?.text || "").filter(Boolean) as string[];
+  const descriptions = (ai.descriptions || []).map(d => typeof d === "string" ? d : d?.text || "").filter(Boolean) as string[];
+  const keywords = (ai.keywords || []).map(k => typeof k === "string" ? k : k?.text || "").filter(Boolean) as string[];
   const score = ai.ad_score || 0;
   const productTitle = topProduct?.title || "Your Top Product";
   const productPrice = topProduct?.price ? `$${Number(topProduct.price).toFixed(2)}` : "$49.99";
@@ -57,7 +58,7 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
     { domain: "home-goods.com", price_range: "$55.00", strength: "Fast shipping" },
     { domain: "sleep-shop.com", price_range: "$38.95", strength: "Budget option" },
   ];
-  const comps = topComps.length >= 3 ? topComps : topComps.length > 0 ? [...topComps, ...fallbackComps.slice(0, 3 - topComps.length)] : fallbackComps;
+  const comps: CompetitorInfo[] = topComps.length >= 3 ? topComps : topComps.length > 0 ? [...topComps, ...fallbackComps.slice(0, 3 - topComps.length)] : fallbackComps;
 
   const searchQuery = keywords[0] || "luxury bedding set queen";
   const h1 = headlines[0] || productTitle;
@@ -140,10 +141,10 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
                   {h1} | {h2} | {h3}
                 </div>
                 <div style={{fontSize:13,color:"#4d5156",lineHeight:1.5}}>{d1}</div>
-                {(ai.sitelinks?.length > 0) && (
+                {((ai.sitelinks?.length ?? 0) > 0) && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
-                    {ai.sitelinks.slice(0,4).map((sl,i) => (
-                      <div key={i} style={{padding:"4px 10px",border:"1px solid #dadce0",borderRadius:6,fontSize:11,color:"#1a0dab",cursor:"pointer"}}>{sl.title||sl}</div>
+                    {ai.sitelinks!.slice(0,4).map((sl,i) => (
+                      <div key={i} style={{padding:"4px 10px",border:"1px solid #dadce0",borderRadius:6,fontSize:11,color:"#1a0dab",cursor:"pointer"}}>{typeof sl === "string" ? sl : sl.title || ""}</div>
                     ))}
                   </div>
                 )}
@@ -301,10 +302,10 @@ const AdPreviewPanel = React.memo(function AdPreviewPanel({ topProduct, mockCamp
                   <span style={{fontSize:9,color:"#1e6641"}}>{"✓"} Free Shipping</span>
                   <span style={{fontSize:9,color:"#1e6641"}}>{"✓"} 30-day returns</span>
                 </div>
-                {(ai.sitelinks?.length > 0) && (
+                {((ai.sitelinks?.length ?? 0) > 0) && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
-                    {ai.sitelinks.slice(0,2).map((sl,i) => (
-                      <span key={i} style={{fontSize:9,color:"#1a0dab",padding:"2px 6px",background:"#f8f9fa",borderRadius:4}}>{sl.title||sl}</span>
+                    {ai.sitelinks!.slice(0,2).map((sl,i) => (
+                      <span key={i} style={{fontSize:9,color:"#1a0dab",padding:"2px 6px",background:"#f8f9fa",borderRadius:4}}>{typeof sl === "string" ? sl : sl.title || ""}</span>
                     ))}
                   </div>
                 )}

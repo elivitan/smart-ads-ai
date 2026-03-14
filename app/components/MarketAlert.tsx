@@ -26,16 +26,16 @@ const SIGNAL_COLORS = {
 };
 
 export function MarketAlert({ shopDomain }) {
-  const [intel, setIntel] = useState(null);
-  const [rawData, setRawData] = useState(null);
+  const [intel, setIntel] = useState<any>(null);
+  const [rawData, setRawData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastFetch, setLastFetch] = useState(null);
+  const [error, setError] = useState<any>(null);
+  const [lastFetch, setLastFetch] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   // Auto-fetch quick signal on mount
   useEffect(() => {
-    fetchQuickSignal().then(() => { if (typeof window !== "undefined" && (!window.__marketIntel || window.__marketIntel._quickOnly)) { fetchFullAnalysis(); } });
+    fetchQuickSignal().then(() => { if (typeof window !== "undefined" && (!(window as any).__marketIntel || (window as any).__marketIntel._quickOnly)) { fetchFullAnalysis(); } });
   }, []);
 
   async function fetchQuickSignal() {
@@ -80,7 +80,7 @@ export function MarketAlert({ shopDomain }) {
         throw new Error(data.error || "Analysis failed");
       }
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -190,7 +190,7 @@ export function MarketAlert({ shopDomain }) {
           {intel.budget_recommendation && (
             <div style={{ ...S.section, background: "rgba(99,102,241,.05)", borderColor: "rgba(99,102,241,.12)" }}>
               <div style={S.sectionTitle}>{"\uD83D\uDCB0"} Budget Recommendation</div>
-              <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap:"wrap" as const }}>
                 <div style={S.metric}>
                   <div style={S.metricLabel}>MIN</div>
                   <div style={S.metricVal}>${intel.budget_recommendation.daily_min}/day</div>
@@ -249,7 +249,7 @@ export function MarketAlert({ shopDomain }) {
 
           {/* Risk Alerts */}
           {intel.risk_alerts?.length > 0 && (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap:"wrap" as const, marginTop: 10 }}>
               {intel.risk_alerts.map((r, i) => (
                 <span key={i} style={S.riskTag}>{"\u26A0\uFE0F"} {r}</span>
               ))}
@@ -317,7 +317,7 @@ const S = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap:"wrap" as const,
     gap: 8,
   },
   title: { fontWeight: 700, fontSize: 15, color: "rgba(255,255,255,.9)" },
@@ -348,7 +348,7 @@ const S = {
   sectionBody: { fontSize: 13, color: "rgba(255,255,255,.6)", marginTop: 4, lineHeight: 1.5 },
   metric: {
     padding: "8px 14px", background: "rgba(255,255,255,.04)",
-    borderRadius: 8, minWidth: 80, textAlign: "center",
+    borderRadius: 8, minWidth: 80, textAlign:"center" as const,
   },
   metricLabel: { fontSize: 10, color: "rgba(255,255,255,.4)", fontWeight: 600, textTransform: "uppercase" },
   metricVal: { fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,.8)", marginTop: 2 },

@@ -60,17 +60,17 @@ function LockedOverlay({ isPaid, onUpgrade, title, children }) {
   );
 }
 
-class WidgetErrorBoundary extends React.Component {
+class WidgetErrorBoundary extends React.Component<{children: React.ReactNode; label?: string}, {hasError: boolean}> {
   constructor(props) { super(props); this.state = { hasError: false }; }
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(err, info) { console.error(`[WidgetError] ${this.props.label}:`, err, info); }
+  componentDidCatch(err, info) { console.error(`[WidgetError] ${(this.props as any).label}:`, err, info); }
   render() {
-    if (this.state.hasError) return (
+    if ((this.state as any).hasError) return (
       <div style={{padding:16,background:"rgba(239,68,68,.1)",borderRadius:12,border:"1px solid rgba(239,68,68,.2)",margin:"8px 0"}}>
-        <span style={{color:"#f87171",fontSize:13}}>\u26A0\uFE0F {this.props.label || "Widget"} failed to load</span>
+        <span style={{color:"#f87171",fontSize:13}}>\u26A0\uFE0F {(this.props as any).label || "Widget"} failed to load</span>
       </div>
     );
-    return this.props.children;
+    return (this.props as any).children;
   }
 }
 
@@ -348,7 +348,7 @@ export function DashboardView({
                     <div key={i} className="competitor-item competitor-item-clickable" onClick={()=>setSelCompetitor({domain})}>
                       <div className="competitor-rank">#{i+1}</div>
                       <div className="competitor-favicon">
-                        <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" onError={e=>{e.target.style.display="none"}} style={{width:16,height:16}}/>
+                        <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" onError={e=>{(e.target as HTMLElement).style.display="none"}} style={{width:16,height:16}}/>
                       </div>
                       <a href={`https://${domain}`} target="_blank" rel="noopener noreferrer" className="competitor-domain competitor-domain-link" onClick={e=>e.stopPropagation()}>{domain}</a>
                       {keywords.length>0 && (

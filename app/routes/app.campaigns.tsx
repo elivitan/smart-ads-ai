@@ -23,7 +23,7 @@ interface CampaignData {
   status: string;
   createdAt: string;
   budget: number;
-  products: Array<Record<string, unknown>>;
+  products: Array<any>;
   keywords: Array<{ text: string; bid: number; match?: string }>;
   headlines: string[];
   descriptions: string[];
@@ -35,7 +35,7 @@ interface CampaignData {
 interface CampaignsLoaderData {
   campaigns: CampaignData[];
   isSimulated: boolean;
-  marketSignal: Record<string, unknown> | null;
+  marketSignal: any;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<CampaignsLoaderData> => {
@@ -43,7 +43,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Campaigns
   const shop = session.shop;
 
   // Try to get real campaigns from Google Ads API
-  let campaigns = [];
+  let campaigns: any[] = [];
   let isSimulated = false;
 
   try {
@@ -76,7 +76,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Campaigns
           method: "POST",
           headers: {
             Authorization: "Bearer " + token,
-            "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+            "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ query }),
@@ -136,7 +136,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Campaigns
   }
 
   // Get quick market signal (no API cost)
-  let marketSignal = null;
+  let marketSignal: any = null;
   try {
     const { getQuickMarketSignal } = await import("../market-intel.server.js");
     marketSignal = await getQuickMarketSignal({
@@ -157,9 +157,9 @@ async function getGoogleAccessToken(): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+        client_id: process.env.GOOGLE_ADS_CLIENT_ID || "",
+        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET || "",
+        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN || "",
         grant_type: "refresh_token",
       }),
     });
@@ -503,30 +503,6 @@ function CampaignDetail({ campaign, onSwitchMode, mode }: CampaignDetailProps) {
             <BudgetSlider value={budget} onChange={setBudget} />
           </div>
 
-          
-      {showAutoLaunch && (
-        <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center" }}>
-          {!autoLaunchDone ? (
-            <CampaignCreatingAnimation onComplete={() => setAutoLaunchDone(true)} onCancel={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); goToDashboard(); }} />
-          ) : (
-            <CampaignSuccessScreen onViewCampaign={() => { setShowAutoLaunch(false); setAutoLaunchDone(false); }} />
-          )}
-        </div>
-      )}
-      {showStandaloneWizard && (
-        <div style={{ position:"fixed",inset:0,background:"#0a0a1a",zIndex:9998,overflowY:"auto",padding:"20px" }}>
-          <div style={{ maxWidth:760,margin:"0 auto" }}>
-            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
-              <h1 style={{ fontSize:20,fontWeight:800,color:"#fff",margin:0 }}>New Campaign Builder</h1>
-              <div style={{ display:"flex",gap:8 }}>
-                <button onClick={goToDashboard} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{navLoading ? "⏳ Loading..." : "← Dashboard"}</button>
-                <button onClick={() => setShowStandaloneWizard(false)} style={{ fontSize:14,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit" }}>{"✕"} Close</button>
-              </div>
-            </div>
-            <CampaignWizard campaign={{}} onComplete={() => setShowStandaloneWizard(false)} onCancel={() => setShowStandaloneWizard(false)} />
-          </div>
-        </div>
-      )}
 </>)}
 
           {/* ═══ KEYWORDS TAB ═══ */}
@@ -598,7 +574,7 @@ function CampaignDetail({ campaign, onSwitchMode, mode }: CampaignDetailProps) {
             </div>
             {headlines.map((h, i) => (
               <div key={"h"+i} style={{ display:"flex",gap:8,alignItems:"flex-start" }}>
-                <div style={{ flex:1 }}><CharInput defaultValue={h} maxLen={30} placeholder={"Headline " + (i+1)} /></div>
+                <div style={{ flex:1 }}><CharInput defaultValue={h} maxLen={30} tag="input" placeholder={"Headline " + (i+1)} /></div>
                 {headlines.length > 3 && <button onClick={() => setHeadlines(headlines.filter((_,j)=>j!==i))} style={{ width:28,height:28,borderRadius:8,background:"rgba(239,68,68,.1)",color:"#ef4444",border:"none",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:8 }}>{"\u00D7"}</button>}
               </div>
             ))}
@@ -846,7 +822,7 @@ export default function Campaigns() {
   const { campaigns, isSimulated, marketSignal } = useLoaderData<CampaignsLoaderData>();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id || null);
-  const [viewMode, setViewMode] = useState({});
+  const [viewMode, setViewMode] = useState<any>({});
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   const [showStandaloneWizard, setShowStandaloneWizard] = useState(false);
   const [showAutoLaunch, setShowAutoLaunch] = useState(false);
@@ -882,7 +858,7 @@ export default function Campaigns() {
   ) : null;
 
   const selected = campaigns.find(c => c.id === selectedId);
-  const currentMode = viewMode[selectedId] !== undefined ? viewMode[selectedId] : (selected?.type || "auto");
+  const currentMode = selectedId != null && viewMode[selectedId] !== undefined ? viewMode[selectedId] : (selected?.type || "auto");
 
   if (!campaigns || campaigns.length === 0) {
     return (
@@ -975,7 +951,7 @@ export default function Campaigns() {
             key={selectedId}
             campaign={selected}
             mode={currentMode}
-            onSwitchMode={() => setViewMode(v => ({...v,[selectedId]:currentMode==="auto"?"manual":"auto"}))}
+            onSwitchMode={() => setViewMode(v => ({...v,[selectedId!]:currentMode==="auto"?"manual":"auto"}))}
           />
         )}
       </div>

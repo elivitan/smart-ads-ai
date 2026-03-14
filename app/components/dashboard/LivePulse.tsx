@@ -7,7 +7,7 @@ interface Campaign {
 }
 
 interface LivePulseProps {
-  campaigns: Campaign[];
+  campaigns: any;
   impressionsBase: number;
   clicksBase: number;
   campaignId?: string;
@@ -19,15 +19,15 @@ interface LivePulseProps {
   onRemove?: () => void;
 }
 
-const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, clicksBase, campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove, onPause, onRemove }) {
+const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, clicksBase, campaignId, realSpend, campaignControlStatus, confirmRemove, setConfirmRemove, onPause, onRemove }: LivePulseProps) {
   const [heartbeat, setHeartbeat] = useState(false);
   const [impressions, setImpressions] = useState(impressionsBase);
   const [clicks, setClicks] = useState(clicksBase);
   const [lastEvent, setLastEvent] = useState("Monitoring your campaigns...");
   const [eventVisible, setEventVisible] = useState(true);
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const dataRef = useRef(Array.from({ length: 30 }, () => Math.random() * 0.4 + 0.1));
-  const animRef = useRef(null);
+  const animRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const events = [
@@ -64,7 +64,7 @@ const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, cl
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d")!;
     const W = canvas.width, H = canvas.height;
 
     const draw = () => {
@@ -132,13 +132,13 @@ const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, cl
       animRef.current = requestAnimationFrame(draw);
     };
     animRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animRef.current);
+    return () => cancelAnimationFrame(animRef.current!);
   }, []);
 
   const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : "0.00";
   const spend = (clicks * 0.44).toFixed(2);
 
-  if (campaigns === 0) return (
+  if (campaigns.length === 0) return (
     <div className="pulse-card pulse-empty">
       <div style={{ fontSize:36, marginBottom:10 }}>📡</div>
       <div style={{ fontSize:15, fontWeight:700, marginBottom:6 }}>Live Campaign Pulse</div>
@@ -175,7 +175,7 @@ const LivePulse = React.memo(function LivePulse({ campaigns, impressionsBase, cl
           </svg>
         </div>
       </div>
-      <div style={{ fontSize:12, color:"rgba(255,255,255,.4)", marginBottom:10 }}>{campaigns} campaign{campaigns!==1?"s":""} running · live data</div>
+      <div style={{ fontSize:12, color:"rgba(255,255,255,.4)", marginBottom:10 }}>{campaigns.length} campaign{campaigns.length!==1?"s":""} running · live data</div>
 
       {/* Waveform */}
       <div style={{ position:"relative", marginBottom:14 }}>

@@ -18,9 +18,9 @@ export default function Keywords() {
   const [error, setError] = useState<string | null>(null);
   const [seedKeyword, setSeedKeyword] = useState("");
   const [location, setLocation] = useState("United States");
-  const [exploreResults, setExploreResults] = useState<Record<string, unknown> | null>(null);
+  const [exploreResults, setExploreResults] = useState<any>(null);
   const [scanUrl, setScanUrl] = useState("");
-  const [scanResults, setScanResults] = useState<Record<string, unknown> | null>(null);
+  const [scanResults, setScanResults] = useState<any | null>(null);
 
   async function handleExplore() {
     if (!seedKeyword.trim()) return;

@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "strict": true,
+    "noImplicitAny": false,
     "noUncheckedIndexedAccess": false,
     "skipLibCheck": true,
     "allowJs": true,
@@ -23,8 +24,7 @@
       ]
     },
     "types": [
-      "node",
-      "@remix-run/node"
+      "node"
     ],
     "lib": [
       "ES2022",
