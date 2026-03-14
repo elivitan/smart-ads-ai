@@ -55,7 +55,7 @@ export default defineConfig({
     // Sentry source maps — uploads on production build, skipped in dev
     sentryVitePlugin({
       org: "vitan-yazamut",
-      project: "javascript-react-router",
+      project: "javascript-remix",
       authToken: process.env.SENTRY_AUTH_TOKEN,
       sourcemaps: {
         filesToDeleteAfterUpload: [
