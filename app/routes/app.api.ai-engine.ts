@@ -94,10 +94,10 @@ const _action = async ({ request }: RouteHandlerArgs): Promise<Response> => {
       let analysis = await cache.get(cacheKeyAnalysis);
       if (!analysis) {
         analysis = await analyzeMarket({
-          competitorData,
+          competitorData: competitorData as any,
           products,
           storeInfo: { domain: shop, category, size: "small" },
-          seasonalContext,
+          seasonalContext: seasonalContext as any,
         });
         await cache.set(cacheKeyAnalysis, analysis, TTL.KEYWORD_DATA); // 12h
       }
@@ -161,7 +161,7 @@ const _action = async ({ request }: RouteHandlerArgs): Promise<Response> => {
       if (!campaign) {
         campaign = await buildCampaignStrategy({
           products,
-          competitorData,
+          competitorData: competitorData as any,
           goal,
           storeInfo: { domain: shop, category },
         });
@@ -204,7 +204,7 @@ const _action = async ({ request }: RouteHandlerArgs): Promise<Response> => {
       if (!advice) {
         advice = await getDailyAdvice({
           campaigns,
-          competitorData,
+          competitorData: competitorData as any,
           storeInfo: { domain: shop, category },
         });
         await cache.set(cacheKeyAdvice, advice, 4 * 3600); // 4h
@@ -223,7 +223,7 @@ const _action = async ({ request }: RouteHandlerArgs): Promise<Response> => {
       }
 
       const text = (formData.get("text") as string);
-      const type = (formData.get("type") as string) || "headline";
+      const type = ((formData.get("type") as string) || "headline") as "headline" | "description";
       const productTitle = (formData.get("productTitle") as string) || "";
       const competitorAdsJson = (formData.get("competitorAds") as string) || "[]";
       const competitorAds = JSON.parse(competitorAdsJson);

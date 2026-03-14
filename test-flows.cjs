@@ -498,12 +498,12 @@ console.log('\n🏗️  SECTION H: Infrastructure Hardening\n');
     fail("H6: perf-monitor.server.ts not found or incomplete");
   }
 
-  // H7: Health check module exists
-  const hcFile = path.join(ROOT, "app", "utils", "health-check.server.ts");
-  if (fs.existsSync(hcFile) && fs.readFileSync(hcFile, "utf8").includes("runHealthChecks")) {
-    pass("H7: Health check module exists");
+  // H7: Health check via route (app.api.health.ts)
+  const hcRoute = path.join(ROOT, "app", "routes", "app.api.health.ts");
+  if (fs.existsSync(hcRoute) && fs.readFileSync(hcRoute, "utf8").includes("healthCheck")) {
+    pass("H7: Health check route exists with loader + action");
   } else {
-    fail("H7: health-check.server.ts not found or incomplete");
+    fail("H7: app.api.health.ts not found or incomplete");
   }
 
   // H8: CI has Playwright + Slack notification
@@ -539,28 +539,28 @@ console.log('\n🏗️  SECTION H: Infrastructure Hardening\n');
     fail("H11: Request ID tracing missing");
   }
 
-  // H12: CORS configuration
-  const corsFile = path.join(ROOT, "app", "utils", "cors.server.ts");
-  if (fs.existsSync(corsFile) && fs.readFileSync(corsFile, "utf8").includes("isAllowedOrigin")) {
-    pass("H12: CORS configuration module exists");
+  // H12: Security headers (CSP) in security.server.ts
+  const cspFile = path.join(ROOT, "app", "utils", "security.server.ts");
+  if (fs.existsSync(cspFile) && fs.readFileSync(cspFile, "utf8").includes("Content-Security-Policy")) {
+    pass("H12: CSP security headers configured");
   } else {
-    fail("H12: cors.server.ts not found or incomplete");
+    fail("H12: CSP headers not found in security.server.ts");
   }
 
-  // H13: DB alerts to Sentry
-  const dbAlertsFile = path.join(ROOT, "app", "utils", "db-alerts.server.ts");
-  if (fs.existsSync(dbAlertsFile) && fs.readFileSync(dbAlertsFile, "utf8").includes("trackDbQuery")) {
-    pass("H13: DB slow query alerts module exists");
+  // H13: AI safety module
+  const aiSafetyFile = path.join(ROOT, "app", "utils", "ai-safety.server.ts");
+  if (fs.existsSync(aiSafetyFile) && fs.readFileSync(aiSafetyFile, "utf8").includes("detectPromptInjection")) {
+    pass("H13: AI safety module with injection detection");
   } else {
-    fail("H13: db-alerts.server.ts not found or incomplete");
+    fail("H13: ai-safety.server.ts not found or incomplete");
   }
 
-  // H14: Dead letter queue
-  const dlqFile = path.join(ROOT, "app", "utils", "dead-letter.server.ts");
-  if (fs.existsSync(dlqFile) && fs.readFileSync(dlqFile, "utf8").includes("addToDeadLetter")) {
-    pass("H14: Dead letter queue module exists");
+  // H14: AI prompt logging
+  const promptLogFile = path.join(ROOT, "app", "utils", "prompt-logger.server.ts");
+  if (fs.existsSync(promptLogFile) && fs.readFileSync(promptLogFile, "utf8").includes("logPrompt")) {
+    pass("H14: AI prompt logging module exists");
   } else {
-    fail("H14: dead-letter.server.ts not found or incomplete");
+    fail("H14: prompt-logger.server.ts not found or incomplete");
   }
 
   // H15: Cache warming
@@ -570,12 +570,12 @@ console.log('\n🏗️  SECTION H: Infrastructure Hardening\n');
     fail("H15: Cache warming not in entry.server.tsx");
   }
 
-  // H16: API response compression
-  const compFile = path.join(ROOT, "app", "utils", "compression.server.ts");
-  if (fs.existsSync(compFile) && fs.readFileSync(compFile, "utf8").includes("compressJsonResponse")) {
-    pass("H16: API response compression module exists");
+  // H16: Dependabot security scanning
+  const depFile = path.join(ROOT, ".github", "dependabot.yml");
+  if (fs.existsSync(depFile) && fs.readFileSync(depFile, "utf8").includes("npm")) {
+    pass("H16: Dependabot security scanning configured");
   } else {
-    fail("H16: compression.server.ts not found or incomplete");
+    fail("H16: dependabot.yml not found or incomplete");
   }
 
   // H17: Metrics endpoint

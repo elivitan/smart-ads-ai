@@ -1,5 +1,40 @@
 import React, { useState, useEffect, useMemo, useId } from "react";
 
+// ── Types ──────────────────────────────────────────────────────────────
+interface KeywordGap {
+  keyword: string;
+  match_type?: string;
+  source?: string;
+  campaignId?: string | null;
+  geo?: string | null;
+  freq?: number;
+  estClicks?: number;
+  estMonthlyLoss?: number;
+  difficulty?: string;
+  diffColor?: string;
+}
+
+interface StableGap extends KeywordGap {
+  _key: string;
+  _index: number;
+}
+
+interface AddKeywordMeta {
+  matchType: string;
+  source: string;
+  campaignId: string | null;
+  geo: string | null;
+}
+
+interface CompetitorGapFinderProps {
+  keywordGaps: KeywordGap[];
+  totalMonthlyGapLoss: number;
+  analyzedCount: number;
+  onAddKeyword?: (keyword: string, meta: AddKeywordMeta) => void;
+  canPublish: boolean;
+  onUpgrade: () => void;
+}
+
 /**
  * CompetitorGapFinder
  * Enterprise-ready version with:
@@ -15,11 +50,11 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({
   onAddKeyword,
   canPublish,
   onUpgrade,
-}) {
+}: CompetitorGapFinderProps) {
   const instanceId = useId(); // Multi-mount guard
-  const [expanded, setExpanded] = useState(false);
-  const [addedKeys, setAddedKeys] = useState(new Set());
-  const [animateTotal, setAnimateTotal] = useState(false);
+  const [expanded, setExpanded] = useState<boolean>(false);
+  const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
+  const [animateTotal, setAnimateTotal] = useState<boolean>(false);
 
   useEffect(() => {
     const t = setTimeout(() => setAnimateTotal(true), 600);
@@ -27,12 +62,12 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({
   }, []);
 
   // ── Composite key builder ──────────────────────────────────────────
-  function buildKey(gap) {
+  function buildKey(gap: KeywordGap): string {
     return `${gap.keyword}|${gap.match_type || "BROAD"}|${gap.source || "competitor"}|${gap.campaignId || "all"}|${gap.geo || "global"}`;
   }
 
   // ── Memoize gaps to prevent upstream re-render triggering re-calc ──
-  const stableGaps = useMemo(() => {
+  const stableGaps = useMemo<StableGap[]>(() => {
     if (!keywordGaps || keywordGaps.length === 0) return [];
     return keywordGaps.map((gap, i) => ({
       ...gap,
@@ -41,14 +76,14 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({
     }));
   }, [keywordGaps]);
 
-  const displayGaps = expanded ? stableGaps : stableGaps.slice(0, 4);
+  const displayGaps: StableGap[] = expanded ? stableGaps : stableGaps.slice(0, 4);
 
-  const totalLostClicks = useMemo(
+  const totalLostClicks = useMemo<number>(
     () => stableGaps.reduce((a, g) => a + (g.estClicks || 0), 0),
     [stableGaps],
   );
 
-  function handleAdd(gap) {
+  function handleAdd(gap: StableGap): void {
     if (!canPublish) {
       onUpgrade();
       return;
@@ -65,7 +100,7 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({
 
   if (analyzedCount === 0) return null;
 
-  const hasGaps = stableGaps.length > 0;
+  const hasGaps: boolean = stableGaps.length > 0;
 
   return (
     <div className="gap-card" data-instance={instanceId}>
@@ -122,7 +157,7 @@ const CompetitorGapFinder = React.memo(function CompetitorGapFinder({
               <span></span>
             </div>
             {displayGaps.map((gap) => {
-              const isAdded = addedKeys.has(gap._key);
+              const isAdded: boolean = addedKeys.has(gap._key);
               return (
                 <div
                   key={gap._key}

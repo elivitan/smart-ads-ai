@@ -1,4 +1,4 @@
-// app/ai-brain.server.js
+// app/ai-brain.server.ts
 // ═══════════════════════════════════════════════════════════════
 // Smart Ads AI — The Brain
 // This is the core intelligence engine. Claude receives REAL data
@@ -22,7 +22,7 @@ import { sanitizeForPrompt, safeParseAiJson } from "./utils/ai-safety.server.js"
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Cost guard helper
-function checkCostLimits() {
+function checkCostLimits(): void {
   if (isCostLimitReached("anthropic")) {
     throw new Error("Daily AI processing limit reached. Try again tomorrow.");
   }
@@ -30,19 +30,142 @@ function checkCostLimits() {
     throw new Error("Daily search limit reached. Try again tomorrow.");
   }
 }
-const SERPER_KEY = process.env.SERPER_API_KEY || "";
-const SERP_KEY = process.env.SERPAPI_KEY || "";
+const SERPER_KEY: string = process.env.SERPER_API_KEY || "";
+const SERP_KEY: string = process.env.SERPAPI_KEY || "";
 
 // ─────────────────────────────────────────────
 // DATA COLLECTION — Layer 1: Get real data
 // ─────────────────────────────────────────────
+
+interface SearchResult {
+  source: string;
+  data: Record<string, any>;
+}
+
+interface AdEntry {
+  keyword: string;
+  title: string;
+  domain: string;
+  description: string;
+  position: number;
+  sitelinks: any[];
+}
+
+interface OrganicEntry {
+  keyword: string;
+  position: number;
+  title: string;
+  domain: string;
+  snippet: string;
+}
+
+interface ShoppingEntry {
+  keyword: string;
+  title: string;
+  price: string;
+  source: string;
+  rating: number | null;
+  reviews: number | null;
+}
+
+interface StoreRanking {
+  keyword: string;
+  position: number | null;
+  found: boolean;
+}
+
+interface ParsedResults {
+  ads: AdEntry[];
+  organic: OrganicEntry[];
+  shopping: ShoppingEntry[];
+  storeRanking: StoreRanking | null;
+}
+
+interface CompetitorData {
+  ads: AdEntry[];
+  organic: OrganicEntry[];
+  shopping: ShoppingEntry[];
+  trends: TrendData | null;
+  storeRankings?: StoreRanking[];
+  competitorCount: number;
+  bigPlayerCount?: number;
+  bigPlayers?: string[];
+  searchSource: string;
+}
+
+interface TrendData {
+  keywords: string;
+  recentInterest: number;
+  previousInterest: number;
+  changePercent: number;
+  direction: string;
+}
+
+interface StoreInfo {
+  domain?: string;
+  category?: string;
+  size?: string;
+  regions?: string[];
+  [key: string]: any;
+}
+
+interface Product {
+  title: string;
+  price: string;
+  description?: string;
+  [key: string]: any;
+}
+
+interface SeasonalContext {
+  month?: number;
+  holidays?: Array<{ name: string; daysUntil: number; impact: string }>;
+  seasonal?: string;
+}
+
+interface AnalyzeMarketInput {
+  competitorData: CompetitorData;
+  products: Product[];
+  storeInfo: StoreInfo;
+  seasonalContext: SeasonalContext;
+}
+
+interface BuildCampaignInput {
+  products: Product[];
+  competitorData: CompetitorData;
+  goal?: string;
+  storeInfo: StoreInfo;
+}
+
+interface Campaign {
+  name: string;
+  status: string;
+  cost?: number;
+  clicks?: number;
+  conversions?: number;
+  roas?: string | number;
+  avgCpc?: string | number;
+  [key: string]: any;
+}
+
+interface DailyAdviceInput {
+  campaigns: Campaign[];
+  competitorData: CompetitorData;
+  storeInfo: StoreInfo;
+}
+
+interface ImproveAdCopyInput {
+  text: string;
+  type: "headline" | "description";
+  productTitle: string;
+  competitorAds?: AdEntry[];
+}
 
 /**
  * Search via Serper.dev (primary) or SerpAPI (fallback)
  * Serper returns: organic, ads (peopleAlsoAsk, knowledgeGraph, shopping)
  * Returns unified format regardless of source
  */
-async function searchWithSerper(keyword) {
+async function searchWithSerper(keyword: string): Promise<SearchResult | null> {
   if (!SERPER_KEY) return null;
   try {
     // Fetch organic + ads from /search
@@ -64,7 +187,7 @@ async function searchWithSerper(keyword) {
       console.warn("[AI-Brain] Serper HTTP error:", res.status);
       return null;
     }
-    const data = await res.json();
+    const data: Record<string, any> = await res.json();
 
     // Fetch shopping from separate endpoint
     try {
@@ -85,18 +208,18 @@ async function searchWithSerper(keyword) {
         const shopData = await shopRes.json();
         data.shopping = shopData.shopping || [];
       }
-    } catch (shopErr) {
+    } catch (shopErr: any) {
       console.warn("[AI-Brain] Serper shopping failed:", shopErr.message);
     }
 
     return { source: "serper", data };
-  } catch (err) {
+  } catch (err: any) {
     console.warn("[AI-Brain] Serper failed:", err.message);
     return null;
   }
 }
 
-async function searchWithSerpAPI(keyword) {
+async function searchWithSerpAPI(keyword: string): Promise<SearchResult | null> {
   if (!SERP_KEY) return null;
   try {
     const url = `https://serpapi.com/search.json?q=${encodeURIComponent(keyword)}&api_key=${SERP_KEY}&num=20&hl=en&gl=us`;
@@ -104,7 +227,7 @@ async function searchWithSerpAPI(keyword) {
     if (!res.ok) return null;
     const data = await res.json();
     return { source: "serpapi", data };
-  } catch (err) {
+  } catch (err: any) {
     console.warn("[AI-Brain] SerpAPI failed:", err.message);
     return null;
   }
@@ -113,11 +236,11 @@ async function searchWithSerpAPI(keyword) {
 /**
  * Parse Serper.dev results into our unified format
  */
-function parseSerperResults(data, keyword, storeDomain) {
-  const ads = [];
-  const organic = [];
-  const shopping = [];
-  let storeRanking = null;
+function parseSerperResults(data: Record<string, any>, keyword: string, storeDomain?: string): ParsedResults {
+  const ads: AdEntry[] = [];
+  const organic: OrganicEntry[] = [];
+  const shopping: ShoppingEntry[] = [];
+  let storeRanking: StoreRanking | null = null;
 
   // Paid ads
   if (data.ads) {
@@ -149,7 +272,7 @@ function parseSerperResults(data, keyword, storeDomain) {
     // Check store ranking
     if (storeDomain) {
       const cleanDomain = storeDomain.replace(/https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-      const found = data.organic.find(r =>
+      const found = data.organic.find((r: any) =>
         r.link?.toLowerCase().includes(cleanDomain)
       );
       storeRanking = {
@@ -180,11 +303,11 @@ function parseSerperResults(data, keyword, storeDomain) {
 /**
  * Parse SerpAPI results into our unified format (legacy)
  */
-function parseSerpAPIResults(data, keyword, storeDomain) {
-  const ads = [];
-  const organic = [];
-  const shopping = [];
-  let storeRanking = null;
+function parseSerpAPIResults(data: Record<string, any>, keyword: string, storeDomain?: string): ParsedResults {
+  const ads: AdEntry[] = [];
+  const organic: OrganicEntry[] = [];
+  const shopping: ShoppingEntry[] = [];
+  let storeRanking: StoreRanking | null = null;
 
   if (data.ads) {
     for (const ad of data.ads) {
@@ -212,7 +335,7 @@ function parseSerpAPIResults(data, keyword, storeDomain) {
 
     if (storeDomain) {
       const cleanDomain = storeDomain.replace(/https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-      const found = data.organic_results.find(r =>
+      const found = data.organic_results.find((r: any) =>
         r.displayed_link?.toLowerCase().includes(cleanDomain) ||
         r.link?.toLowerCase().includes(cleanDomain)
       );
@@ -244,23 +367,23 @@ function parseSerpAPIResults(data, keyword, storeDomain) {
  * collectCompetitorData — Main search function
  * Priority: Serper.dev > SerpAPI > empty
  */
-export async function collectCompetitorData(keywords, storeDomain) {
+export async function collectCompetitorData(keywords: string[], storeDomain?: string): Promise<CompetitorData> {
   if (!SERPER_KEY && !SERP_KEY) {
     console.warn("[AI-Brain] No search API keys available (SERPER_API_KEY or SERPAPI_KEY)");
     return { ads: [], organic: [], shopping: [], trends: null, competitorCount: 0, searchSource: "none" };
   }
 
-  const allAds = [];
-  const allOrganic = [];
-  const allShopping = [];
-  const storeRankings = [];
+  const allAds: AdEntry[] = [];
+  const allOrganic: OrganicEntry[] = [];
+  const allShopping: ShoppingEntry[] = [];
+  const storeRankings: StoreRanking[] = [];
   let searchSource = "unknown";
 
   // Search top keywords (max 3 to save API calls)
   for (const kw of keywords.slice(0, 3)) {
     // Try Serper first, fall back to SerpAPI
     let result = await searchWithSerper(kw);
-    let parsed;
+    let parsed: ParsedResults;
 
     if (result) {
       searchSource = "serper.dev";
@@ -283,7 +406,7 @@ export async function collectCompetitorData(keywords, storeDomain) {
   }
 
   // Google Trends via SerpAPI (only if SerpAPI key exists — Serper doesn't have trends)
-  let trends = null;
+  let trends: TrendData | null = null;
   if (SERP_KEY) {
     try {
       const trendQuery = keywords.slice(0, 3).join(",");
@@ -291,12 +414,12 @@ export async function collectCompetitorData(keywords, storeDomain) {
       const trendRes = await fetch(trendUrl, { signal: AbortSignal.timeout(10000) });
       if (trendRes.ok) {
         const trendData = await trendRes.json();
-        const timeline = trendData.interest_over_time?.timeline_data || [];
+        const timeline: any[] = trendData.interest_over_time?.timeline_data || [];
         if (timeline.length > 4) {
           const recent = timeline.slice(-4);
           const older = timeline.slice(-8, -4);
-          const recentAvg = recent.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / recent.length;
-          const olderAvg = older.reduce((s, t) => s + (t.values?.[0]?.extracted_value || 0), 0) / Math.max(older.length, 1);
+          const recentAvg = recent.reduce((s: number, t: any) => s + (t.values?.[0]?.extracted_value || 0), 0) / recent.length;
+          const olderAvg = older.reduce((s: number, t: any) => s + (t.values?.[0]?.extracted_value || 0), 0) / Math.max(older.length, 1);
           const change = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg * 100) : 0;
           trends = {
             keywords: trendQuery,
@@ -307,7 +430,7 @@ export async function collectCompetitorData(keywords, storeDomain) {
           };
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("[AI-Brain] Trends failed:", err.message);
     }
   } else {
@@ -315,7 +438,7 @@ export async function collectCompetitorData(keywords, storeDomain) {
   }
 
   // Deduplicate competitor domains
-  const uniqueDomains = new Set();
+  const uniqueDomains = new Set<string>();
   const uniqueAds = allAds.filter(a => {
     if (uniqueDomains.has(a.domain)) return false;
     uniqueDomains.add(a.domain);
@@ -344,7 +467,7 @@ export async function collectCompetitorData(keywords, storeDomain) {
 /**
  * Collect Shopify store data
  */
-export async function collectShopifyData(session) {
+export async function collectShopifyData(session: any): Promise<Record<string, any>> {
   // This will be called with the authenticated session
   // For now returns what we know from products in DB
   return {
@@ -362,7 +485,7 @@ export async function collectShopifyData(session) {
  * Claude looks at real competition data and trends,
  * and gives a professional recommendation.
  */
-export async function analyzeMarket(data) {
+export async function analyzeMarket(data: AnalyzeMarketInput): Promise<Record<string, any>> {
   const {
     competitorData,  // from collectCompetitorData
     products,        // store products with prices
@@ -380,8 +503,8 @@ STORE INFO:
 - Domain: ${storeInfo?.domain || "unknown"}
 - Category: ${storeInfo?.category || "home textiles / bedding"}
 - Products: ${products?.length || 0} products
-- Average price: $${products?.length ? (products.reduce((a, p) => a + parseFloat(p.price || 0), 0) / products.length).toFixed(2) : "N/A"}
-- Price range: $${products?.length ? Math.min(...products.map(p => parseFloat(p.price || 999))).toFixed(0) : "?"} - $${products?.length ? Math.max(...products.map(p => parseFloat(p.price || 0))).toFixed(0) : "?"}
+- Average price: $${products?.length ? (products.reduce((a: number, p: Product) => a + parseFloat(p.price || "0"), 0) / products.length).toFixed(2) : "N/A"}
+- Price range: $${products?.length ? Math.min(...products.map(p => parseFloat(p.price || "999"))).toFixed(0) : "?"} - $${products?.length ? Math.max(...products.map(p => parseFloat(p.price || "0"))).toFixed(0) : "?"}
 
 COMPETITOR ADS RUNNING RIGHT NOW (from Google search results):
 ${competitorData?.ads?.length > 0
@@ -393,12 +516,12 @@ Big players detected: ${competitorData?.bigPlayerCount || 0} (${competitorData?.
 
 COMPETITOR SHOPPING PRICES:
 ${competitorData?.shopping?.length > 0
-    ? competitorData.shopping.slice(0, 5).map(s => `- ${s.source}: "${s.title}" — ${s.price}${s.rating ? ` (${s.rating}★, ${s.reviews} reviews)` : ""}`).join("\n")
+    ? competitorData.shopping.slice(0, 5).map(s => `- ${s.source}: "${s.title}" — ${s.price}${s.rating ? ` (${s.rating}\u2605, ${s.reviews} reviews)` : ""}`).join("\n")
     : "No shopping data"}
 
 STORE GOOGLE RANKINGS:
-${competitorData?.storeRankings?.length > 0
-    ? competitorData.storeRankings.map(r => `- "${r.keyword}": ${r.found ? `#${r.position}` : "NOT in top 20"}`).join("\n")
+${(competitorData?.storeRankings?.length ?? 0) > 0
+    ? competitorData!.storeRankings!.map(r => `- "${r.keyword}": ${r.found ? `#${r.position}` : "NOT in top 20"}`).join("\n")
     : "No ranking data"}
 
 GOOGLE TRENDS (last 3 months):
@@ -408,8 +531,8 @@ ${competitorData?.trends
 
 CURRENT DATE: ${new Date().toISOString().slice(0, 10)}
 MONTH: ${seasonalContext?.month || new Date().getMonth() + 1}
-UPCOMING HOLIDAYS: ${seasonalContext?.holidays?.length > 0
-    ? seasonalContext.holidays.map(h => `${h.name} in ${h.daysUntil} days (${h.impact} impact)`).join(", ")
+UPCOMING HOLIDAYS: ${(seasonalContext?.holidays?.length ?? 0) > 0
+    ? seasonalContext!.holidays!.map(h => `${h.name} in ${h.daysUntil} days (${h.impact} impact)`).join(", ")
     : "None in next 30 days"}
 
 ═══ YOUR ANALYSIS ═══
@@ -473,11 +596,11 @@ CRITICAL RULES:
 
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { productsCount: products?.length || 0 } });
 
-    const text = response.content[0].text.trim();
+    const text = (response as any).content[0].text.trim();
     const { data, error: parseError } = safeParseAiJson(text);
     if (!data) throw new Error(`AI response parse failed: ${parseError}`);
     return data;
-  } catch (err) {
+  } catch (err: any) {
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "market_intel", model: "claude-sonnet-4-20250514", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Market analysis failed:", err.message);
     return {
@@ -496,7 +619,7 @@ CRITICAL RULES:
  * CAMPAIGN BUILDER — "How should I build this campaign?"
  * Claude designs the campaign based on real market data.
  */
-export async function buildCampaignStrategy(data) {
+export async function buildCampaignStrategy(data: BuildCampaignInput): Promise<Record<string, any> | null> {
   const {
     products,        // selected products for the campaign
     competitorData,  // from collectCompetitorData
@@ -607,21 +730,21 @@ RULES:
 
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "campaign_builder", model: "claude-sonnet-4-20250514", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { goal, productsCount: products?.length || 0 } });
 
-    const text = response.content[0].text.trim();
-    const { data: result, error: parseError } = safeParseAiJson(text);
+    const text = (response as any).content[0].text.trim();
+    const { data: result, error: parseError } = safeParseAiJson<any>(text);
     if (!result) throw new Error(`AI response parse failed: ${parseError}`);
 
     // Enforce character limits
-    if (result.headlines) result.headlines = result.headlines.map(h => h.slice(0, 30));
-    if (result.long_headlines) result.long_headlines = result.long_headlines.map(h => h.slice(0, 90));
-    if (result.descriptions) result.descriptions = result.descriptions.map(d => d.slice(0, 90));
-    if (result.sitelinks) result.sitelinks.forEach(sl => {
+    if (result.headlines) result.headlines = result.headlines.map((h: string) => h.slice(0, 30));
+    if (result.long_headlines) result.long_headlines = result.long_headlines.map((h: string) => h.slice(0, 90));
+    if (result.descriptions) result.descriptions = result.descriptions.map((d: string) => d.slice(0, 90));
+    if (result.sitelinks) result.sitelinks.forEach((sl: any) => {
       sl.title = (sl.title || "").slice(0, 25);
       sl.description = (sl.description || "").slice(0, 35);
     });
 
     return result;
-  } catch (err) {
+  } catch (err: any) {
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "campaign_builder", model: "claude-sonnet-4-20250514", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Campaign build failed:", err.message);
     return null;
@@ -632,7 +755,7 @@ RULES:
  * DAILY ADVISOR — "What should I do today?"
  * Claude reviews campaign performance and gives daily action items.
  */
-export async function getDailyAdvice(data) {
+export async function getDailyAdvice(data: DailyAdviceInput): Promise<Record<string, any>> {
   const {
     campaigns,        // live campaign data from Google Ads
     competitorData,   // fresh competitor check
@@ -693,11 +816,11 @@ Rules:
 
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
 
-    const text = response.content[0].text.trim();
+    const text = (response as any).content[0].text.trim();
     const { data, error: parseError } = safeParseAiJson(text);
     if (!data) throw new Error(`AI response parse failed: ${parseError}`);
     return data;
-  } catch (err) {
+  } catch (err: any) {
     logPrompt({ shop: storeInfo?.domain || "unknown", action: "daily_advice", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Daily advice failed:", err.message);
     return {
@@ -714,7 +837,7 @@ Rules:
  * AD COPY IMPROVER — "Make this headline better"
  * Claude looks at competitor ads and writes better copy.
  */
-export async function improveAdCopy(data) {
+export async function improveAdCopy(data: ImproveAdCopyInput): Promise<string | null> {
   const {
     text,             // current headline or description
     type,             // "headline" or "description"
@@ -753,9 +876,9 @@ Rules:
 
     logPrompt({ shop: "unknown", action: "improve", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true, metadata: { type, productTitle } });
 
-    const improved = response.content[0].text.trim().replace(/^["']|["']$/g, "");
+    const improved = (response as any).content[0].text.trim().replace(/^["']|["']$/g, "");
     return improved.slice(0, maxChars);
-  } catch (err) {
+  } catch (err: any) {
     logPrompt({ shop: "unknown", action: "improve", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
     console.error("[AI-Brain] Copy improve failed:", err.message);
     return null;

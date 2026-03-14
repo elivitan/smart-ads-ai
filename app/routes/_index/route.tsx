@@ -2,7 +2,7 @@
 import { redirect, Form, useLoaderData } from "react-router";
 import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
-export const loader = async ({ request }) => {
+export const loader = async ({ request }: { request: Request }) => {
   const { authenticate } = await import("../../shopify.server");
   const url = new URL(request.url);
   if (url.searchParams.get("shop")) {
@@ -11,7 +11,7 @@ export const loader = async ({ request }) => {
   return { showForm: Boolean(login) };
 };
 export default function App() {
-  const { showForm } = useLoaderData();
+  const { showForm } = useLoaderData<{ showForm: boolean }>();
   return (
     <div className={styles.index}>
       {" "}

@@ -1,4 +1,4 @@
-// app/market-intel.server.js
+// app/market-intel.server.ts
 // ══════════════════════════════════════════════════════════════
 // Market Intelligence Engine — 4 layers:
 //   1. Holidays/Seasons calendar (built-in)
@@ -15,7 +15,86 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // LAYER 1: Holiday & Season Calendar
 // ─────────────────────────────────────────────────
 
-const HOLIDAYS = {
+interface Holiday {
+  name: string;
+  month: number;
+  day: number;
+  impact: string;
+  adTip: string;
+}
+
+interface UpcomingHoliday extends Holiday {
+  region: string;
+  daysUntil: number;
+  date: string;
+}
+
+interface SeasonalPattern {
+  peak: number[];
+  low: number[];
+  tip: string;
+}
+
+interface SeasonalInsight {
+  season: "peak" | "low" | "normal";
+  tip: string;
+  budgetMultiplier: number;
+}
+
+interface TrendsResult {
+  keywords: string;
+  recentInterest: number;
+  previousInterest: number;
+  trendChange: number;
+  direction: string;
+  dataPoints: number;
+}
+
+interface NewsArticle {
+  title: string;
+  description: string;
+  source: string;
+  publishedAt: string;
+}
+
+interface NewsResult {
+  articles: NewsArticle[];
+  country: string;
+  fetchedAt: string;
+}
+
+interface StoreInfo {
+  domain?: string;
+  regions?: string[];
+  productCategory?: string;
+  topKeywords?: string[];
+  [key: string]: any;
+}
+
+interface AnalyzeContext {
+  holidays: UpcomingHoliday[];
+  seasonal: SeasonalInsight;
+  trends: TrendsResult | null;
+  news: NewsResult | null;
+  storeInfo: StoreInfo;
+  productCategory: string;
+}
+
+interface MarketSignal {
+  signal: string;
+  signal_label: string;
+  headline?: string;
+  recommendation?: string;
+  budget_advice?: string;
+  budget_multiplier: number;
+  timing_advice?: string;
+  upcoming_opportunity?: string | null;
+  risks?: string[];
+  confidence?: number;
+  [key: string]: any;
+}
+
+const HOLIDAYS: Record<string, Holiday[]> = {
   US: [
     { name: "New Year's Day", month: 1, day: 1, impact: "medium", adTip: "New year deals, fresh start messaging" },
     { name: "Valentine's Day", month: 2, day: 14, impact: "high", adTip: "Gift-focused campaigns, couples messaging" },
@@ -64,7 +143,7 @@ const HOLIDAYS = {
 };
 
 // Seasonal patterns by product category
-const SEASONAL_PATTERNS = {
+const SEASONAL_PATTERNS: Record<string, SeasonalPattern> = {
   bedding: { peak: [9, 10, 11, 12, 1], low: [5, 6, 7], tip: "Bedding peaks in fall/winter. Push hard Sep-Jan." },
   clothing: { peak: [3, 4, 9, 10, 11, 12], low: [1, 2], tip: "Fashion peaks at season changes and holidays." },
   electronics: { peak: [11, 12, 1], low: [2, 3], tip: "Electronics peak around Black Friday and Christmas." },
@@ -74,9 +153,9 @@ const SEASONAL_PATTERNS = {
   general: { peak: [11, 12], low: [1, 2], tip: "General retail peaks around holiday season." },
 };
 
-export function getUpcomingHolidays(regions, daysAhead = 30) {
+export function getUpcomingHolidays(regions: string[], daysAhead: number = 30): UpcomingHoliday[] {
   const now = new Date();
-  const upcoming = [];
+  const upcoming: UpcomingHoliday[] = [];
 
   for (const region of regions) {
     const holidays = HOLIDAYS[region] || HOLIDAYS.GLOBAL;
@@ -86,7 +165,7 @@ export function getUpcomingHolidays(regions, daysAhead = 30) {
       if (holidayDate < now) {
         holidayDate.setFullYear(holidayDate.getFullYear() + 1);
       }
-      const daysUntil = Math.ceil((holidayDate - now) / (1000 * 60 * 60 * 24));
+      const daysUntil = Math.ceil((holidayDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (daysUntil <= daysAhead && daysUntil >= 0) {
         upcoming.push({ ...h, region, daysUntil, date: holidayDate.toISOString().slice(0, 10) });
       }
@@ -96,7 +175,7 @@ export function getUpcomingHolidays(regions, daysAhead = 30) {
   return upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
-export function getSeasonalInsight(category, month) {
+export function getSeasonalInsight(category: string, month: number): SeasonalInsight {
   const pattern = SEASONAL_PATTERNS[category] || SEASONAL_PATTERNS.general;
   const isPeak = pattern.peak.includes(month);
   const isLow = pattern.low.includes(month);
@@ -111,7 +190,7 @@ export function getSeasonalInsight(category, month) {
 // LAYER 2: Google Trends via SerpAPI
 // ─────────────────────────────────────────────────
 
-async function getGoogleTrends(keywords, region = "us") {
+async function getGoogleTrends(keywords: string[], region: string = "us"): Promise<TrendsResult | null> {
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     console.log("[MarketIntel] No SERPAPI_KEY — skipping Google Trends");
@@ -130,7 +209,7 @@ async function getGoogleTrends(keywords, region = "us") {
     }
 
     const data = await res.json();
-    const timeline = data.interest_over_time?.timeline_data || [];
+    const timeline: any[] = data.interest_over_time?.timeline_data || [];
 
     if (timeline.length === 0) return null;
 
@@ -138,27 +217,27 @@ async function getGoogleTrends(keywords, region = "us") {
     const recent = timeline.slice(-4); // last 4 data points
     const older = timeline.slice(-8, -4); // previous 4
 
-    const recentAvg = recent.reduce((sum, t) => {
+    const recentAvg = recent.reduce((sum: number, t: any) => {
       const val = t.values?.[0]?.extracted_value || 0;
       return sum + val;
     }, 0) / Math.max(recent.length, 1);
 
-    const olderAvg = older.reduce((sum, t) => {
+    const olderAvg = older.reduce((sum: number, t: any) => {
       const val = t.values?.[0]?.extracted_value || 0;
       return sum + val;
     }, 0) / Math.max(older.length, 1);
 
-    const trendDirection = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg * 100).toFixed(1) : 0;
+    const trendDirection = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg * 100).toFixed(1) : "0";
 
     return {
       keywords: query,
       recentInterest: Math.round(recentAvg),
       previousInterest: Math.round(olderAvg),
-      trendChange: parseFloat(trendDirection),
-      direction: trendDirection > 10 ? "rising" : trendDirection < -10 ? "falling" : "stable",
+      trendChange: parseFloat(trendDirection as string),
+      direction: parseFloat(trendDirection as string) > 10 ? "rising" : parseFloat(trendDirection as string) < -10 ? "falling" : "stable",
       dataPoints: timeline.length,
     };
-  } catch (err) {
+  } catch (err: any) {
     console.warn("[MarketIntel] Google Trends fetch failed:", err.message);
     return null;
   }
@@ -168,7 +247,7 @@ async function getGoogleTrends(keywords, region = "us") {
 // LAYER 3: NewsAPI — real-time events
 // ─────────────────────────────────────────────────
 
-async function getMarketNews(regions, productCategory) {
+async function getMarketNews(regions: string[], productCategory?: string): Promise<NewsResult | null> {
   const apiKey = process.env.NEWSAPI_KEY;
   if (!apiKey) {
     console.log("[MarketIntel] No NEWSAPI_KEY — skipping news analysis");
@@ -177,17 +256,17 @@ async function getMarketNews(regions, productCategory) {
 
   try {
     // Search for economic/market news + disruption events
-    const queries = [
+    const queries: string[] = [
       "consumer spending economy",
       "retail sales online shopping",
       ...(productCategory ? [`${productCategory} market trends`] : []),
     ];
 
     // Map regions to country codes for NewsAPI
-    const countryMap = { US: "us", UK: "gb", EU: "de", GLOBAL: "us" };
+    const countryMap: Record<string, string> = { US: "us", UK: "gb", EU: "de", GLOBAL: "us" };
     const country = countryMap[regions[0]] || "us";
 
-    const allArticles = [];
+    const allArticles: NewsArticle[] = [];
 
     for (const q of queries.slice(0, 2)) { // limit to 2 queries to save API calls
       const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&pageSize=5&apiKey=${apiKey}`;
@@ -200,7 +279,7 @@ async function getMarketNews(regions, productCategory) {
 
       const data = await res.json();
       if (data.articles) {
-        allArticles.push(...data.articles.map(a => ({
+        allArticles.push(...data.articles.map((a: any) => ({
           title: a.title,
           description: a.description?.slice(0, 200) || "",
           source: a.source?.name || "Unknown",
@@ -216,7 +295,7 @@ async function getMarketNews(regions, productCategory) {
       country,
       fetchedAt: new Date().toISOString(),
     };
-  } catch (err) {
+  } catch (err: any) {
     console.warn("[MarketIntel] NewsAPI fetch failed:", err.message);
     return null;
   }
@@ -226,7 +305,7 @@ async function getMarketNews(regions, productCategory) {
 // LAYER 4: Claude AI — synthesize everything
 // ─────────────────────────────────────────────────
 
-async function analyzeWithClaude(context) {
+async function analyzeWithClaude(context: AnalyzeContext): Promise<MarketSignal> {
   const { holidays, seasonal, trends, news, storeInfo, productCategory } = context;
 
   const prompt = `You are a Google Ads market intelligence advisor. Analyze the current market conditions and give a clear advertising recommendation.
@@ -278,10 +357,10 @@ Respond ONLY with valid JSON.`;
       messages: [{ role: "user", content: prompt }],
     });
 
-    const text = response.content[0]?.text || "";
+    const text = (response.content[0] as any)?.text || "";
     const cleaned = text.replace(/```json\s*/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleaned);
-  } catch (err) {
+  } catch (err: any) {
     console.error("[MarketIntel] Claude analysis failed:", err.message);
     return {
       signal: "yellow",
@@ -302,7 +381,7 @@ Respond ONLY with valid JSON.`;
 // MAIN EXPORT: Get full market intelligence
 // ─────────────────────────────────────────────────
 
-export async function getMarketIntelligence(storeInfo = {}) {
+export async function getMarketIntelligence(storeInfo: StoreInfo = {}): Promise<Record<string, any>> {
   const regions = storeInfo.regions || ["US"];
   const productCategory = storeInfo.productCategory || "general";
   const month = new Date().getMonth() + 1;
@@ -345,7 +424,7 @@ export async function getMarketIntelligence(storeInfo = {}) {
 }
 
 // Quick check — lightweight version for dashboard polling
-export async function getQuickMarketSignal(storeInfo = {}) {
+export async function getQuickMarketSignal(storeInfo: StoreInfo = {}): Promise<Record<string, any>> {
   const regions = storeInfo.regions || ["US"];
   const productCategory = storeInfo.productCategory || "general";
   const month = new Date().getMonth() + 1;

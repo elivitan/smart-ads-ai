@@ -6,24 +6,47 @@ import React, {
   useContext,
 } from "react";
 
-// ג”€ג”€ Toast Context ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-const ToastContext = createContext(null);
+// ── Toast Types ──────────────────────────────────────────────────────
+type ToastType = "success" | "error" | "warning" | "info";
 
-export function useToast() {
+interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+  duration: number;
+}
+
+interface ToastContextValue {
+  addToast: (message: string, type?: ToastType, duration?: number) => string;
+  removeToast: (id: string) => void;
+  success: (msg: string, dur?: number) => string;
+  error: (msg: string, dur?: number) => string;
+  warning: (msg: string, dur?: number) => string;
+  info: (msg: string, dur?: number) => string;
+}
+
+// ── Toast Context ────────────────────────────────────────────────────
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
   return ctx;
 }
 
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
+interface ToastProviderProps {
+  children: React.ReactNode;
+}
 
-  const removeToast = useCallback((id) => {
+export function ToastProvider({ children }: ToastProviderProps) {
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const addToast = useCallback(
-    (message, type = "info", duration = 5000) => {
+    (message: string, type: ToastType = "info", duration: number = 5000): string => {
       const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       setToasts((prev) => [...prev, { id, message, type, duration }]);
       if (duration > 0) {
@@ -35,19 +58,19 @@ export function ToastProvider({ children }) {
   );
 
   const success = useCallback(
-    (msg, dur) => addToast(msg, "success", dur),
+    (msg: string, dur?: number) => addToast(msg, "success", dur),
     [addToast],
   );
   const error = useCallback(
-    (msg, dur) => addToast(msg, "error", dur || 8000),
+    (msg: string, dur?: number) => addToast(msg, "error", dur || 8000),
     [addToast],
   );
   const warning = useCallback(
-    (msg, dur) => addToast(msg, "warning", dur || 6000),
+    (msg: string, dur?: number) => addToast(msg, "warning", dur || 6000),
     [addToast],
   );
   const info = useCallback(
-    (msg, dur) => addToast(msg, "info", dur),
+    (msg: string, dur?: number) => addToast(msg, "info", dur),
     [addToast],
   );
 
@@ -61,8 +84,13 @@ export function ToastProvider({ children }) {
   );
 }
 
-// ג”€ג”€ Toast Container ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-function ToastContainer({ toasts, onDismiss }) {
+// ── Toast Container ──────────────────────────────────────────────────
+interface ToastContainerProps {
+  toasts: ToastItem[];
+  onDismiss: (id: string) => void;
+}
+
+function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
@@ -86,37 +114,49 @@ function ToastContainer({ toasts, onDismiss }) {
   );
 }
 
-// ג”€ג”€ Individual Toast ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-function Toast({ toast, onDismiss }) {
+// ── Individual Toast ─────────────────────────────────────────────────
+interface ToastProps {
+  toast: ToastItem;
+  onDismiss: (id: string) => void;
+}
+
+interface ToastColorScheme {
+  bg: string;
+  border: string;
+  icon: string;
+  text: string;
+}
+
+function Toast({ toast, onDismiss }: ToastProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
-  const colors = {
+  const colors: Record<ToastType, ToastColorScheme> = {
     success: {
       bg: "rgba(34,197,94,.15)",
       border: "rgba(34,197,94,.4)",
-      icon: "ג…",
+      icon: "\u2705",
       text: "#22c55e",
     },
     error: {
       bg: "rgba(239,68,68,.15)",
       border: "rgba(239,68,68,.4)",
-      icon: "ג",
+      icon: "\u274C",
       text: "#ef4444",
     },
     warning: {
       bg: "rgba(245,158,11,.15)",
       border: "rgba(245,158,11,.4)",
-      icon: "ג ן¸",
+      icon: "\u26A0\uFE0F",
       text: "#f59e0b",
     },
     info: {
       bg: "rgba(99,102,241,.15)",
       border: "rgba(99,102,241,.4)",
-      icon: "ג„¹ן¸",
+      icon: "\u2139\uFE0F",
       text: "#6366f1",
     },
   };
@@ -158,24 +198,35 @@ function Toast({ toast, onDismiss }) {
       <span
         style={{ color: "rgba(255,255,255,.3)", fontSize: 16, marginLeft: 4 }}
       >
-        ֳ—
+        \u00D7
       </span>
     </div>
   );
 }
 
-// ג”€ג”€ Error Boundary ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-export class ErrorBoundary extends React.Component {
-  constructor(props) {
+// ── Error Boundary ───────────────────────────────────────────────────
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: (error: Error | null, reset: () => void) => React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
     console.error("[SmartAds] Error Boundary caught:", error, errorInfo);
 
@@ -196,7 +247,7 @@ export class ErrorBoundary extends React.Component {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 36, marginBottom: 12 }}>נ˜µ</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>{"\uD83D\uDCA5"}</div>
           <h3 style={{ color: "#ef4444", margin: "0 0 8px", fontSize: 16 }}>
             Something went wrong
           </h3>
@@ -211,11 +262,11 @@ export class ErrorBoundary extends React.Component {
           </p>
           {this.props.fallback ? (
             this.props.fallback(this.state.error, () =>
-              this.setState({ hasError: false, error: null }),
+              this.setState({ hasError: false, error: null, errorInfo: null }),
             )
           ) : (
             <button
-              onClick={() => this.setState({ hasError: false, error: null })}
+              onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
               style={{
                 background: "rgba(239,68,68,.2)",
                 border: "1px solid rgba(239,68,68,.4)",
@@ -253,8 +304,13 @@ export class ErrorBoundary extends React.Component {
   }
 }
 
-// ג”€ג”€ Wizard Error Boundary (specific fallback) ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-export function WizardErrorBoundary({ children, onClose }) {
+// ── Wizard Error Boundary (specific fallback) ────────────────────────
+interface WizardErrorBoundaryProps {
+  children: React.ReactNode;
+  onClose?: () => void;
+}
+
+export function WizardErrorBoundary({ children, onClose }: WizardErrorBoundaryProps) {
   return (
     <ErrorBoundary
       fallback={(error, reset) => (
@@ -267,7 +323,7 @@ export function WizardErrorBoundary({ children, onClose }) {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 36, marginBottom: 12 }}>נ”§</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>{"\uD83E\uDDE7"}</div>
           <h3 style={{ color: "#ef4444", fontSize: 16, margin: "0 0 8px" }}>
             Campaign Wizard Error
           </h3>

@@ -1,5 +1,25 @@
 import React, { useState, useEffect, useMemo } from "react";
 
+// ── Types ──────────────────────────────────────────────────────────────
+interface SubScore {
+  label: string;
+  value: number;
+  color: string;
+  icon: string;
+  tip: string;
+}
+
+interface StoreHealthScoreProps {
+  analyzedCount: number;
+  totalProducts: number;
+  avgScore: number;
+  highPotential: number;
+  competitorCount: number;
+  lastScanDate?: string | null;   // ISO date string of last scan
+  industryAvg?: number | null;    // Optional: industry average score (0-100)
+  criticalIssues?: number | null; // Optional: number of critical issues found
+}
+
 /**
  * StoreHealthScore — Enterprise Version
  *
@@ -19,9 +39,9 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
   lastScanDate, // ISO date string of last scan
   industryAvg, // Optional: industry average score (0-100)
   criticalIssues, // Optional: number of critical issues found
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [animated, setAnimated] = useState(false);
+}: StoreHealthScoreProps) {
+  const [expanded, setExpanded] = useState<boolean>(false);
+  const [animated, setAnimated] = useState<boolean>(false);
 
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 500);
@@ -31,16 +51,16 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
   // ── Non-linear curve (diminishing returns) ─────────────────────────
   // Score of 50 → 50, Score of 80 → 76, Score of 95 → 88
   // This prevents inflated scores from small improvements at the top
-  function curve(value, power = 0.85) {
-    const clamped = Math.max(0, Math.min(100, value));
+  function curve(value: number, power: number = 0.85): number {
+    const clamped: number = Math.max(0, Math.min(100, value));
     return Math.round(Math.pow(clamped / 100, power) * 100);
   }
 
   // ── Time decay factor ──────────────────────────────────────────────
   // Fresh scan (0 days) = 1.0, 7 days = 0.9, 30 days = 0.7, 90+ days = 0.4
-  const decayFactor = useMemo(() => {
+  const decayFactor = useMemo<number>(() => {
     if (!lastScanDate) return 0.85; // Default if no date
-    const daysSinceScan = Math.max(
+    const daysSinceScan: number = Math.max(
       0,
       (Date.now() - new Date(lastScanDate).getTime()) / 86400000,
     );
@@ -54,7 +74,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
 
   // ── Confidence factor ──────────────────────────────────────────────
   // < 3 products = low confidence, 3-10 = medium, 10+ = high
-  const confidence = useMemo(() => {
+  const confidence = useMemo<number>(() => {
     if (analyzedCount === 0) return 0;
     if (analyzedCount <= 2) return 0.5;
     if (analyzedCount <= 5) return 0.7;
@@ -63,43 +83,43 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
     return 1.0;
   }, [analyzedCount]);
 
-  const confidenceLabel =
+  const confidenceLabel: string =
     confidence >= 0.9 ? "High" : confidence >= 0.7 ? "Medium" : "Low";
-  const confidenceColor =
+  const confidenceColor: string =
     confidence >= 0.9 ? "#22c55e" : confidence >= 0.7 ? "#f59e0b" : "#ef4444";
 
   // ── Sub-scores with non-linear curves ──────────────────────────────
-  const adQuality = curve(avgScore);
-  const productCoverage =
+  const adQuality: number = curve(avgScore);
+  const productCoverage: number =
     totalProducts > 0
       ? curve(Math.round((analyzedCount / totalProducts) * 100))
       : 0;
-  const competitorIntel = curve(Math.min(competitorCount * 20, 100));
-  const budgetEfficiency =
+  const competitorIntel: number = curve(Math.min(competitorCount * 20, 100));
+  const budgetEfficiency: number =
     avgScore > 0
       ? curve(Math.min(Math.round(avgScore * 0.85 + highPotential * 2.5), 100))
       : 0;
 
   // ── Critical issue penalty ─────────────────────────────────────────
   // Each critical issue subtracts 5-15 points
-  const criticalPenalty = Math.min((criticalIssues || 0) * 8, 30);
+  const criticalPenalty: number = Math.min((criticalIssues || 0) * 8, 30);
 
   // ── Overall score with all factors ─────────────────────────────────
-  const rawOverall = Math.round(
+  const rawOverall: number = Math.round(
     adQuality * 0.35 +
       productCoverage * 0.25 +
       competitorIntel * 0.2 +
       budgetEfficiency * 0.2,
   );
 
-  const decayedScore = Math.round(rawOverall * decayFactor);
-  const penalizedScore = Math.max(0, decayedScore - criticalPenalty);
-  const overall = Math.round(penalizedScore * confidence);
+  const decayedScore: number = Math.round(rawOverall * decayFactor);
+  const penalizedScore: number = Math.max(0, decayedScore - criticalPenalty);
+  const overall: number = Math.round(penalizedScore * confidence);
 
   // ── Industry comparison ────────────────────────────────────────────
-  const baseline = industryAvg || 62; // Default industry average
-  const vsIndustry = overall - baseline;
-  const vsIndustryLabel =
+  const baseline: number = industryAvg || 62; // Default industry average
+  const vsIndustry: number = overall - baseline;
+  const vsIndustryLabel: string =
     vsIndustry > 0
       ? `+${vsIndustry} above avg`
       : vsIndustry < 0
@@ -107,7 +127,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
         : "At industry avg";
 
   // ── Grade ──────────────────────────────────────────────────────────
-  const grade =
+  const grade: string =
     overall >= 85
       ? "A"
       : overall >= 70
@@ -117,7 +137,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
           : overall >= 40
             ? "D"
             : "F";
-  const gradeColor =
+  const gradeColor: string =
     overall >= 85
       ? "#22c55e"
       : overall >= 70
@@ -127,7 +147,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
           : overall >= 40
             ? "#f97316"
             : "#ef4444";
-  const statusText =
+  const statusText: string =
     overall >= 85
       ? "Excellent"
       : overall >= 70
@@ -139,15 +159,15 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
             : "Critical";
 
   // ── Staleness warning ──────────────────────────────────────────────
-  const isStale = decayFactor < 0.8;
-  const staleMessage =
+  const isStale: boolean = decayFactor < 0.8;
+  const staleMessage: string | null =
     decayFactor < 0.5
       ? "Score heavily reduced — data is very outdated. Re-scan recommended."
       : decayFactor < 0.8
         ? "Score slightly reduced — consider re-scanning."
         : null;
 
-  const subScores = [
+  const subScores: SubScore[] = [
     {
       label: "Ad Quality",
       value: adQuality,
@@ -282,7 +302,7 @@ const StoreHealthScore = React.memo(function StoreHealthScore({
             color: "#ef4444",
           }}
         >
-          ⚠ {criticalIssues} critical issue{criticalIssues > 1 ? "s" : ""}{" "}
+          ⚠ {criticalIssues} critical issue{(criticalIssues || 0) > 1 ? "s" : ""}{" "}
           detected (−{criticalPenalty} points)
         </div>
       )}
