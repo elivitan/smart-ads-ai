@@ -922,8 +922,8 @@ async function detectWebsiteChanges(
 
     // Price changes
     const oldPrices = JSON.parse(existing.lastPrices || "[]");
-    const sortedOld = [...oldPrices].sort();
-    const sortedNew = [...newData.prices].sort();
+    const sortedOld = [...oldPrices].sort((a: string, b: string) => a.localeCompare(b));
+    const sortedNew = [...newData.prices].sort((a: string, b: string) => a.localeCompare(b));
     if (JSON.stringify(sortedOld) !== JSON.stringify(sortedNew) && newData.prices.length > 0) {
       changes.push({
         changeType: "price_change",

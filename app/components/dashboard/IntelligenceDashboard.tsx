@@ -652,7 +652,7 @@ export function WeeklyReportWidget() {
             reportData = parseJsonSafe(r.reportJson, null);
           }
           return (
-            <div key={r.id} style={{ ...itemCardStyle, cursor: "pointer" }} onClick={() => setExpanded(isExpanded ? null : r.id)}>
+            <div key={r.id} role="button" tabIndex={0} style={{ ...itemCardStyle, cursor: "pointer" }} onClick={() => setExpanded(isExpanded ? null : r.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpanded(isExpanded ? null : r.id); }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{
@@ -696,7 +696,7 @@ export function WeeklyReportWidget() {
               </div>
 
               {isExpanded && reportData && (
-                <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,.06)", paddingTop: 12 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,.06)", paddingTop: 12 }} role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   {reportData.executive_summary && (
                     <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", marginBottom: 12, lineHeight: 1.6 }}>
                       {reportData.executive_summary}
