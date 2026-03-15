@@ -40,8 +40,10 @@ export async function action({ request }: RouteHandlerArgs) {
       case "simulate": {
         const campaignId = formData.get("campaignId") as string;
         if (!campaignId) return Response.json({ error: "campaignId required" }, { status: 400 });
-        const days = parseInt((formData.get("days") as string) || "30", 10);
-        const simulations = parseInt((formData.get("simulations") as string) || "1000", 10);
+        const rawDays = parseInt((formData.get("days") as string) || "30", 10);
+        const rawSims = parseInt((formData.get("simulations") as string) || "1000", 10);
+        const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(rawDays, 365)) : 30;
+        const simulations = Number.isFinite(rawSims) ? Math.max(10, Math.min(rawSims, 10000)) : 1000;
         const result = await runMonteCarloSimulation(shop, campaignId, { days, simulations });
         return Response.json({ success: true, result });
       }

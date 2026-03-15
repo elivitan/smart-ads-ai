@@ -16,7 +16,7 @@ import { updateCampaignBudget, listSmartAdsCampaigns } from "./google-ads.server
 const LOW_STOCK_THRESHOLD = 10;
 const OVERSTOCK_THRESHOLD = 100;
 const OVERSTOCK_MAX_DAILY_SALES_RATE = 2;
-const THROTTLE_FACTOR = 0.5; // reduce budget by 50%
+const THROTTLE_FACTOR = 0.7; // reduce budget by 30% (matches updateCampaignBudget min allowed)
 const BOOST_FACTOR = 1.3;    // increase budget by 30%
 const DEFAULT_LOOKBACK_DAYS = 30;
 
@@ -87,16 +87,16 @@ async function estimateDailySalesRate(
     const numericPrice = parseFloat(price) || 0;
     if (numericPrice > 200) return 0.3;
     if (numericPrice > 100) return 0.5;
-    if (numericPrice > 50) return 1.0;
-    if (numericPrice > 20) return 2.0;
-    return 3.0;
+    if (numericPrice > 50) return 1;
+    if (numericPrice > 20) return 2;
+    return 3;
   } catch (err) {
     logger.error("inventory", "Failed to estimate daily sales rate", {
       shop,
       error: err,
       extra: { productId },
     });
-    return 1.0; // safe default
+    return 1; // safe default
   }
 }
 
@@ -255,8 +255,27 @@ export async function throttleLowStockCampaigns(
       try {
         await updateCampaignBudget(campaignMatch.campaignId, newBudget);
 
-        const alert = await prisma.inventoryAlert.create({
-          data: {
+        const alert = await prisma.inventoryAlert.upsert({
+          where: {
+            shop_productId_alertType: {
+              shop,
+              productId: product.id,
+              alertType: "low_stock",
+            },
+          },
+          update: {
+            productTitle: product.title,
+            currentStock: product.inventoryTotal,
+            dailySalesRate: product.dailySalesRate,
+            daysUntilOut:
+              product.dailySalesRate > 0
+                ? Math.ceil(product.inventoryTotal / product.dailySalesRate)
+                : null,
+            actionTaken: "throttled_campaign",
+            campaignId: campaignMatch.campaignId,
+            resolved: false,
+          },
+          create: {
             shop,
             productId: product.id,
             productTitle: product.title,
@@ -462,8 +481,22 @@ export async function predictStockoutDate(
 
     // Save an alert for critical/warning products
     if (riskLevel !== "safe") {
-      await prisma.inventoryAlert.create({
-        data: {
+      await prisma.inventoryAlert.upsert({
+        where: {
+          shop_productId_alertType: {
+            shop,
+            productId: product.id,
+            alertType: "stockout_predicted",
+          },
+        },
+        update: {
+          productTitle: product.title,
+          currentStock: product.inventoryTotal,
+          dailySalesRate,
+          daysUntilOut: daysUntilStockout,
+          resolved: false,
+        },
+        create: {
           shop,
           productId: product.id,
           productTitle: product.title,

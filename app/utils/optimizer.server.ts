@@ -215,8 +215,8 @@ export async function runOptimization(shop: string): Promise<OptResult> {
     }
 
     // 2.7 Inventory gate — throttle/boost campaigns based on stock levels
+    // Note: scanInventoryLevels is called internally by throttle/boost functions
     try {
-      await scanInventoryLevels(shop);
       await throttleLowStockCampaigns(shop);
       await boostOverstockedCampaigns(shop);
     } catch (err: unknown) {
@@ -1483,7 +1483,7 @@ export async function createABTest(
 
     // Get current ad data
     const keywords = await getKeywordPerformance(campaignId);
-    const topKeyword = keywords.length > 0 ? keywords[0].keyword : campaignName;
+    const topKeyword = keywords.length > 0 ? keywords[0].text : campaignName;
 
     // Generate 2 new variations
     const freshCopy = await suggestFreshAdCopy({
@@ -1566,39 +1566,28 @@ export async function updateABTestMetrics(shop: string): Promise<void> {
           variations[0].cost = totalCost;
         }
 
-        // Check if we have enough data for significance test
+        // NOTE: Google Ads API does not provide per-variation telemetry at campaign level.
+        // Metrics stored here are campaign-level aggregates, not true per-variation data.
+        // Do NOT fabricate variation B metrics from fixed ratios — that produces misleading results.
+
+        // Mark variations with a note that these are campaign-level estimates
+        for (const v of variations) {
+          (v as any).metricsNote = "campaign-level estimate, not per-variation telemetry";
+        }
+
+        // Check if test has run long enough with sufficient data
         const testAgeMs = Date.now() - test.startedAt.getTime();
         const testAgeDays = testAgeMs / (24 * 60 * 60 * 1000);
 
-        if (testAgeDays >= 7 && totalImpressions >= 200) {
-          // Check statistical significance between variations
-          const result = checkStatisticalSignificance(
-            { impressions: variations[0]?.impressions || 0, clicks: variations[0]?.clicks || 0 },
-            { impressions: Math.max(1, Math.round(totalImpressions * 0.3)), clicks: Math.round(totalClicks * 0.35) }
-          );
-
-          if (result.significant) {
-            // We have a winner!
-            const winnerId = result.winner;
-            const improvement = result.improvementPercent;
-
-            await prisma.aBTest.update({
-              where: { id: test.id },
-              data: {
-                status: "winner_found",
-                variations: JSON.stringify(variations),
-                winnerId,
-                winnerReason: `הגרסה המנצחת מביאה ${improvement}% יותר לחיצות (רמת ביטחון: ${Math.round(result.confidence * 100)}%)`,
-                confidenceLevel: result.confidence,
-                endedAt: new Date(),
-              },
-            });
-
-            logger.info("ab-test", `Winner found for "${test.campaignName}"`, {
-              extra: { testId: test.id, winnerId, improvement },
-            });
-            continue;
-          }
+        // Only consider declaring a winner after minimum 14 days AND sufficient impressions.
+        // Since we lack per-variation metrics, we cannot determine a true winner from campaign-level
+        // data alone. Status remains "running" until real per-variation data is available.
+        if (testAgeDays >= 14 && totalImpressions >= 1000) {
+          logger.info("ab-test", `Test for "${test.campaignName}" has sufficient data for review`, {
+            extra: { testId: test.id, days: Math.round(testAgeDays), impressions: totalImpressions },
+          });
+          // Do not auto-declare winner — real per-variation telemetry is required.
+          // A manual review or external measurement tool should determine the winner.
         }
 
         // Update metrics even if no winner yet

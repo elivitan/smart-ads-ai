@@ -17,6 +17,7 @@ import { checkExpiredFlashSales } from "../flash-sale.server.js";
 import { logger } from "./logger.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
+let cronJobs: cron.ScheduledTask[] = [];
 
 /**
  * Start the optimization scheduler.
@@ -28,14 +29,19 @@ export function startOptimizationScheduler(): void {
     return;
   }
 
+  // Stop any leftover cron jobs before scheduling new ones
+  cronJobs.forEach(job => job.stop());
+  cronJobs = [];
+
   // Run at minute 0 of hours 0, 6, 12, 18
   schedulerTask = cron.schedule("0 0,6,12,18 * * *", async () => {
     logger.info("scheduler", "Starting scheduled optimization run");
     await runAllShopsOptimization();
   });
+  cronJobs.push(schedulerTask);
 
   // Daily feedback check at 03:00 — did our recommendations actually work?
-  cron.schedule("0 3 * * *", async () => {
+  const feedbackJob = cron.schedule("0 3 * * *", async () => {
     logger.info("scheduler", "Starting daily recommendation feedback check");
     try {
       await checkRecommendationOutcomes();
@@ -45,100 +51,138 @@ export function startOptimizationScheduler(): void {
       });
     }
   });
+  cronJobs.push(feedbackJob);
+
+  // Daily A/B test metrics update — 03:30
+  const abTestJob = cron.schedule("30 3 * * *", async () => {
+    logger.info("scheduler", "Starting daily A/B test metrics update");
+    try {
+      const shops = await getActiveShops();
+      for (const shop of shops) {
+        try {
+          await updateABTestMetrics(shop);
+        } catch (err: unknown) {
+          logger.error("scheduler", `A/B test metrics failed for ${shop}`, {
+            extra: { error: err instanceof Error ? err.message : String(err) },
+          });
+        }
+      }
+    } catch (err: unknown) {
+      logger.error("scheduler", "Failed to run A/B test metrics update", {
+        extra: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
+  });
+  cronJobs.push(abTestJob);
 
   // Weekly deep competitor scan — Sunday 02:00
-  cron.schedule("0 2 * * 0", async () => {
+  const deepScanJob = cron.schedule("0 2 * * 0", async () => {
     logger.info("scheduler", "Starting weekly deep competitor scan");
     await runAllShopsDeepScan();
   });
+  cronJobs.push(deepScanJob);
 
   // Weekly report — Sunday 08:00
-  cron.schedule("0 8 * * 0", async () => {
+  const weeklyReportJob = cron.schedule("0 8 * * 0", async () => {
     logger.info("scheduler", "Starting weekly report generation");
     await generateAllShopsWeeklyReports();
   });
+  cronJobs.push(weeklyReportJob);
 
   // ═══ NEW ENGINE SCHEDULER JOBS ═══
 
   // Daily inventory scan — 05:00
-  cron.schedule("0 5 * * *", async () => {
+  const inventoryJob = cron.schedule("0 5 * * *", async () => {
     logger.info("scheduler", "Starting daily inventory scan");
     await runAllShopsInventoryScan();
   });
+  cronJobs.push(inventoryJob);
 
   // Weekly self-reflection — Sunday 04:00
-  cron.schedule("0 4 * * 0", async () => {
+  const reflectionJob = cron.schedule("0 4 * * 0", async () => {
     logger.info("scheduler", "Starting weekly AI self-reflection");
     await runAllShopsSelfReflection();
   });
+  cronJobs.push(reflectionJob);
 
   // Daily funnel rebalance — 01:00
-  cron.schedule("0 1 * * *", async () => {
+  const funnelJob = cron.schedule("0 1 * * *", async () => {
     logger.info("scheduler", "Starting daily funnel rebalance");
     await runAllShopsFunnelRebalance();
   });
+  cronJobs.push(funnelJob);
 
   // Weekly cross-store aggregation — Saturday 23:00
-  cron.schedule("0 23 * * 6", async () => {
+  const crossStoreJob = cron.schedule("0 23 * * 6", async () => {
     logger.info("scheduler", "Starting weekly cross-store aggregation");
     await runAllShopsCrossStoreAggregation();
   });
+  cronJobs.push(crossStoreJob);
 
   // Weekly forecast accuracy check — Monday 09:00
-  cron.schedule("0 9 * * 1", async () => {
+  const forecastJob = cron.schedule("0 9 * * 1", async () => {
     logger.info("scheduler", "Starting weekly forecast accuracy check");
     // Forecast accuracy is checked passively by comparing predictions to actuals
     logger.info("scheduler", "Forecast accuracy check complete (passive)");
   });
+  cronJobs.push(forecastJob);
 
   // Weekly Ad DNA analysis — Sunday 05:00
-  cron.schedule("0 5 * * 0", async () => {
+  const adDnaJob = cron.schedule("0 5 * * 0", async () => {
     logger.info("scheduler", "Starting weekly Ad DNA analysis");
     await runAllShopsAdDNA();
   });
+  cronJobs.push(adDnaJob);
 
   // ═══ ADVANCED ENGINE SCHEDULER JOBS (11-18) ═══
 
   // Hourly search term sentinel — every 2 hours
-  cron.schedule("0 */2 * * *", async () => {
+  const searchSentinelJob = cron.schedule("0 */2 * * *", async () => {
     logger.info("scheduler", "Starting hourly search term sentinel scan");
     await runAllShopsSearchSentinel();
   });
+  cronJobs.push(searchSentinelJob);
 
   // Performance guard check — every 4 hours
-  cron.schedule("0 2,6,10,14,18,22 * * *", async () => {
+  const perfGuardJob = cron.schedule("0 2,6,10,14,18,22 * * *", async () => {
     logger.info("scheduler", "Starting performance guard check");
     await runAllShopsPerformanceGuard();
   });
+  cronJobs.push(perfGuardJob);
 
   // Weather arbitrage check — every 6 hours
-  cron.schedule("30 0,6,12,18 * * *", async () => {
+  const weatherJob = cron.schedule("30 0,6,12,18 * * *", async () => {
     logger.info("scheduler", "Starting weather arbitrage check");
     await runAllShopsWeatherCheck();
   });
+  cronJobs.push(weatherJob);
 
   // Flash sale expiry check — every hour
-  cron.schedule("0 * * * *", async () => {
+  const flashSaleJob = cron.schedule("0 * * * *", async () => {
     await runAllShopsFlashSaleCheck();
   });
+  cronJobs.push(flashSaleJob);
 
   // Supply chain status check — twice daily (07:00 and 19:00)
-  cron.schedule("0 7,19 * * *", async () => {
+  const supplyChainJob = cron.schedule("0 7,19 * * *", async () => {
     logger.info("scheduler", "Starting supply chain status check");
     await runAllShopsSupplyChainCheck();
   });
+  cronJobs.push(supplyChainJob);
 
   // Weekly multi-agent bidding session — Monday 10:00
-  cron.schedule("0 10 * * 1", async () => {
+  const agentBiddingJob = cron.schedule("0 10 * * 1", async () => {
     logger.info("scheduler", "Starting weekly agent bidding session");
     await runAllShopsAgentBidding();
   });
+  cronJobs.push(agentBiddingJob);
 
   // Weekly review-to-creative extraction — Wednesday 06:00
-  cron.schedule("0 6 * * 3", async () => {
+  const reviewJob = cron.schedule("0 6 * * 3", async () => {
     logger.info("scheduler", "Starting weekly review-to-creative extraction");
     await runAllShopsReviewExtraction();
   });
+  cronJobs.push(reviewJob);
 
   logger.info("scheduler", "Optimization scheduler started (every 6 hours + daily feedback + weekly intel & reports + 13 engine jobs)");
 }
@@ -147,11 +191,12 @@ export function startOptimizationScheduler(): void {
  * Stop the scheduler gracefully.
  */
 export function stopOptimizationScheduler(): void {
-  if (schedulerTask) {
-    schedulerTask.stop();
-    schedulerTask = null;
-    logger.info("scheduler", "Optimization scheduler stopped");
-  }
+  cronJobs.forEach(job => job.stop());
+  cronJobs = [];
+  schedulerTask = null;
+  logger.info("scheduler", "Optimization scheduler stopped", {
+    extra: { jobsStopped: cronJobs.length },
+  });
 }
 
 /**

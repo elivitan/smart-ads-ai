@@ -164,7 +164,11 @@ For each trigger type (urgency, social_proof, fear_of_missing, aspiration, trust
 Return JSON: { "triggers": [{ "type": "...", "phrase": "...", "effectiveness": 0.0-1.0 }] }` }],
     });
 
-    const text = (response as any).content[0].text;
+    const firstContent = response.content?.[0];
+    if (!firstContent || firstContent.type !== "text") {
+      return [];
+    }
+    const text = firstContent.text;
     let parsed: any;
     try {
       const match = text.match(/\{[\s\S]*\}/);
@@ -239,7 +243,11 @@ Return JSON:
 Each headline/description MUST leverage at least one emotional trigger.` }],
     });
 
-    const text = (response as any).content[0].text;
+    const secondContent = response.content?.[0];
+    if (!secondContent || secondContent.type !== "text") {
+      return { headlines: [], descriptions: [] };
+    }
+    const text = secondContent.text;
     let parsed: any;
     try {
       const match = text.match(/\{[\s\S]*\}/);

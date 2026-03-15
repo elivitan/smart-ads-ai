@@ -557,11 +557,11 @@ export function ABTestWidget() {
                       textAlign: "center",
                     }}>
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,.4)", marginBottom: 2 }}>
-                        {v.isOriginal ? "Original" : `Variant ${i}`}
+                        {i === 0 ? "Original" : `Variant ${i}`}
                         {t.winnerId === v.id && " 🏆"}
                       </div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>
-                        {v.ctr != null ? `${(v.ctr * 100).toFixed(1)}%` : "—"}
+                        {v.impressions > 0 ? `${((v.clicks / v.impressions) * 100).toFixed(1)}%` : "—"}
                       </div>
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,.3)" }}>
                         {v.impressions != null ? `${v.impressions} views` : "Pending"}
@@ -705,16 +705,20 @@ export function WeeklyReportWidget() {
                   {reportData.what_ai_did && reportData.what_ai_did.length > 0 && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#a5b4fc", marginBottom: 4 }}>What AI Did This Week:</div>
-                      {reportData.what_ai_did.slice(0, 5).map((item: string, i: number) => (
-                        <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,.5)", paddingLeft: 12, marginBottom: 2 }}>• {item}</div>
+                      {reportData.what_ai_did.slice(0, 5).map((item: any, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,.5)", paddingLeft: 12, marginBottom: 2 }}>
+                          • {typeof item === "string" ? item : `${item.action || ""}${item.count ? ` (${item.count})` : ""}${item.result ? ` — ${item.result}` : ""}`}
+                        </div>
                       ))}
                     </div>
                   )}
                   {reportData.next_week_plan && reportData.next_week_plan.length > 0 && (
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#fbbf24", marginBottom: 4 }}>Next Week Plan:</div>
-                      {reportData.next_week_plan.slice(0, 4).map((item: string, i: number) => (
-                        <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,.5)", paddingLeft: 12, marginBottom: 2 }}>• {item}</div>
+                      {reportData.next_week_plan.slice(0, 4).map((item: any, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,.5)", paddingLeft: 12, marginBottom: 2 }}>
+                          • {typeof item === "string" ? item : `${item.goal || ""}${item.strategy ? ` — ${item.strategy}` : ""}`}
+                        </div>
                       ))}
                     </div>
                   )}

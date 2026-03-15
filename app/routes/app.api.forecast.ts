@@ -34,6 +34,7 @@ export async function action({ request }: RouteHandlerArgs) {
         const campaignId = formData.get("campaignId") as string;
         const budgetChangePct = parseFloat((formData.get("budgetChangePct") as string) || "0");
         if (!campaignId) return Response.json({ error: "campaignId required" }, { status: 400 });
+        if (!Number.isFinite(budgetChangePct)) return Response.json({ error: "budgetChangePct must be a number" }, { status: 400 });
         const result = await forecastCampaignWhatIf(shop, campaignId, budgetChangePct);
         return Response.json({ success: true, result });
       }

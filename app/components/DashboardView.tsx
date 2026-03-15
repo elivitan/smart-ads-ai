@@ -348,62 +348,62 @@ export function DashboardView({
           {/* ══ INTELLIGENCE DASHBOARD — 4 new feature blocks ══ */}
           <WidgetErrorBoundary label="Competitor Intelligence">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Deep Business Intelligence">
-          <CompetitorIntelWidget shopDomain={shopDomain}/>
+          {isPaid && <CompetitorIntelWidget shopDomain={shopDomain}/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Keyword Gap Analysis">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Keyword Gap Analysis">
-          <KeywordGapWidget/>
+          {isPaid && <KeywordGapWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="A/B Testing">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="A/B Testing">
-          <ABTestWidget/>
+          {isPaid && <ABTestWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Weekly Reports">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weekly Reports">
-          <WeeklyReportWidget/>
+          {isPaid && <WeeklyReportWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           {/* ══ AI ENGINE WIDGETS — 6 new engine blocks ══ */}
           <WidgetErrorBoundary label="Profit Intelligence">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Profit Intelligence">
-          <ProfitIntelWidget/>
+          {isPaid && <ProfitIntelWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Inventory-Aware Ads">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Inventory-Aware Ads">
-          <InventoryWidget/>
+          {isPaid && <InventoryWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Competitor Ad Spend">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Competitor Ad Spend">
-          <CompetitorSpendWidget shopDomain={shopDomain}/>
+          {isPaid && <CompetitorSpendWidget shopDomain={shopDomain}/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Revenue Forecast">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Revenue Forecast">
-          <ForecastWidget/>
+          {isPaid && <ForecastWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Industry Benchmarks">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="You vs Industry">
-          <BenchmarksWidget/>
+          {isPaid && <BenchmarksWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Full Funnel Orchestrator">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Full Funnel Orchestrator">
-          <FunnelWidget/>
+          {isPaid && <FunnelWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
@@ -411,49 +411,49 @@ export function DashboardView({
 
           <WidgetErrorBoundary label="Digital Twin Simulator">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Digital Twin Simulator">
-          <DigitalTwinWidget/>
+          {isPaid && <DigitalTwinWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Agent Bidding War Room">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Agent Bidding War Room">
-          <AgentBiddingWidget/>
+          {isPaid && <AgentBiddingWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Weather & Event Arbitrage">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weather & Event Arbitrage">
-          <WeatherArbitrageWidget/>
+          {isPaid && <WeatherArbitrageWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Review-to-Creative Pipeline">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Review-to-Creative Pipeline">
-          <ReviewCreativeWidget/>
+          {isPaid && <ReviewCreativeWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Flash Sale Engine">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Flash Sale Engine">
-          <FlashSaleWidget/>
+          {isPaid && <FlashSaleWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Silent Profit Sentinel">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Silent Profit Sentinel">
-          <SearchSentinelWidget/>
+          {isPaid && <SearchSentinelWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Performance Insurance">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Performance Insurance">
-          <PerformanceGuardWidget/>
+          {isPaid && <PerformanceGuardWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Supply Chain Ads">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Supply Chain Ads">
-          <SupplyChainWidget/>
+          {isPaid && <SupplyChainWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 

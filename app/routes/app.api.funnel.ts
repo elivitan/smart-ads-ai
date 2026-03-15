@@ -27,7 +27,14 @@ export async function action({ request }: RouteHandlerArgs) {
       case "create": {
         const productId = formData.get("productId") as string | undefined;
         const funnelType = (formData.get("funnelType") as string) || "full_store";
+        const validFunnelTypes = ["single_product", "category", "full_store"];
+        if (!validFunnelTypes.includes(funnelType)) {
+          return Response.json({ error: "funnelType must be single_product, category, or full_store" }, { status: 400 });
+        }
         const totalDailyBudget = parseFloat((formData.get("totalDailyBudget") as string) || "50");
+        if (!Number.isFinite(totalDailyBudget) || totalDailyBudget <= 0) {
+          return Response.json({ error: "totalDailyBudget must be a positive number" }, { status: 400 });
+        }
         const result = await createFullFunnel(shop, {
           productId: productId || undefined,
           funnelType: funnelType as "single_product" | "category" | "full_store",
@@ -48,6 +55,9 @@ export async function action({ request }: RouteHandlerArgs) {
 
       case "auto_allocate": {
         const totalDailyBudget = parseFloat((formData.get("totalDailyBudget") as string) || "50");
+        if (!Number.isFinite(totalDailyBudget) || totalDailyBudget <= 0) {
+          return Response.json({ error: "totalDailyBudget must be a positive number" }, { status: 400 });
+        }
         const result = await autoAllocateBudget(shop, totalDailyBudget);
         return Response.json({ success: true, result });
       }

@@ -25,16 +25,28 @@ import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ad
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Cost guard helper
-function checkCostLimits(): void {
+function checkCostLimits(options?: { requireSearch?: boolean }): void {
   if (isCostLimitReached("anthropic")) {
     throw new Error("Daily AI processing limit reached. Try again tomorrow.");
   }
-  if (isCostLimitReached("serper")) {
+  if (options?.requireSearch !== false && isCostLimitReached("serper")) {
     throw new Error("Daily search limit reached. Try again tomorrow.");
   }
 }
 const SERPER_KEY: string = process.env.SERPER_API_KEY || "";
 const SERP_KEY: string = process.env.SERPAPI_KEY || "";
+
+function getCalendarWeekBounds(): { weekStart: Date; weekEnd: Date } {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const mondayOffset = day === 0 ? 6 : day - 1;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+  return { weekStart, weekEnd };
+}
 
 // ─────────────────────────────────────────────
 // DATA COLLECTION — Layer 1: Get real data
@@ -1143,26 +1155,26 @@ interface WeeklyReportData {
 }
 
 export async function generateWeeklyReport(shop: string): Promise<WeeklyReportData> {
-  checkCostLimits();
+  checkCostLimits({ requireSearch: false });
 
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const { weekStart, weekEnd } = getCalendarWeekBounds();
 
-  // Gather 7 days of data
+  // Gather data for the current calendar week (Mon-Sun)
   const [optimizationLogs, competitorChanges, abTests, keywordGaps, learnings] = await Promise.all([
     prisma.optimizationLog.findMany({
-      where: { shop, createdAt: { gte: weekAgo } },
+      where: { shop, createdAt: { gte: weekStart } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.competitorChange.findMany({
-      where: { shop, createdAt: { gte: weekAgo } },
+      where: { shop, createdAt: { gte: weekStart } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
     prisma.aBTest.findMany({
-      where: { shop, updatedAt: { gte: weekAgo } },
+      where: { shop, updatedAt: { gte: weekStart } },
     }),
     prisma.keywordGapAnalysis.findMany({
-      where: { shop, status: "new", createdAt: { gte: weekAgo } },
+      where: { shop, status: "new", createdAt: { gte: weekStart } },
       take: 10,
     }),
     prisma.optimizerLearning.findMany({
@@ -1172,10 +1184,21 @@ export async function generateWeeklyReport(shop: string): Promise<WeeklyReportDa
 
   // Aggregate optimization actions
   const actionCounts: Record<string, number> = {};
-  let totalSpend = 0;
-  let totalRevenue = 0;
   for (const log of optimizationLogs) {
     actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
+  }
+
+  // Compute totalSpend and totalRevenue from real campaign performance data
+  const campaignList = await listSmartAdsCampaigns();
+  const daysSinceWeekStart = Math.max(1, Math.ceil((Date.now() - weekStart.getTime()) / 86400000));
+  let totalSpend = 0;
+  let totalRevenue = 0;
+  for (const c of campaignList.slice(0, 20)) {
+    const perfData = await getCampaignPerformanceByDate(c.id, daysSinceWeekStart);
+    for (const p of perfData) {
+      totalSpend += p.cost || 0;
+      totalRevenue += p.conversionValue || 0;
+    }
   }
 
   // Build data summary for Claude
@@ -1237,8 +1260,11 @@ ${dataSummary}
   );
 
   const text = (response.content[0] as { type: string; text: string }).text;
-  const parsed = safeParseAiJson(text);
-  const result = (parsed.data || parsed) as unknown as WeeklyReportData;
+  const { data: parsedData, error: parseError } = safeParseAiJson(text);
+  if (!parsedData) {
+    throw new Error(`Weekly report parse failed: ${parseError}`);
+  }
+  const result = parsedData as WeeklyReportData;
 
   logPrompt({
     shop,
@@ -1252,8 +1278,6 @@ ${dataSummary}
   });
 
   // Save to DB
-  const weekStart = weekAgo;
-  const weekEnd = new Date();
   await prisma.weeklyReport.create({
     data: {
       shop,
@@ -1262,8 +1286,8 @@ ${dataSummary}
       reportJson: JSON.stringify(result),
       summary: result.executive_summary || "",
       performanceGrade: result.performance_grade || "?",
-      totalSpend: result.money_summary?.total_spend || totalSpend,
-      totalRevenue: result.money_summary?.total_revenue || totalRevenue,
+      totalSpend,
+      totalRevenue,
       totalActions: optimizationLogs.length,
       competitorChanges: competitorChanges.length,
     },
@@ -1355,7 +1379,7 @@ export async function getAiReflectionRules(shop: string): Promise<string[]> {
 }
 
 export async function runSelfReflection(shop: string): Promise<{ insights: string[]; rulesGenerated: string[]; decisionsReviewed: number; improvement: number | null }> {
-  checkCostLimits();
+  checkCostLimits({ requireSearch: false });
 
   // Gather recent optimization decisions
   const recentLearnings = await prisma.optimizerLearning.findMany({
@@ -1426,7 +1450,7 @@ Analyze these decisions and return JSON:
 // ═══════════════════════════════════════════════════════════════
 
 export async function analyzeAdDNA(shop: string): Promise<{ genesFound: number; topGenes: Array<{ type: string; value: string; winRate: number }> }> {
-  checkCostLimits();
+  checkCostLimits({ requireSearch: false });
 
   // Get best performing ads from Google Ads API
   const campaigns = await listSmartAdsCampaigns();
@@ -1515,7 +1539,7 @@ Return 5-15 genes.`;
 }
 
 export async function generateDNAMutations(shop: string, productId?: string): Promise<{ headlines: string[]; descriptions: string[] }> {
-  checkCostLimits();
+  checkCostLimits({ requireSearch: false });
 
   const topGenes = await prisma.adCreativeDNA.findMany({
     where: { shop },
@@ -1605,8 +1629,8 @@ export async function forecastSales(shop: string, period: "week" | "month"): Pro
   }
 
   // Simple moving average forecast
-  const recentRevenue = performances.slice(-days).reduce((sum, p) => sum + (p.conversions || 0) * (p.cost || 0) * 5, 0);
-  const olderRevenue = performances.slice(-days * 2, -days).reduce((sum, p) => sum + (p.conversions || 0) * (p.cost || 0) * 5, 0);
+  const recentRevenue = performances.slice(-days).reduce((sum, p) => sum + (p.conversionValue || 0), 0);
+  const olderRevenue = performances.slice(-days * 2, -days).reduce((sum, p) => sum + (p.conversionValue || 0), 0);
 
   const growthRate = olderRevenue > 0 ? (recentRevenue - olderRevenue) / olderRevenue : 0;
   const predicted = Math.max(0, recentRevenue * (1 + growthRate));
@@ -1636,9 +1660,7 @@ export async function forecastCampaignWhatIf(shop: string, campaignId: string, b
     return { currentRevenue: 0, predictedRevenue: 0, riskLevel: "unknown", recommendation: "Not enough data" };
   }
 
-  const avgConversions = performances.reduce((s: number, p: any) => s + (p.conversions || 0), 0) / performances.length;
-  const avgCost = performances.reduce((s: number, p: any) => s + (p.cost || 0), 0) / performances.length;
-  const avgRevenue = avgConversions * (avgCost > 0 ? (avgConversions / avgCost) * 50 : 0);
+  const avgRevenue = performances.reduce((s: number, p: any) => s + (p.conversionValue || 0), 0) / performances.length;
 
   // Diminishing returns model: revenue scales as sqrt of budget change
   const budgetMultiplier = 1 + budgetChangePct / 100;
@@ -1729,7 +1751,7 @@ export async function detectProductLifecycle(shop: string): Promise<Array<{ prod
 // ═══════════════════════════════════════════════════════════════
 
 export async function scoreLandingPageAlignment(shop: string, productId?: string): Promise<Array<{ productId: string; pageUrl: string; score: number; mismatches: string[]; suggestions: string[] }>> {
-  checkCostLimits();
+  checkCostLimits({ requireSearch: false });
 
   const allCampaigns = await listSmartAdsCampaigns();
   const campaigns = (productId
@@ -1755,6 +1777,57 @@ export async function scoreLandingPageAlignment(shop: string, productId?: string
     const adDescriptions = "";
     const pageUrl = `https://${shop}/products/${((campaign as any).name || "").toLowerCase().replace(/\s+/g, "-")}`;
 
+    // Attempt to fetch actual landing page content
+    let pageContent = "";
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const pageResponse = await fetch(pageUrl, {
+        signal: controller.signal,
+        headers: { "User-Agent": "SmartAdsBot/1.0" },
+      });
+      clearTimeout(timeout);
+      if (pageResponse.ok) {
+        const html = await pageResponse.text();
+        // Extract text content from HTML (strip tags)
+        pageContent = html
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 3000);
+      }
+    } catch {
+      // Fetch failed — will mark as insufficient_data
+    }
+
+    // If we couldn't fetch real content, don't speculate — record insufficient_data
+    if (!pageContent) {
+      const auditResult = {
+        productId: (campaign as any).id,
+        pageUrl,
+        score: 0,
+        mismatches: ["insufficient_data"],
+        suggestions: ["Could not access landing page to perform audit"],
+      };
+
+      await prisma.landingPageAudit.create({
+        data: {
+          shop,
+          productId: (campaign as any).id,
+          pageUrl,
+          alignmentScore: 0,
+          mismatches: JSON.stringify(auditResult.mismatches),
+          suggestions: JSON.stringify(auditResult.suggestions),
+          auditedAt: new Date(),
+        },
+      });
+
+      results.push(auditResult);
+      continue;
+    }
+
     const prompt = `You are a landing page optimization expert. Analyze the alignment between this Google Ad and its landing page.
 
 AD HEADLINES: ${adHeadlines}
@@ -1762,7 +1835,8 @@ AD DESCRIPTIONS: ${adDescriptions}
 STORE: ${shop}
 LANDING PAGE URL: ${pageUrl}
 
-Since I cannot access the actual page, analyze based on the ad content and common e-commerce patterns.
+ACTUAL PAGE CONTENT:
+${pageContent}
 
 Return JSON:
 {

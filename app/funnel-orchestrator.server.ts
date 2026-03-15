@@ -34,21 +34,34 @@ interface PerfEntry {
 // Create a full funnel from scratch
 export async function createFullFunnel(shop: string, config: FunnelConfig): Promise<{ funnelId: string; campaignCount: number; budgetAllocation: BudgetAllocation[] }> {
   // Get recent campaign performance from Google Ads
+  // getCampaignPerformanceByDate expects (campaignId, days), NOT shop
   let campaigns: PerfEntry[] = [];
   try {
-    const perfData = await getCampaignPerformanceByDate(shop, 30);
-    // Deduplicate by campaignId (keep latest)
+    // Fetch shop's campaigns from DB first
+    const campaignJobs = await prisma.campaignJob.findMany({
+      where: { shop, state: "DONE" },
+      select: { googleCampaignId: true },
+    });
+
     const seen = new Map<string, PerfEntry>();
-    for (const p of perfData) {
-      if (!seen.has(p.campaignId)) {
-        seen.set(p.campaignId, {
-          campaignId: p.campaignId,
-          campaignName: p.campaignName || p.campaignId,
-          clicks: p.clicks || 0,
-          cost: p.cost || 0,
-          conversions: p.conversions || 0,
-          roas: p.roas || 0,
-        });
+    for (const job of campaignJobs) {
+      if (!job.googleCampaignId) continue;
+      try {
+        const perfData = await getCampaignPerformanceByDate(job.googleCampaignId, 30);
+        for (const p of perfData) {
+          if (!seen.has(p.campaignId)) {
+            seen.set(p.campaignId, {
+              campaignId: p.campaignId,
+              campaignName: p.campaignName || p.campaignId,
+              clicks: p.clicks || 0,
+              cost: p.cost || 0,
+              conversions: p.conversions || 0,
+              roas: p.roas || 0,
+            });
+          }
+        }
+      } catch {
+        // Skip campaigns with no data
       }
     }
     campaigns = Array.from(seen.values());
@@ -101,18 +114,19 @@ export async function rebalanceBudgets(shop: string): Promise<{ rebalanced: numb
 
   const allChanges: Array<{ campaignId: string; oldBudget: number; newBudget: number }> = [];
 
-  // Get recent performance data
-  let perfData: any[] = [];
-  try {
-    perfData = await getCampaignPerformanceByDate(shop, 14);
-  } catch { /* no data */ }
-
   for (const funnel of funnels) {
     const campaignIds = JSON.parse(funnel.campaignIds || "[]") as string[];
     if (campaignIds.length === 0) continue;
 
-    // Filter performance data for this funnel's campaigns
-    const funnelPerf = perfData.filter((p: any) => campaignIds.includes(p.campaignId));
+    // getCampaignPerformanceByDate expects (campaignId, days), NOT shop
+    // Fetch performance data per campaign
+    let funnelPerf: any[] = [];
+    for (const cId of campaignIds) {
+      try {
+        const data = await getCampaignPerformanceByDate(cId, 14);
+        funnelPerf.push(...data);
+      } catch { /* skip campaigns with no data */ }
+    }
 
     // Group by campaign
     const perfMap = new Map<string, Array<{ roas: number; conversions: number; campaignName: string }>>();
@@ -140,18 +154,29 @@ export async function rebalanceBudgets(shop: string): Promise<{ rebalanced: numb
 
     // Distribute budget proportionally by score
     const totalScore = newAllocations.reduce((s, a) => s + Math.max(a.score, 0.1), 0);
+    const finalAllocations: BudgetAllocation[] = [];
     for (const alloc of newAllocations) {
       const share = Math.max(alloc.score, 0.1) / totalScore;
       const newBudget = Math.round(funnel.totalDailyBudget * share * 100) / 100;
       if (Math.abs(newBudget - alloc.oldBudget) > 0.5) {
         allChanges.push({ campaignId: alloc.campaignId, oldBudget: alloc.oldBudget, newBudget });
       }
+      finalAllocations.push({
+        campaignId: alloc.campaignId,
+        campaignName: alloc.campaignName,
+        currentBudget: alloc.oldBudget,
+        suggestedBudget: newBudget,
+        reason: alloc.score > 3 ? "High performer — increased allocation"
+          : alloc.score > 1 ? "Profitable — standard allocation"
+          : "Below target — reduced allocation",
+        priority: Math.round(alloc.score * 100) / 100,
+      });
     }
 
     await prisma.funnelOrchestration.update({
       where: { id: funnel.id },
       data: {
-        budgetAllocation: JSON.stringify(newAllocations),
+        budgetAllocation: JSON.stringify(finalAllocations),
         lastRebalancedAt: new Date(),
       },
     });
@@ -163,10 +188,22 @@ export async function rebalanceBudgets(shop: string): Promise<{ rebalanced: numb
 
 // Get prioritized campaign queue
 export async function getCampaignPriorityQueue(shop: string): Promise<Array<{ campaignId: string; campaignName: string; priority: number; roas: number; suggestedBudget: number }>> {
+  // getCampaignPerformanceByDate expects (campaignId, days), NOT shop
   let perfData: any[] = [];
   try {
-    perfData = await getCampaignPerformanceByDate(shop, 30);
+    const campaignJobs = await prisma.campaignJob.findMany({
+      where: { shop, state: "DONE" },
+      select: { googleCampaignId: true },
+    });
+    for (const job of campaignJobs) {
+      if (!job.googleCampaignId) continue;
+      try {
+        const data = await getCampaignPerformanceByDate(job.googleCampaignId, 30);
+        perfData.push(...data);
+      } catch { /* skip */ }
+    }
   } catch { return []; }
+  if (perfData.length === 0) return [];
 
   const campaignMap = new Map<string, { name: string; roas: number[]; conversions: number[]; cost: number[] }>();
   for (const p of perfData) {

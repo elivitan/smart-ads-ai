@@ -68,16 +68,7 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
     let totalRoas = 0;
     let totalCtr = 0;
     let totalCpc = 0;
-    let metricCount = 0;
-
-    // Extract ROAS/CTR/CPC from optimization log entries that contain budget actions
-    for (const log of optimizationLogs) {
-      // Parse previous/new values for budget-related actions
-      if (log.action === "adjust_budget" && log.previousValue && log.newValue) {
-        // Budget adjustments indicate campaign activity; count as a data point
-        metricCount++;
-      }
-    }
+    let campaignMetricCount = 0;
 
     // Extract metrics from campaign job payloads
     const adFormats = new Map<string, number>();
@@ -88,7 +79,7 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
         if (payload.roas) totalRoas += parseFloat(payload.roas) || 0;
         if (payload.ctr) totalCtr += parseFloat(payload.ctr) || 0;
         if (payload.cpc) totalCpc += parseFloat(payload.cpc) || 0;
-        if (payload.roas || payload.ctr || payload.cpc) metricCount++;
+        if (payload.roas || payload.ctr || payload.cpc) campaignMetricCount++;
 
         // Track ad formats used
         const format = payload.campaignType || "search";
@@ -98,10 +89,10 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
       }
     }
 
-    // Calculate averages
-    const avgRoas = metricCount > 0 ? Math.round((totalRoas / metricCount) * 100) / 100 : 0;
-    const avgCtr = metricCount > 0 ? Math.round((totalCtr / metricCount) * 10000) / 10000 : 0;
-    const avgCpc = metricCount > 0 ? Math.round((totalCpc / metricCount) * 100) / 100 : 0;
+    // Calculate averages (only from campaign jobs, not optimization logs)
+    const avgRoas = campaignMetricCount > 0 ? Math.round((totalRoas / campaignMetricCount) * 100) / 100 : 0;
+    const avgCtr = campaignMetricCount > 0 ? Math.round((totalCtr / campaignMetricCount) * 10000) / 10000 : 0;
+    const avgCpc = campaignMetricCount > 0 ? Math.round((totalCpc / campaignMetricCount) * 100) / 100 : 0;
 
     // Determine top ad formats
     const sortedFormats = [...adFormats.entries()]
@@ -119,8 +110,8 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
         insightType: "benchmark",
         metric: "avg_roas",
         value: JSON.stringify({ avgRoas }),
-        sampleSize: metricCount,
-        confidence: metricCount > 10 ? 0.8 : metricCount > 3 ? 0.5 : 0.3,
+        sampleSize: campaignMetricCount,
+        confidence: campaignMetricCount > 10 ? 0.8 : campaignMetricCount > 3 ? 0.5 : 0.3,
         periodStart,
         periodEnd,
       },
@@ -132,8 +123,8 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
         insightType: "benchmark",
         metric: "avg_ctr",
         value: JSON.stringify({ avgCtr }),
-        sampleSize: metricCount,
-        confidence: metricCount > 10 ? 0.8 : metricCount > 3 ? 0.5 : 0.3,
+        sampleSize: campaignMetricCount,
+        confidence: campaignMetricCount > 10 ? 0.8 : campaignMetricCount > 3 ? 0.5 : 0.3,
         periodStart,
         periodEnd,
       },
@@ -145,8 +136,8 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
         insightType: "benchmark",
         metric: "avg_cpc",
         value: JSON.stringify({ avgCpc }),
-        sampleSize: metricCount,
-        confidence: metricCount > 10 ? 0.8 : metricCount > 3 ? 0.5 : 0.3,
+        sampleSize: campaignMetricCount,
+        confidence: campaignMetricCount > 10 ? 0.8 : campaignMetricCount > 3 ? 0.5 : 0.3,
         periodStart,
         periodEnd,
       },
@@ -159,8 +150,8 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
           insightType: "benchmark",
           metric: "top_ad_format",
           value: JSON.stringify({ topAdFormats: sortedFormats }),
-          sampleSize: metricCount,
-          confidence: metricCount > 5 ? 0.7 : 0.4,
+          sampleSize: campaignMetricCount,
+          confidence: campaignMetricCount > 5 ? 0.7 : 0.4,
           periodStart,
           periodEnd,
         },
@@ -169,7 +160,7 @@ export async function aggregateCrossStoreData(shop: string): Promise<void> {
 
     logger.info(
       "cross-store",
-      `Aggregated cross-store data for shop ${shop}: category=${category}, avgRoas=${avgRoas}, avgCtr=${avgCtr}, avgCpc=${avgCpc}, samples=${metricCount}`,
+      `Aggregated cross-store data for shop ${shop}: category=${category}, avgRoas=${avgRoas}, avgCtr=${avgCtr}, avgCpc=${avgCpc}, samples=${campaignMetricCount}`,
     );
   } catch (error) {
     logger.error("cross-store", `Failed to aggregate cross-store data for shop ${shop}: ${error}`);
@@ -209,6 +200,7 @@ export async function getIndustryBenchmarks(shop: string): Promise<IndustryBench
     let cpcCount = 0;
     let totalSampleSize = 0;
     const allFormats: string[] = [];
+    const seenSampleIds = new Set<string>();
 
     for (const insight of insights) {
       try {
@@ -227,7 +219,12 @@ export async function getIndustryBenchmarks(shop: string): Promise<IndustryBench
           allFormats.push(...parsed.topAdFormats);
         }
 
-        totalSampleSize += insight.sampleSize;
+        // Only count sampleSize once per aggregation (not per metric row)
+        const aggregationKey = `${insight.category}-${insight.periodStart?.toISOString() || ""}-${insight.periodEnd?.toISOString() || ""}`;
+        if (!seenSampleIds.has(aggregationKey)) {
+          totalSampleSize += insight.sampleSize;
+          seenSampleIds.add(aggregationKey);
+        }
       } catch {
         // skip invalid JSON
       }

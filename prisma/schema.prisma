@@ -374,6 +374,7 @@ model KeywordGapAnalysis {
 
   @@index([shop])
   @@index([shop, opportunityScore])
+  @@unique([shop, keyword])
 }
 
 // ═══════════════════════════════════════════════════
@@ -453,6 +454,7 @@ model InventoryAlert {
   @@index([shop])
   @@index([shop, resolved])
   @@index([productId])
+  @@unique([shop, productId, alertType])
 }
 
 // Engine 5: Competitor Ad Spend Estimator

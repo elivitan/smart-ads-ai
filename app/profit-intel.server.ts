@@ -68,23 +68,18 @@ export async function calculateNetProfit(
       return null;
     }
 
-    // Aggregate metrics across all days
+    // Aggregate metrics across all days (flattened fields, cost already in dollars)
     let totalClicks = 0;
-    let totalCostMicros = 0;
+    let totalCost = 0;
     let totalConversions = 0;
-    let totalConversionsValue = 0;
+    let totalRevenue = 0;
 
     for (const day of performanceData) {
-      const m = day.metrics;
-      totalClicks += Number(m.clicks) || 0;
-      totalCostMicros += Number(m.cost_micros) || 0;
-      totalConversions += Number(m.conversions) || 0;
-      totalConversionsValue += Number(m.conversions_value) || 0;
+      totalClicks += Number(day.clicks) || 0;
+      totalCost += Number(day.cost) || 0;
+      totalConversions += Number(day.conversions) || 0;
+      totalRevenue += Number(day.conversionValue) || 0;
     }
-
-    // Convert cost from micros (1,000,000 micros = $1)
-    const totalCost = totalCostMicros / 1_000_000;
-    const totalRevenue = totalConversionsValue;
 
     // Get store profit margin for COGS calculation
     const storeProfile = await prisma.storeProfile.findFirst({ where: { shop } });
@@ -264,19 +259,16 @@ export async function runMonteCarloSimulation(
     const performanceData = await getCampaignPerformanceByDate(campaignId, days);
 
     let baselineClicks = 0;
-    let baselineCostMicros = 0;
+    let baselineCost = 0;
     let baselineConversions = 0;
     let baselineRevenue = 0;
 
     for (const day of performanceData ?? []) {
-      const m = day.metrics;
-      baselineClicks += Number(m.clicks) || 0;
-      baselineCostMicros += Number(m.cost_micros) || 0;
-      baselineConversions += Number(m.conversions) || 0;
-      baselineRevenue += Number(m.conversions_value) || 0;
+      baselineClicks += Number(day.clicks) || 0;
+      baselineCost += Number(day.cost) || 0;
+      baselineConversions += Number(day.conversions) || 0;
+      baselineRevenue += Number(day.conversionValue) || 0;
     }
-
-    const baselineCost = baselineCostMicros / 1_000_000;
 
     // Get store profit margin
     const storeProfile = await prisma.storeProfile.findFirst({ where: { shop } });
