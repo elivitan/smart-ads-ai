@@ -84,6 +84,34 @@ class WidgetErrorBoundary extends React.Component<{children: React.ReactNode; la
   }
 }
 
+/* ═══ Professional SVG Icons for Hub Cards ═══ */
+const HubIcon = ({ type, size = 22 }: { type: "intel" | "revenue" | "ops" | "quality"; size?: number }) => {
+  const s = size;
+  const icons = {
+    intel: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/>
+      </svg>
+    ),
+    revenue: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+      </svg>
+    ),
+    ops: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 9l3 2 4-4 3 3"/>
+      </svg>
+    ),
+    quality: (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>
+      </svg>
+    ),
+  };
+  return icons[type] || null;
+};
+
 /* ═══ Animated Expand Wrapper ═══ */
 function ExpandableSection({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -432,11 +460,12 @@ export function DashboardView({
               <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:14,textAlign:"center"}}>23 AI Engines · Click to explore</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
                 {/* Card 1: Competitive Intelligence */}
-                <div onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.18),rgba(129,140,248,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.5:.15})`,boxShadow:activeCategory==="intel"?"0 0 24px rgba(129,140,248,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="intel"?"translateY(-2px)":"none"}}>
+                <div onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",position:"relative",background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.18),rgba(129,140,248,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.5:.15})`,boxShadow:activeCategory==="intel"?"0 0 24px rgba(129,140,248,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="intel"?"translateY(-2px)":"none"}}>
+                  <div style={{position:"absolute",right:-8,bottom:-8,opacity:.06,pointerEvents:"none"}}><HubIcon type="intel" size={80}/></div>
                   <div style={{height:4,background:"linear-gradient(90deg,#818cf8,#6366f1)",borderRadius:"16px 16px 0 0"}}/>
-                  <div style={{padding:"16px 18px"}}>
+                  <div style={{padding:"16px 18px",position:"relative"}}>
                     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(129,140,248,.4)",flexShrink:0}}>🕵️</div>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(129,140,248,.4)",flexShrink:0}}><HubIcon type="intel"/></div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
                         <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Track, analyze & strike</div>
@@ -451,11 +480,12 @@ export function DashboardView({
                   </div>
                 </div>
                 {/* Card 2: Revenue & Profit */}
-                <div onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.18),rgba(34,197,94,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.5:.15})`,boxShadow:activeCategory==="revenue"?"0 0 24px rgba(34,197,94,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="revenue"?"translateY(-2px)":"none"}}>
+                <div onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",position:"relative",background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.18),rgba(34,197,94,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.5:.15})`,boxShadow:activeCategory==="revenue"?"0 0 24px rgba(34,197,94,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="revenue"?"translateY(-2px)":"none"}}>
+                  <div style={{position:"absolute",right:-8,bottom:-8,opacity:.06,pointerEvents:"none"}}><HubIcon type="revenue" size={80}/></div>
                   <div style={{height:4,background:"linear-gradient(90deg,#22c55e,#10b981)",borderRadius:"16px 16px 0 0"}}/>
-                  <div style={{padding:"16px 18px"}}>
+                  <div style={{padding:"16px 18px",position:"relative"}}>
                     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(34,197,94,.4)",flexShrink:0}}>💰</div>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(34,197,94,.4)",flexShrink:0}}><HubIcon type="revenue"/></div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
                         <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>6 engines · Forecast, optimize & grow</div>
@@ -470,11 +500,12 @@ export function DashboardView({
                   </div>
                 </div>
                 {/* Card 3: Campaign Operations */}
-                <div onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.18),rgba(168,85,247,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.5:.15})`,boxShadow:activeCategory==="ops"?"0 0 24px rgba(168,85,247,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="ops"?"translateY(-2px)":"none"}}>
+                <div onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",position:"relative",background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.18),rgba(168,85,247,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.5:.15})`,boxShadow:activeCategory==="ops"?"0 0 24px rgba(168,85,247,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="ops"?"translateY(-2px)":"none"}}>
+                  <div style={{position:"absolute",right:-8,bottom:-8,opacity:.06,pointerEvents:"none"}}><HubIcon type="ops" size={80}/></div>
                   <div style={{height:4,background:"linear-gradient(90deg,#a855f7,#7c3aed)",borderRadius:"16px 16px 0 0"}}/>
-                  <div style={{padding:"16px 18px"}}>
+                  <div style={{padding:"16px 18px",position:"relative"}}>
                     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(168,85,247,.4)",flexShrink:0}}>⚙️</div>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(168,85,247,.4)",flexShrink:0}}><HubIcon type="ops"/></div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
                         <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>7 engines · Automate & orchestrate</div>
@@ -488,11 +519,12 @@ export function DashboardView({
                   </div>
                 </div>
                 {/* Card 4: Quality & Protection */}
-                <div onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.5:.15})`,boxShadow:activeCategory==="quality"?"0 0 24px rgba(245,158,11,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="quality"?"translateY(-2px)":"none"}}>
+                <div onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",position:"relative",background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.5:.15})`,boxShadow:activeCategory==="quality"?"0 0 24px rgba(245,158,11,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="quality"?"translateY(-2px)":"none"}}>
+                  <div style={{position:"absolute",right:-8,bottom:-8,opacity:.06,pointerEvents:"none"}}><HubIcon type="quality" size={80}/></div>
                   <div style={{height:4,background:"linear-gradient(90deg,#f59e0b,#d97706)",borderRadius:"16px 16px 0 0"}}/>
-                  <div style={{padding:"16px 18px"}}>
+                  <div style={{padding:"16px 18px",position:"relative"}}>
                     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(245,158,11,.4)",flexShrink:0}}>🛡️</div>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(245,158,11,.4)",flexShrink:0}}><HubIcon type="quality"/></div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
                         <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Test, guard & report</div>
@@ -513,7 +545,7 @@ export function DashboardView({
           <ExpandableSection isOpen={activeCategory==="intel"}>
             <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(129,140,248,.3)"}}>🕵️</div>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 3px 10px rgba(129,140,248,.3)"}}><HubIcon type="intel" size={16}/></div>
                 <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Competitive Intelligence</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
               </div>
@@ -548,7 +580,7 @@ export function DashboardView({
           <ExpandableSection isOpen={activeCategory==="revenue"}>
             <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(34,197,94,.3)"}}>💰</div>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 3px 10px rgba(34,197,94,.3)"}}><HubIcon type="revenue" size={16}/></div>
                 <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Revenue & Profit</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>6 engines</span>
               </div>
@@ -566,7 +598,7 @@ export function DashboardView({
           <ExpandableSection isOpen={activeCategory==="ops"}>
             <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(168,85,247,.3)"}}>⚙️</div>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 3px 10px rgba(168,85,247,.3)"}}><HubIcon type="ops" size={16}/></div>
                 <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Campaign Operations</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>7 engines</span>
               </div>
@@ -585,7 +617,7 @@ export function DashboardView({
           <ExpandableSection isOpen={activeCategory==="quality"}>
             <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(245,158,11,.3)"}}>🛡️</div>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 3px 10px rgba(245,158,11,.3)"}}><HubIcon type="quality" size={16}/></div>
                 <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Quality & Protection</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
               </div>
