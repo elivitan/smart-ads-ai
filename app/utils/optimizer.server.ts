@@ -29,9 +29,12 @@ import {
   addNegativeKeywords,
   getCampaignPerformanceByDate,
 } from "../google-ads.server.js";
-import { getDailyAdvice } from "../ai-brain.server.js";
+import { getDailyAdvice, getAiReflectionRules } from "../ai-brain.server.js";
 import { getStoreProfile } from "../store-context.server.js";
 import { getCompetitorTrends } from "../competitor-intel.server.js";
+import { scanInventoryLevels, throttleLowStockCampaigns, boostOverstockedCampaigns } from "../inventory-ads.server.js";
+import { getArbitrageWindows } from "../bid-arbitrage.server.js";
+import { getCurrencyEvents } from "../currency-margin.server.js";
 import { logger } from "./logger.js";
 
 const narrativeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -211,6 +214,122 @@ export async function runOptimization(shop: string): Promise<OptResult> {
     const kwLearning = learning.byActionType["pause_keyword"];
     if (kwLearning?.adjustedThreshold != null) {
       (effectiveRules as any).KEYWORD_PAUSE_CLICKS = kwLearning.adjustedThreshold;
+    }
+
+    // 2.7 Inventory gate — throttle/boost campaigns based on stock levels
+    // Note: scanInventoryLevels is called internally by throttle/boost functions
+    try {
+      await throttleLowStockCampaigns(shop);
+      await boostOverstockedCampaigns(shop);
+    } catch (err: unknown) {
+      logger.warn("optimizer", "Inventory gate failed, continuing", {
+        extra: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
+
+    // 2.8 Self-learning filter — load rules AI learned from past decisions
+    let avoidRules: string[] = [];
+    try {
+      avoidRules = await getAiReflectionRules(shop);
+    } catch {
+      // Non-critical, continue without learned rules
+    }
+
+    // 2.9 Bid Arbitrage gate — check if current hour is an arbitrage window
+    let arbitrageBoost = false;
+    let arbitrageWindows: Array<{ dayOfWeek: number; hourStart: number; hourEnd: number; bidMultiplier: number; isArbitrage: boolean }> = [];
+    try {
+      const allWindows = await getArbitrageWindows(shop);
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentHour = now.getHours();
+      arbitrageWindows = allWindows;
+      const activeWindow = allWindows.find(
+        (w: any) => w.isArbitrage && w.dayOfWeek === currentDay && currentHour >= w.hourStart && currentHour < w.hourEnd
+      );
+      if (activeWindow) {
+        arbitrageBoost = true;
+        logger.info("optimizer", `Bid arbitrage window active: ${currentDay}/${currentHour}:00, multiplier ${activeWindow.bidMultiplier}x`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical, continue without arbitrage data
+    }
+
+    // 2.10 Currency margin gate — check for margin squeeze events
+    let marginSqueezeProducts: string[] = [];
+    try {
+      const events = await getCurrencyEvents(shop);
+      const recentSqueezes = events.filter(
+        (e: any) => e.eventType === "margin_squeeze" && (Date.now() - new Date(e.createdAt).getTime()) < 7 * 86400000
+      );
+      for (const squeeze of recentSqueezes) {
+        try {
+          const affected = JSON.parse(squeeze.productsAffected || "[]");
+          marginSqueezeProducts.push(...affected);
+        } catch { /* ignore parse errors */ }
+      }
+      if (marginSqueezeProducts.length > 0) {
+        logger.info("optimizer", `Currency margin squeeze affecting ${marginSqueezeProducts.length} products`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical, continue without currency data
+    }
+
+    // 2.11 Competitor Strike gate — check for active strikes to boost
+    let activeStrikeDomains: string[] = [];
+    try {
+      const activeStrikes = await prisma.competitorStrike.findMany({
+        where: { shop, status: "active" },
+        select: { competitorDomain: true, targetKeywords: true },
+      });
+      activeStrikeDomains = activeStrikes.map((s) => s.competitorDomain);
+      if (activeStrikeDomains.length > 0) {
+        logger.info("optimizer", `Active competitor strikes: ${activeStrikeDomains.join(", ")}`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // 2.12 Ghost Campaign gate — check for testing ghosts that need validation
+    try {
+      const testingGhosts = await prisma.ghostCampaign.findMany({
+        where: { shop, status: "testing" },
+        select: { id: true, keyword: true, campaignId: true },
+      });
+      if (testingGhosts.length > 0) {
+        logger.info("optimizer", `${testingGhosts.length} ghost campaigns in testing phase`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // 2.13 Life Moment gate — check for upcoming moments
+    try {
+      const upcomingMoments = await prisma.lifeMomentCampaign.findMany({
+        where: { shop, status: "draft" },
+        select: { momentType: true, seasonStart: true },
+      });
+      const now = new Date();
+      for (const moment of upcomingMoments) {
+        if (moment.seasonStart) {
+          const daysUntil = Math.ceil((moment.seasonStart.getTime() - now.getTime()) / 86400000);
+          if (daysUntil <= 14 && daysUntil > 0) {
+            logger.info("optimizer", `Life moment "${moment.momentType}" starts in ${daysUntil} days — draft campaign exists`, {
+              extra: { shop },
+            });
+          }
+        }
+      }
+    } catch {
+      // Non-critical
     }
 
     // 3. Apply optimization rules to each campaign
@@ -611,6 +730,84 @@ export async function runOptimization(shop: string): Promise<OptResult> {
             campaignName: campaign.name,
             action: "alert_creative_fatigue",
             reason: `המודעות שלך מתחילות "להתיש" את הקהל — ${fatigue.weeksOfDecline} שבועות רצופים של ירידה בלחיצות (מ-${fatigue.peakCtr.toFixed(1)}% ל-${fatigue.currentCtr.toFixed(1)}%). הגיע הזמן לרענן את הטקסטים.`,
+            aiGrade: result.aiGrade,
+          });
+        }
+      }
+
+      // ── Engine 22: Bid Arbitrage — boost budget during arbitrage windows ──
+      if (
+        arbitrageBoost &&
+        campaign.status === "ENABLED" &&
+        dailyBudget > 0 &&
+        roas >= minRoas &&
+        canAddAction()
+      ) {
+        const boostPct = 0.15; // 15% budget boost during low-CPC windows
+        const newBudget = Math.round(dailyBudget * (1 + boostPct));
+        plannedActions.push({
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          action: "adjust_budget",
+          reason: `נמצא חלון ארביטראז' — העלות לקליק נמוכה כרגע אבל ההמרות גבוהות. מעלה תקציב ב-15% כדי לנצל את ההזדמנות.`,
+          previousValue: `budget:${dailyBudget}`,
+          newValue: `budget:${newBudget}`,
+          aiGrade: result.aiGrade,
+        });
+      }
+
+      // ── Engine 23: Currency Margin — reduce budget if margin squeeze ──
+      if (
+        marginSqueezeProducts.length > 0 &&
+        campaign.status === "ENABLED" &&
+        dailyBudget > 1 &&
+        canAddAction()
+      ) {
+        // Check if this campaign's products are affected by margin squeeze
+        try {
+          const campaignJob = await prisma.campaignJob.findFirst({
+            where: { googleCampaignId: campaign.id, shop },
+            select: { payload: true },
+          });
+          if (campaignJob?.payload) {
+            const payload = JSON.parse(campaignJob.payload);
+            const productId = payload.productId || payload.productTitle;
+            if (productId && marginSqueezeProducts.includes(productId)) {
+              const reducePct = 0.2;
+              const newBudget = Math.max(1, Math.round(dailyBudget * (1 - reducePct)));
+              plannedActions.push({
+                campaignId: campaign.id,
+                campaignName: campaign.name,
+                action: "adjust_budget",
+                reason: `שער המטבע ירד ופוגע במרווח הרווח של המוצרים בקמפיין הזה. מקטין תקציב ב-20% עד שהמצב משתפר.`,
+                previousValue: `budget:${dailyBudget}`,
+                newValue: `budget:${newBudget}`,
+                aiGrade: result.aiGrade,
+              });
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // ── Engine 19: Competitor Strike — boost campaigns during active strikes ──
+      if (
+        activeStrikeDomains.length > 0 &&
+        campaign.status === "ENABLED" &&
+        roas >= minRoas &&
+        dailyBudget > 0 &&
+        canAddAction()
+      ) {
+        // Boost performing campaigns when we have active strikes
+        const boostPct = 0.1;
+        const newBudget = Math.round(dailyBudget * (1 + boostPct));
+        if (newBudget > dailyBudget) {
+          plannedActions.push({
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            action: "adjust_budget",
+            reason: `מתקפה תחרותית פעילה נגד ${activeStrikeDomains[0]}. מעלה תקציב ב-10% כדי לתפוס נתח שוק בזמן שהמתחרה חלש.`,
+            previousValue: `budget:${dailyBudget}`,
+            newValue: `budget:${newBudget}`,
             aiGrade: result.aiGrade,
           });
         }
@@ -1427,6 +1624,220 @@ async function diagnosePerformanceChange(
   }
 
   return { rootCauses, hebrewNarrative: narrative };
+}
+
+// ── A/B Testing Engine — Automatic ad variation testing ──────────────────
+
+import { suggestFreshAdCopy } from "../ai-brain.server.js";
+
+interface ABVariation {
+  id: string;
+  headlines: string[];
+  descriptions: string[];
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  cost: number;
+  startedAt: string;
+}
+
+/**
+ * Create a new A/B test for a campaign.
+ * Generates 2 new ad variations using AI and tracks performance.
+ */
+export async function createABTest(
+  shop: string,
+  campaignId: string,
+  campaignName: string,
+  triggerReason: "manual" | "creative_fatigue" | "scheduled" = "manual"
+): Promise<string | null> {
+  try {
+    // Check if there's already a running test for this campaign
+    const existing = await prisma.aBTest.findFirst({
+      where: { shop, campaignId, status: "running" },
+    });
+    if (existing) return null; // already testing
+
+    // Get current ad data
+    const keywords = await getKeywordPerformance(campaignId);
+    const topKeyword = keywords.length > 0 ? keywords[0].text : campaignName;
+
+    // Generate 2 new variations
+    const freshCopy = await suggestFreshAdCopy({
+      campaignName,
+      productTitle: topKeyword,
+      currentHeadlines: [],
+      competitorAds: [],
+    });
+
+    const now = new Date().toISOString();
+    const variations: ABVariation[] = [
+      {
+        id: "original",
+        headlines: ["מודעה מקורית"],
+        descriptions: ["הגרסה הנוכחית"],
+        impressions: 0, clicks: 0, conversions: 0, cost: 0,
+        startedAt: now,
+      },
+      {
+        id: "variation_1",
+        headlines: freshCopy?.headlines || ["גרסה חדשה 1"],
+        descriptions: freshCopy?.descriptions || ["תיאור חדש 1"],
+        impressions: 0, clicks: 0, conversions: 0, cost: 0,
+        startedAt: now,
+      },
+    ];
+
+    const test = await prisma.aBTest.create({
+      data: {
+        shop,
+        campaignId,
+        campaignName,
+        status: "running",
+        variations: JSON.stringify(variations),
+        triggerReason,
+      },
+    });
+
+    logger.info("ab-test", `Created A/B test for "${campaignName}"`, {
+      extra: { testId: test.id, triggerReason },
+    });
+
+    return test.id;
+  } catch (err: unknown) {
+    logger.error("ab-test", "Failed to create A/B test", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+    return null;
+  }
+}
+
+/**
+ * Update A/B test metrics from Google Ads performance data.
+ * Should be called during each optimization cycle.
+ */
+export async function updateABTestMetrics(shop: string): Promise<void> {
+  try {
+    const runningTests = await prisma.aBTest.findMany({
+      where: { shop, status: "running" },
+    });
+
+    for (const test of runningTests) {
+      try {
+        const dailyData = await getCampaignPerformanceByDate(test.campaignId, 7);
+        if (dailyData.length === 0) continue;
+
+        // Aggregate recent performance
+        const totalImpressions = dailyData.reduce((s, d) => s + d.impressions, 0);
+        const totalClicks = dailyData.reduce((s, d) => s + d.clicks, 0);
+        const totalConversions = dailyData.reduce((s, d) => s + d.conversions, 0);
+        const totalCost = dailyData.reduce((s, d) => s + d.cost, 0);
+
+        const variations: ABVariation[] = JSON.parse(test.variations);
+
+        // Update original variation with actual data
+        if (variations[0]) {
+          variations[0].impressions = totalImpressions;
+          variations[0].clicks = totalClicks;
+          variations[0].conversions = totalConversions;
+          variations[0].cost = totalCost;
+        }
+
+        // NOTE: Google Ads API does not provide per-variation telemetry at campaign level.
+        // Metrics stored here are campaign-level aggregates, not true per-variation data.
+        // Do NOT fabricate variation B metrics from fixed ratios — that produces misleading results.
+
+        // Mark variations with a note that these are campaign-level estimates
+        for (const v of variations) {
+          (v as any).metricsNote = "campaign-level estimate, not per-variation telemetry";
+        }
+
+        // Check if test has run long enough with sufficient data
+        const testAgeMs = Date.now() - test.startedAt.getTime();
+        const testAgeDays = testAgeMs / (24 * 60 * 60 * 1000);
+
+        // Only consider declaring a winner after minimum 14 days AND sufficient impressions.
+        // Since we lack per-variation metrics, we cannot determine a true winner from campaign-level
+        // data alone. Status remains "running" until real per-variation data is available.
+        if (testAgeDays >= 14 && totalImpressions >= 1000) {
+          logger.info("ab-test", `Test for "${test.campaignName}" has sufficient data for review`, {
+            extra: { testId: test.id, days: Math.round(testAgeDays), impressions: totalImpressions },
+          });
+          // Do not auto-declare winner — real per-variation telemetry is required.
+          // A manual review or external measurement tool should determine the winner.
+        }
+
+        // Update metrics even if no winner yet
+        await prisma.aBTest.update({
+          where: { id: test.id },
+          data: { variations: JSON.stringify(variations) },
+        });
+
+        // Auto-cancel if running too long (30 days)
+        if (testAgeDays > 30) {
+          await prisma.aBTest.update({
+            where: { id: test.id },
+            data: { status: "cancelled", endedAt: new Date() },
+          });
+        }
+      } catch { /* skip this test */ }
+    }
+  } catch (err: unknown) {
+    logger.error("ab-test", "Failed to update A/B metrics", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Statistical significance test for A/B testing.
+ * Uses chi-squared approximation for click-through rate comparison.
+ */
+function checkStatisticalSignificance(
+  varA: { impressions: number; clicks: number },
+  varB: { impressions: number; clicks: number }
+): { significant: boolean; confidence: number; winner: string; improvementPercent: number } {
+  const ctrA = varA.impressions > 0 ? varA.clicks / varA.impressions : 0;
+  const ctrB = varB.impressions > 0 ? varB.clicks / varB.impressions : 0;
+
+  // Not enough data
+  if (varA.impressions < 100 || varB.impressions < 100) {
+    return { significant: false, confidence: 0, winner: "none", improvementPercent: 0 };
+  }
+
+  // Pooled proportion
+  const totalClicks = varA.clicks + varB.clicks;
+  const totalImpressions = varA.impressions + varB.impressions;
+  const pooledP = totalClicks / totalImpressions;
+
+  // Standard error
+  const se = Math.sqrt(pooledP * (1 - pooledP) * (1 / varA.impressions + 1 / varB.impressions));
+
+  if (se === 0) return { significant: false, confidence: 0, winner: "none", improvementPercent: 0 };
+
+  // Z-score
+  const z = Math.abs(ctrA - ctrB) / se;
+
+  // Approximate p-value from z-score (normal distribution)
+  // p < 0.05 when z > 1.96
+  const confidence = z > 2.58 ? 0.99 : z > 1.96 ? 0.95 : z > 1.65 ? 0.90 : z / 1.96 * 0.90;
+  const significant = confidence >= 0.95;
+
+  const winner = ctrA >= ctrB ? "original" : "variation_1";
+  const improvementPercent = ctrA > 0 ? Math.round(Math.abs(ctrB - ctrA) / ctrA * 100) : 0;
+
+  return { significant, confidence, winner, improvementPercent };
+}
+
+/**
+ * Get A/B test results for a shop.
+ */
+export async function getABTestResults(shop: string) {
+  return prisma.aBTest.findMany({
+    where: { shop },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
 }
 
 // ── Get optimization history ─────────────────────────────────────────────

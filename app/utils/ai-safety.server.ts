@@ -69,6 +69,61 @@ export function wrapUserData(label: string, data: string): string {
   return `[USER_DATA:${label}]\n${sanitized}\n[/USER_DATA:${label}]`;
 }
 
+/**
+ * Extract JSON string from AI text without regex (avoids ReDoS).
+ * Finds the first `{` and last `}` (or `[`/`]` for arrays) and returns the slice.
+ */
+export function extractJsonFromText(text: string): string | null {
+  if (!text || typeof text !== "string") return null;
+  const trimmed = text.trim();
+
+  // Try object first, then array
+  const OPEN_BRACE = String.fromCharCode(123);
+  const objStart = trimmed.indexOf(OPEN_BRACE);
+  const arrStart = trimmed.indexOf("[");
+
+  if (objStart === -1 && arrStart === -1) return null;
+
+  // Pick whichever comes first
+  const isArray = objStart === -1 || (arrStart !== -1 && arrStart < objStart);
+  const start = isArray ? arrStart : objStart;
+  const end = trimmed.lastIndexOf(isArray ? "]" : String.fromCharCode(125));
+
+  if (end <= start) return null;
+  return trimmed.slice(start, end + 1);
+}
+
+/**
+ * Strip HTML tags from text without regex (avoids ReDoS).
+ * Removes script/style blocks and all tags, normalizes whitespace.
+ */
+export function stripHtmlTags(html: string): string {
+  if (!html) return "";
+  let result = html;
+  // Remove script/style blocks by finding opening/closing tags iteratively
+  for (const tag of ["script", "style"]) {
+    let idx = 0;
+    while (idx < result.length) {
+      const openTag = result.toLowerCase().indexOf(`<${tag}`, idx);
+      if (openTag === -1) break;
+      const closeTag = result.toLowerCase().indexOf(`</${tag}>`, openTag);
+      if (closeTag === -1) break;
+      result = result.slice(0, openTag) + result.slice(closeTag + tag.length + 3);
+      idx = openTag;
+    }
+  }
+  // Remove remaining HTML tags using a simple state machine
+  let out = "";
+  let inTag = false;
+  for (let i = 0; i < result.length; i++) {
+    if (result[i] === "<") { inTag = true; continue; }
+    if (result[i] === ">") { inTag = false; out += " "; continue; }
+    if (!inTag) out += result[i];
+  }
+  // Normalize whitespace
+  return out.replace(/\s+/g, " ").trim();
+}
+
 // ── Output Validation ────────────────────────────────────────────────────
 
 /**
@@ -89,9 +144,9 @@ export function safeParseAiJson<T = unknown>(text: string): { data: T | null; er
   try {
     const parsed = JSON.parse(cleaned);
 
-    // Validate it's an object (not array, string, etc.)
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { data: null, error: "Response is not a JSON object" };
+    // Validate it's an object or array (not string, number, etc.)
+    if (typeof parsed !== "object" || parsed === null) {
+      return { data: null, error: "Response is not a JSON object or array" };
     }
 
     // Deep sanitize string values to prevent stored XSS
@@ -111,11 +166,11 @@ function deepSanitizeStrings(obj: unknown, depth: number = 0): unknown {
   if (depth > 10) return obj; // Prevent infinite recursion
 
   if (typeof obj === "string") {
-    return obj
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "") // Remove script tags
-      .replace(/<[^>]*>/g, "") // Remove all HTML tags
-      .replace(/javascript:/gi, "") // Remove javascript: protocol
-      .replace(/on\w+\s*=/gi, ""); // Remove event handlers
+    // Use state-machine HTML stripping (avoids ReDoS) + remove dangerous patterns
+    let sanitized = stripHtmlTags(obj);
+    sanitized = sanitized.replace(/javascript:/gi, ""); // Remove javascript: protocol
+    sanitized = sanitized.replace(/on\w+\s*=/gi, ""); // Remove event handlers
+    return sanitized;
   }
 
   if (Array.isArray(obj)) {

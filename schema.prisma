@@ -277,3 +277,559 @@ model OptimizationRecommendation {
   @@index([campaignId])
   @@index([createdAt])
 }
+
+model CompetitorProfile {
+  id                String    @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  healthScore       Int       @default(50)
+  marketPosition    String    @default("unknown")
+  lastWebsiteHash   String?   @db.Text
+  lastPrices        String    @default("[]") @db.Text
+  lastMessaging     String?   @db.Text
+  lastProductCount  Int?
+  adCopyHistory     String    @default("[]") @db.Text
+  hiringSignal      String?
+  reviewRating      Float?
+  reviewCount       Int?
+  reviewSentiment   String?
+  shippingSpeed     String?
+  returnPolicy      String?
+  vulnerabilities   String    @default("[]") @db.Text
+  strengths         String    @default("[]") @db.Text
+  lastScrapedAt     DateTime?
+  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime  @default(now())
+
+  @@unique([shop, competitorDomain])
+  @@index([shop])
+}
+
+model CompetitorChange {
+  id                String   @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  changeType        String   // "price_change" | "messaging_change" | "product_added" | "product_removed" | "ad_copy_change" | "review_change"
+  summary           String   @db.Text
+  oldValue          String?  @db.Text
+  newValue          String?  @db.Text
+  severity          String   @default("low") // "low" | "medium" | "high"
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, competitorDomain])
+  @@index([createdAt])
+}
+
+model ABTest {
+  id              String    @id @default(cuid())
+  shop            String
+  campaignId      String
+  campaignName    String    @default("")
+  status          String    @default("running") // "running" | "winner_found" | "cancelled"
+  variations      String    @db.Text  // JSON: [{id, headlines[], descriptions[], impressions, clicks, conversions, cost, startedAt}]
+  winnerId        String?
+  winnerReason    String?   @db.Text
+  confidenceLevel Float?
+  triggerReason   String    @default("manual") // "manual" | "creative_fatigue" | "scheduled"
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([status])
+}
+
+model WeeklyReport {
+  id               String   @id @default(cuid())
+  shop             String
+  weekStart        DateTime
+  weekEnd          DateTime
+  reportJson       String   @db.Text
+  summary          String   @db.Text
+  performanceGrade String   @default("?")
+  totalSpend       Float    @default(0)
+  totalRevenue     Float    @default(0)
+  totalActions     Int      @default(0)
+  competitorChanges Int     @default(0)
+  createdAt        DateTime @default(now())
+
+  @@unique([shop, weekStart])
+  @@index([shop])
+}
+
+model KeywordGapAnalysis {
+  id               String   @id @default(cuid())
+  shop             String
+  keyword          String
+  source           String   // competitor domain(s)
+  estimatedVolume  Int?
+  competitionLevel String   @default("medium") // "low" | "medium" | "high"
+  opportunityScore Int      @default(50)       // 0-100
+  suggestedBid     Float?
+  status           String   @default("new")    // "new" | "targeted" | "dismissed"
+  createdAt        DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, opportunityScore])
+  @@unique([shop, keyword])
+}
+
+// ═══════════════════════════════════════════════════
+// 10 NEW AI ENGINES — Session 58
+// ═══════════════════════════════════════════════════
+
+// Engine 1: Self-Evolving AI — learns from its own decisions
+model AiReflection {
+  id                     String   @id @default(cuid())
+  shop                   String
+  reflectionType         String   // "weekly_reflection" | "pre_optimization" | "pattern_discovery"
+  insights               String   @db.Text  // JSON: [{pattern, evidence, recommendation, confidence}]
+  rulesGenerated         String   @default("[]") @db.Text  // JSON: rules the AI learned
+  decisionsReviewed      Int      @default(0)
+  successRateImprovement Float?
+  createdAt              DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, reflectionType])
+  @@index([createdAt])
+}
+
+// Engine 2: Ad Creative DNA — winning ad element analysis
+model AdCreativeDNA {
+  id          String   @id @default(cuid())
+  shop        String
+  geneType    String   // "word" | "phrase" | "structure" | "emotion" | "cta" | "number"
+  geneValue   String
+  occurrences Int      @default(1)
+  avgCtr      Float?
+  avgConvRate Float?
+  avgRoas     Float?
+  winRate     Float    @default(0) // % of times it appeared in top-performing ads
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([shop, geneType, geneValue])
+  @@index([shop])
+  @@index([shop, winRate])
+}
+
+// Engine 3: Profit Intelligence — true profit per click/conversion
+model ProfitAnalysis {
+  id                String   @id @default(cuid())
+  shop              String
+  productId         String?
+  campaignId        String?
+  netProfitPerClick Float?
+  netProfitPerConv  Float?
+  cogs              Float?
+  profitScore       Int      @default(50) // 0-100
+  simulationResult  String?  @db.Text  // JSON: Monte Carlo output
+  pricingSuggestion String?  @db.Text  // JSON: {suggestedPrice, reason, competitorAvg}
+  analyzedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, profitScore])
+  @@index([productId])
+}
+
+// Engine 4: Inventory-Aware Ads — stock-based campaign control
+model InventoryAlert {
+  id            String   @id @default(cuid())
+  shop          String
+  productId     String
+  productTitle  String   @default("")
+  alertType     String   // "low_stock" | "overstock" | "stockout_predicted" | "throttled" | "boosted"
+  currentStock  Int      @default(0)
+  dailySalesRate Float?
+  daysUntilOut  Int?
+  actionTaken   String?  // "throttled_campaign" | "boosted_campaign" | "paused_campaign"
+  campaignId    String?
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, resolved])
+  @@index([productId])
+  @@unique([shop, productId, alertType])
+}
+
+// Engine 5: Competitor Ad Spend Estimator
+model CompetitorSpendEstimate {
+  id                String   @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  estimatedMonthly  Float?
+  estimatedDaily    Float?
+  impressionShare   Float?   // 0-1
+  overlapRate       Float?   // 0-1
+  positionAboveRate Float?   // 0-1
+  dataSource        String   @default("auction_insights")
+  trendDirection    String   @default("stable") // "increasing" | "decreasing" | "stable"
+  trendPct          Float?
+  measuredAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, competitorDomain])
+  @@index([measuredAt])
+}
+
+// Engine 6: Buyer Psychology — emotional triggers that drive purchases
+model BuyerPsychology {
+  id            String   @id @default(cuid())
+  shop          String
+  productId     String?
+  triggerType   String   // "urgency" | "social_proof" | "fear_of_missing" | "aspiration" | "trust" | "value"
+  triggerPhrase String   @db.Text
+  effectiveness Float?   // 0-1
+  usedInAds     Int      @default(0)
+  ctrWhenUsed   Float?
+  createdAt     DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, triggerType])
+  @@index([productId])
+}
+
+// Engine 7: Predictive Engine — sales & performance forecasting
+model SalesForecast {
+  id           String   @id @default(cuid())
+  shop         String
+  forecastType String   // "weekly" | "monthly" | "product_lifecycle" | "campaign_what_if"
+  targetId     String?  // campaignId or productId
+  forecastJson String   @db.Text  // JSON: {predicted, confidence, factors[], scenarios[]}
+  actualValue  Float?   // filled in retrospectively
+  accuracy     Float?   // measured after period ends
+  periodStart  DateTime
+  periodEnd    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, forecastType])
+  @@index([periodStart])
+}
+
+// Engine 8: Cross-Store Intelligence — anonymous industry benchmarks
+model CrossStoreInsight {
+  id          String   @id @default(cuid())
+  category    String   // product category
+  insightType String   // "benchmark" | "trend" | "tactic"
+  metric      String   // "avg_roas" | "avg_ctr" | "top_ad_format" etc.
+  value       String   @db.Text  // JSON
+  sampleSize  Int      @default(0)
+  confidence  Float    @default(0.5)
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([category, insightType])
+  @@index([periodStart])
+}
+
+// Engine 9: Landing Page Optimizer — ad-to-page alignment
+model LandingPageAudit {
+  id             String   @id @default(cuid())
+  shop           String
+  productId      String
+  pageUrl        String   @db.Text
+  alignmentScore Int      @default(50) // 0-100
+  mismatches     String   @default("[]") @db.Text  // JSON: [{issue, adClaims, pageReality, impact}]
+  suggestions    String   @default("[]") @db.Text  // JSON: [{suggestion, expectedImpact}]
+  pageContent    String?  @db.Text
+  auditedAt      DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, alignmentScore])
+  @@index([productId])
+}
+
+// Engine 10: Full Funnel Orchestrator — zero-click campaign orchestration
+model FunnelOrchestration {
+  id               String    @id @default(cuid())
+  shop             String
+  productId        String?
+  funnelType       String    // "single_product" | "category" | "full_store"
+  status           String    @default("draft") // "draft" | "launching" | "active" | "paused" | "completed"
+  campaignIds      String    @default("[]") @db.Text
+  budgetAllocation String    @default("{}") @db.Text  // JSON: {campaignId: dailyBudget}
+  priorityQueue    String    @default("[]") @db.Text  // JSON: [{campaignId, priority, profitScore}]
+  totalDailyBudget Float     @default(0)
+  lastRebalancedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, status])
+}
+
+// ═══════════════════════════════════════════════════
+// 8 ADVANCED AI ENGINES — Session 59
+// ═══════════════════════════════════════════════════
+
+// Engine 11: Digital Twin Simulator — full store simulation before spending
+model DigitalTwinSimulation {
+  id               String   @id @default(cuid())
+  shop             String
+  simulationType   String   // "campaign_launch" | "budget_change" | "seasonal" | "full_store"
+  inputParams      String   @db.Text  // JSON: {budget, audience, product, duration, macroFactors}
+  scenarioCount    Int      @default(1000)
+  predictedRevenue Float?
+  predictedRoas    Float?
+  confidenceLevel  Float?   // 0-1
+  riskScore        Int      @default(50) // 0-100
+  scenarioResults  String   @db.Text  // JSON: {p10, p25, p50, p75, p90, mean, stdDev}
+  macroFactors     String?  @db.Text  // JSON: {weather, holidays, competitorActivity, seasonality}
+  recommendation   String?  @db.Text  // "launch" | "wait" | "modify" + reason
+  createdAt        DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, simulationType])
+}
+
+// Engine 12: Multi-Agent Bidding Syndicate — AI agents debate budget allocation
+model AgentBiddingSession {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String?
+  sessionType     String   // "hourly_review" | "daily_rebalance" | "emergency"
+  agentVotes      String   @db.Text  // JSON: [{agent, recommendation, reasoning, confidence}]
+  consensusAction String?  @db.Text  // JSON: {action, budget, bidChange, reasoning}
+  agentsInvolved  Int      @default(3)
+  debateRounds    Int      @default(1)
+  executedAction  String?  // what was actually done
+  outcomeRoas     Float?   // measured after execution
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([createdAt])
+}
+
+// Engine 13: Weather & Event Arbitrage — real-time environmental triggers
+model WeatherEventTrigger {
+  id              String   @id @default(cuid())
+  shop            String
+  triggerType     String   // "weather" | "holiday" | "local_event" | "trend"
+  triggerData     String   @db.Text  // JSON: {condition, location, severity, duration}
+  affectedProducts String  @db.Text  // JSON: [{productId, relevanceScore}]
+  actionTaken     String?  @db.Text  // JSON: {campaignId, budgetChange, copyChange}
+  region          String?  // geo target
+  impactEstimate  Float?   // estimated revenue impact
+  actualImpact    Float?   // measured after event
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, triggerType])
+  @@index([expiresAt])
+}
+
+// Engine 14: Review-to-Creative Pipeline — customer voice in ads
+model ReviewCreativeInsight {
+  id              String   @id @default(cuid())
+  shop            String
+  productId       String?
+  sourceReviewId  String?  // Shopify review ID
+  extractedPhrase String   @db.Text  // the golden quote
+  sentiment       String   @default("positive") // "positive" | "neutral" | "negative"
+  frequency       Int      @default(1) // how many reviews mention similar
+  usedInAds       Int      @default(0)
+  ctrWhenUsed     Float?
+  convRateWhenUsed Float?
+  adCopyGenerated String?  @db.Text  // JSON: {headlines[], descriptions[]}
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, productId])
+  @@index([frequency])
+}
+
+// Engine 15: Algorithmic Price-Drop & Bid Spiking — synchronized flash sales
+model FlashSaleEvent {
+  id              String    @id @default(cuid())
+  shop            String
+  productId       String
+  productTitle    String    @default("")
+  triggerReason   String    // "overstock" | "slow_moving" | "seasonal_end" | "competitor_undercut"
+  originalPrice   Float
+  salePrice       Float
+  discountPct     Float     // 0-100
+  budgetMultiplier Float    @default(2.0) // bid spike factor
+  campaignId      String?
+  adCopyOverride  String?   @db.Text  // JSON: {headlines[], descriptions[]}
+  status          String    @default("pending") // "pending" | "active" | "completed" | "cancelled"
+  startsAt        DateTime
+  endsAt          DateTime
+  unitsSold       Int       @default(0)
+  revenueGenerated Float    @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([shop])
+  @@index([shop, status])
+  @@index([productId])
+}
+
+// Engine 16: Silent Profit Sentinel — hourly search term guardian
+model SearchTermSentinel {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String
+  searchTerm      String
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  cost            Float    @default(0)
+  conversions     Int      @default(0)
+  addToCarts      Int      @default(0)
+  wasteScore      Int      @default(0)  // 0-100, higher = more waste
+  actionTaken     String?  // "negative_exact" | "negative_phrase" | "flagged" | "approved"
+  savedAmount     Float?   // estimated savings from blocking
+  detectedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([wasteScore])
+}
+
+// Engine 17: Performance Insurance — auto-pause losing campaigns
+model PerformanceGuard {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String
+  campaignName    String   @default("")
+  guardType       String   // "auto_pause" | "budget_cut" | "bid_reduction" | "alert_only"
+  triggerMetric   String   // "roas_below" | "cost_above" | "ctr_below" | "conv_rate_below"
+  triggerValue    Float    // the threshold that was breached
+  actualValue     Float    // the actual metric value
+  actionTaken     String?  @db.Text  // JSON: {action, previousBudget, newBudget, reason}
+  moneySaved      Float    @default(0) // estimated savings
+  wasCorrect      Boolean? // retrospective: was the pause justified?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([guardType])
+}
+
+// Engine 18: Supply Chain Ads — shipment-aware campaign orchestration
+model SupplyChainSignal {
+  id              String    @id @default(cuid())
+  shop            String
+  productId       String
+  productTitle    String    @default("")
+  signalType      String    // "shipment_incoming" | "customs_delay" | "warehouse_received" | "pre_order_ready"
+  estimatedArrival DateTime?
+  actualArrival   DateTime?
+  quantity        Int       @default(0)
+  adAction        String?   // "pre_warm" | "launch_campaign" | "pause_until_arrival" | "boost_on_arrival"
+  campaignId      String?
+  preWarmStarted  Boolean   @default(false)
+  status          String    @default("pending") // "pending" | "in_transit" | "arrived" | "cancelled"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, status])
+  @@index([productId])
+  @@index([estimatedArrival])
+}
+
+// Engine 19: Predatory Competitor Strike — exploit competitor weaknesses
+model CompetitorStrike {
+  id               String    @id @default(cuid())
+  shop             String
+  competitorDomain String
+  strikeType       String    // "undercut_bid" | "gap_exploit" | "weakness_attack" | "budget_drain"
+  targetKeywords   String    @db.Text // JSON array
+  estimatedImpact  String?   @db.Text // JSON
+  status           String    @default("planned") // "planned" | "active" | "completed" | "cancelled"
+  resultMetrics    String?   @db.Text // JSON
+  launchedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([shop, status])
+  @@index([shop, competitorDomain])
+}
+
+// Engine 20: Ghost Campaign — discover untapped product/keyword niches
+model GhostCampaign {
+  id               String   @id @default(cuid())
+  shop             String
+  discoveryType    String   // "micro_niche" | "seasonal_upcoming" | "competitor_abandoned" | "trend_emerging"
+  keyword          String
+  searchVolume     Int?
+  competition      String?  // "LOW" | "MEDIUM" | "HIGH"
+  opportunityScore Int      // 0-100
+  estimatedCpc     Float?
+  estimatedRoas    Float?
+  status           String   @default("discovered") // "discovered" | "testing" | "validated" | "rejected"
+  campaignId       String?
+  createdAt        DateTime @default(now())
+
+  @@index([shop, status])
+  @@index([shop, opportunityScore])
+}
+
+// Engine 21: Life Moment Targeting — target life events (wedding, baby, etc.)
+model LifeMomentCampaign {
+  id              String    @id @default(cuid())
+  shop            String
+  momentType      String    // "wedding" | "baby" | "moving" | "graduation" | "holiday" | "back_to_school" | "new_job" | "retirement"
+  targetAudience  String    @db.Text // JSON audience config
+  productIds      String    @db.Text // JSON array
+  adCopy          String?   @db.Text // JSON
+  status          String    @default("draft") // "draft" | "active" | "paused" | "completed"
+  performance     String?   @db.Text // JSON metrics
+  seasonStart     DateTime?
+  seasonEnd       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([shop, status])
+  @@index([shop, momentType])
+}
+
+// Engine 22: Bid Time Arbitrage — find low-CPC high-conversion time windows
+model BidArbitrageWindow {
+  id                  String   @id @default(cuid())
+  shop                String
+  dayOfWeek           Int      // 0-6 (Sunday=0)
+  hourStart           Int      // 0-23
+  hourEnd             Int      // 0-23
+  avgCpc              Float
+  avgConvRate         Float?
+  avgRoas             Float?
+  competitorActivity  String?  // "low" | "medium" | "high"
+  bidMultiplier       Float    @default(1.0)
+  isArbitrage         Boolean  @default(false) // true = low CPC + high conv
+  sampleSize          Int      @default(0)
+  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now())
+
+  @@unique([shop, dayOfWeek, hourStart])
+  @@index([shop, isArbitrage])
+}
+
+// Engine 23: Currency & Margin Optimizer — exploit exchange rate fluctuations
+model CurrencyMarginEvent {
+  id               String   @id @default(cuid())
+  shop             String
+  eventType        String   // "favorable_rate" | "margin_squeeze" | "arbitrage_opportunity" | "price_adjustment"
+  fromCurrency     String   // e.g. "USD"
+  toCurrency       String   // e.g. "EUR"
+  exchangeRate     Float
+  previousRate     Float?
+  marginImpactPct  Float?   // % change in margin
+  actionTaken      String?  @db.Text
+  productsAffected String?  @db.Text // JSON array of product IDs
+  createdAt        DateTime @default(now())
+
+  @@index([shop, eventType])
+  @@index([shop, fromCurrency, toCurrency])
+}
