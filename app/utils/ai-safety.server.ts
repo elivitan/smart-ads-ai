@@ -89,9 +89,9 @@ export function safeParseAiJson<T = unknown>(text: string): { data: T | null; er
   try {
     const parsed = JSON.parse(cleaned);
 
-    // Validate it's an object (not array, string, etc.)
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { data: null, error: "Response is not a JSON object" };
+    // Validate it's an object or array (not string, number, etc.)
+    if (typeof parsed !== "object" || parsed === null) {
+      return { data: null, error: "Response is not a JSON object or array" };
     }
 
     // Deep sanitize string values to prevent stored XSS

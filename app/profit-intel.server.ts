@@ -196,11 +196,12 @@ export async function scoreProductProfitability(
         estimatedConversionRate *= 1.2;
       }
 
-      // Profit potential = margin * conversion rate * price
-      const profitPotential = profitMargin * estimatedConversionRate * price;
+      // Profit potential per visitor = profit per unit * conversion rate
+      const profitPerUnit = price * profitMargin;
+      const profitPotential = profitPerUnit * estimatedConversionRate;
 
-      // Normalize score to 0-100 range
-      const rawScore = profitPotential * 100;
+      // Normalize score to 0-100 range (scale by 10 to get meaningful scores)
+      const rawScore = profitPotential * 10;
       const profitScore = Math.min(100, Math.max(0, Math.round(rawScore)));
 
       return {

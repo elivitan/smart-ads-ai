@@ -440,33 +440,49 @@ export async function validateGhostResults(
     });
   }
 
-  // Aggregate performance totals
-  const totalClicks = campaignPerformance.reduce(
-    (sum, p) => sum + p.clicks,
-    0,
-  );
-  const totalImpressions = campaignPerformance.reduce(
-    (sum, p) => sum + p.impressions,
-    0,
-  );
-  const totalCost = campaignPerformance.reduce((sum, p) => sum + p.cost, 0);
-  const totalConversionValue = campaignPerformance.reduce(
-    (sum, p) => sum + p.conversionValue,
-    0,
-  );
+  // Group performance by campaignId for per-ghost evaluation
+  const perfByCampaign = new Map<string, { clicks: number; impressions: number; cost: number; conversionValue: number }>();
+  for (const p of campaignPerformance) {
+    const existing = perfByCampaign.get(p.campaignId);
+    if (existing) {
+      existing.clicks += p.clicks;
+      existing.impressions += p.impressions;
+      existing.cost += p.cost;
+      existing.conversionValue += p.conversionValue;
+    } else {
+      perfByCampaign.set(p.campaignId, {
+        clicks: p.clicks,
+        impressions: p.impressions,
+        cost: p.cost,
+        conversionValue: p.conversionValue,
+      });
+    }
+  }
 
-  const overallRoas = totalCost > 0 ? totalConversionValue / totalCost : 0;
-  const overallCtr =
-    totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+  // Fallback overall metrics for ghosts without linked campaigns
+  const totalCost = campaignPerformance.reduce((sum, p) => sum + p.cost, 0);
+  const totalConversionValue = campaignPerformance.reduce((sum, p) => sum + p.conversionValue, 0);
+  const totalClicks = campaignPerformance.reduce((sum, p) => sum + p.clicks, 0);
+  const totalImpressions = campaignPerformance.reduce((sum, p) => sum + p.impressions, 0);
+  const fallbackRoas = totalCost > 0 ? totalConversionValue / totalCost : 0;
+  const fallbackCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
   let validated = 0;
   let rejected = 0;
 
   for (const ghost of testingGhosts) {
-    // If we have linked campaign data, use per-campaign metrics;
-    // otherwise fall back to overall performance thresholds
-    const meetsRoas = overallRoas > 2;
-    const meetsCtr = overallCtr > 1;
+    // Use per-campaign metrics if ghost has a linked campaign, otherwise fallback
+    let ghostRoas = fallbackRoas;
+    let ghostCtr = fallbackCtr;
+
+    if (ghost.campaignId && perfByCampaign.has(ghost.campaignId)) {
+      const cp = perfByCampaign.get(ghost.campaignId)!;
+      ghostRoas = cp.cost > 0 ? cp.conversionValue / cp.cost : 0;
+      ghostCtr = cp.impressions > 0 ? (cp.clicks / cp.impressions) * 100 : 0;
+    }
+
+    const meetsRoas = ghostRoas > 2;
+    const meetsCtr = ghostCtr > 1;
 
     const newStatus = meetsRoas && meetsCtr ? "validated" : "rejected";
 
@@ -483,8 +499,8 @@ export async function validateGhostResults(
         extra: {
           ghostId: ghost.id,
           keyword: ghost.keyword,
-          roas: Math.round(overallRoas * 100) / 100,
-          ctr: Math.round(overallCtr * 100) / 100,
+          roas: Math.round(ghostRoas * 100) / 100,
+          ctr: Math.round(ghostCtr * 100) / 100,
         },
       });
     } catch (updateErr: unknown) {

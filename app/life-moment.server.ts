@@ -205,21 +205,40 @@ Return ONLY valid JSON, no markdown or explanation.`,
     }
 
     // Calculate season start/end dates
+    // Handle non-contiguous month lists (e.g. new_job: [1,2,3,9,10])
+    // by finding the nearest upcoming contiguous block
     const now = new Date();
     const currentYear = now.getFullYear();
-    const seasonMonths = season.months;
-    const seasonStartMonth = Math.min(...seasonMonths);
-    const seasonEndMonth = Math.max(...seasonMonths);
+    const currentMonth = now.getMonth() + 1;
+    const sortedMonths = [...season.months].sort((a, b) => a - b);
 
-    // Determine the correct year for the season window
+    // Find the next active month block relative to current date
+    let blockStart = sortedMonths[0];
+    let blockEnd = sortedMonths[sortedMonths.length - 1];
+
+    // Try to find a contiguous block that includes or follows the current month
+    const blocks: Array<{ start: number; end: number }> = [];
+    let bStart = sortedMonths[0];
+    for (let i = 1; i < sortedMonths.length; i++) {
+      if (sortedMonths[i] !== sortedMonths[i - 1] + 1) {
+        blocks.push({ start: bStart, end: sortedMonths[i - 1] });
+        bStart = sortedMonths[i];
+      }
+    }
+    blocks.push({ start: bStart, end: sortedMonths[sortedMonths.length - 1] });
+
+    // Pick nearest upcoming block
+    const upcomingBlock = blocks.find(b => b.end >= currentMonth) || blocks[0];
+    blockStart = upcomingBlock.start;
+    blockEnd = upcomingBlock.end;
+
     let seasonYear = currentYear;
-    if (now.getMonth() + 1 > seasonEndMonth) {
-      // Season already passed this year, target next year
+    if (currentMonth > blockEnd) {
       seasonYear = currentYear + 1;
     }
 
-    const seasonStart = new Date(seasonYear, seasonStartMonth - 1, 1);
-    const seasonEnd = new Date(seasonYear, seasonEndMonth, 0); // last day of end month
+    const seasonStart = new Date(seasonYear, blockStart - 1, 1);
+    const seasonEnd = new Date(seasonYear, blockEnd, 0); // last day of end month
 
     const campaign = await prisma.lifeMomentCampaign.create({
       data: {

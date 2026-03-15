@@ -510,9 +510,10 @@ export function generateAlerts(data: {
   // Forecast alerts
   if (data.forecastAlerts) {
     for (const f of data.forecastAlerts) {
+      const fIdx = data.forecastAlerts!.indexOf(f);
       if (f.trend === "growing") {
         alerts.push({
-          id: `forecast-up-${now}`,
+          id: `forecast-up-${fIdx}-${now}`,
           type: "forecast_revenue_up",
           title: "Revenue growth predicted",
           message: `Forecast shows $${f.predicted.toFixed(0)} predicted revenue — trend is upward. Good time to scale campaigns.`,
@@ -520,7 +521,7 @@ export function generateAlerts(data: {
         });
       } else if (f.trend === "declining") {
         alerts.push({
-          id: `forecast-down-${now}`,
+          id: `forecast-down-${fIdx}-${now}`,
           type: "forecast_revenue_down",
           title: "Revenue decline predicted",
           message: `Forecast shows $${f.predicted.toFixed(0)} predicted revenue — declining trend detected. Review campaigns and tighten targeting.`,

@@ -233,11 +233,12 @@ export function startOptimizationScheduler(): void {
  * Stop the scheduler gracefully.
  */
 export function stopOptimizationScheduler(): void {
+  const jobCount = cronJobs.length;
   cronJobs.forEach(job => job.stop());
   cronJobs = [];
   schedulerTask = null;
   logger.info("scheduler", "Optimization scheduler stopped", {
-    extra: { jobsStopped: cronJobs.length },
+    extra: { jobsStopped: jobCount },
   });
 }
 
@@ -582,12 +583,16 @@ async function runAllShopsFlashSaleCheck(): Promise<void> {
     for (const shop of shops) {
       try {
         await checkExpiredFlashSales(shop);
-      } catch {
-        // silent — runs every hour
+      } catch (err: unknown) {
+        logger.warn("scheduler", "Flash sale check failed for shop", {
+          extra: { shop, error: err instanceof Error ? err.message : String(err) },
+        });
       }
     }
-  } catch {
-    // silent
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run flash sale check", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
   }
 }
 

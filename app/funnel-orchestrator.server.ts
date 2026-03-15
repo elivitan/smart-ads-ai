@@ -27,6 +27,7 @@ interface PerfEntry {
   clicks: number;
   cost: number;
   conversions: number;
+  conversionValue: number;
   roas: number;
   conversionRate?: number;
 }
@@ -49,20 +50,32 @@ export async function createFullFunnel(shop: string, config: FunnelConfig): Prom
       try {
         const perfData = await getCampaignPerformanceByDate(job.googleCampaignId, 30);
         for (const p of perfData) {
-          if (!seen.has(p.campaignId)) {
+          const existing = seen.get(p.campaignId);
+          if (existing) {
+            // Aggregate daily rows into campaign totals
+            existing.clicks += p.clicks || 0;
+            existing.cost += p.cost || 0;
+            existing.conversions += p.conversions || 0;
+            existing.conversionValue += p.conversionValue || 0;
+          } else {
             seen.set(p.campaignId, {
               campaignId: p.campaignId,
               campaignName: p.campaignName || p.campaignId,
               clicks: p.clicks || 0,
               cost: p.cost || 0,
               conversions: p.conversions || 0,
-              roas: p.roas || 0,
+              conversionValue: p.conversionValue || 0,
+              roas: 0, // Computed below after aggregation
             });
           }
         }
       } catch {
         // Skip campaigns with no data
       }
+    }
+    // Compute ROAS from aggregated totals
+    for (const entry of seen.values()) {
+      entry.roas = entry.cost > 0 ? entry.conversionValue / entry.cost : 0;
     }
     campaigns = Array.from(seen.values());
   } catch {

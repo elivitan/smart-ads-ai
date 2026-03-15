@@ -205,6 +205,7 @@ export async function calculateMarginImpact(
     }
 
     const previousRate = previousEvent.exchangeRate;
+    if (previousRate === 0) continue;
     const impactPct = roundTo(((currentRate - previousRate) / previousRate) * 100, 2);
 
     if (Math.abs(impactPct) < SIGNIFICANT_CHANGE_THRESHOLD) {
@@ -306,10 +307,10 @@ export async function suggestPriceAdjustments(
     take: 20,
   });
 
+  const priceSnapshots = competitorSnapshots.filter((s) => s.avgPrice != null);
   const avgCompetitorPrice =
-    competitorSnapshots.length > 0
-      ? competitorSnapshots.reduce((sum, s) => sum + (s.avgPrice ?? 0), 0) /
-        competitorSnapshots.filter((s) => s.avgPrice != null).length || null
+    priceSnapshots.length > 0
+      ? competitorSnapshots.reduce((sum, s) => sum + (s.avgPrice ?? 0), 0) / priceSnapshots.length
       : null;
 
   const suggestions: PriceAdjustmentSuggestion[] = [];
@@ -415,6 +416,7 @@ export async function detectArbitrageOpportunity(
     if (!previousEvent) continue;
 
     const previousRate = previousEvent.exchangeRate;
+    if (previousRate === 0) continue;
     const changePct = ((currentRate - previousRate) / previousRate) * 100;
 
     // Arbitrage: if our base currency strengthened significantly against a target,

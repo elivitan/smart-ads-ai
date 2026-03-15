@@ -308,7 +308,7 @@ export function LifeMomentWidget() {
                 {momentEmoji[c.momentType] || "📅"} {c.momentType}
               </div>
               <div style={dimText}>
-                {JSON.parse(c.productIds || "[]").length} products
+                {(() => { try { return JSON.parse(c.productIds || "[]").length; } catch { return 0; } })()} products
               </div>
             </div>
             <span style={badgeStyle(statusColor[c.status] || "#64748b")}>{c.status}</span>
@@ -335,7 +335,7 @@ export function BidArbitrageWidget() {
       fd.append("action", "list");
       const res = await fetch("/app/api/bid-arbitrage", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.success) setWindows(data.windows || []);
+      if (data.success) setWindows(data.result || []);
     } catch { /* silent */ }
   }, []);
 

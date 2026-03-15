@@ -225,8 +225,10 @@ async function saveCompetitorSnapshot(
         weaknesses: JSON.stringify(data.weaknesses),
       },
     });
-  } catch {
-    // Non-critical — don't block main flow
+  } catch (err: unknown) {
+    logger.warn("competitor-intel", "Failed to save competitor snapshot", {
+      extra: { shop, domain, error: err instanceof Error ? err.message : String(err) },
+    });
   }
 }
 

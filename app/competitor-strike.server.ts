@@ -398,17 +398,8 @@ export async function measureStrikeResults(
           Math.max(1, Math.min(daysSinceLaunch, 90)),
         );
 
-        if (Array.isArray(perf)) {
-          for (const day of perf) {
-            totalClicks += day.clicks || 0;
-            totalCost += day.cost || 0;
-            totalConversions += day.conversions || 0;
-            totalConversionValue += day.conversionValue || 0;
-            totalImpressions += day.impressions || 0;
-          }
-        }
-
-        // Check keyword performance for target keywords
+        // Only count keyword-level performance for targeted keywords
+        // (campaign-level perf would double-count since keywords are a subset)
         const kwPerf = await getKeywordPerformance(campaign.id);
         for (const kw of kwPerf) {
           const kwText = (kw.keyword || "").toLowerCase();
@@ -416,6 +407,14 @@ export async function measureStrikeResults(
             totalClicks += kw.clicks || 0;
             totalCost += kw.cost || 0;
             totalConversions += kw.conversions || 0;
+            totalImpressions += kw.impressions || 0;
+          }
+        }
+
+        // Get campaign-level conversionValue for ROAS (not available at keyword level)
+        if (Array.isArray(perf)) {
+          for (const day of perf) {
+            totalConversionValue += day.conversionValue || 0;
           }
         }
       } catch (campaignErr: unknown) {

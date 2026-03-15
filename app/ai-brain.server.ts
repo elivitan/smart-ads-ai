@@ -1194,10 +1194,16 @@ export async function generateWeeklyReport(shop: string): Promise<WeeklyReportDa
   let totalSpend = 0;
   let totalRevenue = 0;
   for (const c of campaignList.slice(0, 20)) {
-    const perfData = await getCampaignPerformanceByDate(c.id, daysSinceWeekStart);
-    for (const p of perfData) {
-      totalSpend += p.cost || 0;
-      totalRevenue += p.conversionValue || 0;
+    try {
+      const perfData = await getCampaignPerformanceByDate(c.id, daysSinceWeekStart);
+      if (Array.isArray(perfData)) {
+        for (const p of perfData) {
+          totalSpend += p.cost || 0;
+          totalRevenue += p.conversionValue || 0;
+        }
+      }
+    } catch {
+      // Skip campaigns with no data
     }
   }
 
@@ -1617,12 +1623,32 @@ export async function forecastSales(shop: string, period: "week" | "month"): Pro
   const campaignList = await listSmartAdsCampaigns();
   const allPerformances: Array<{ date: string; clicks: number; cost: number; conversions: number; conversionValue: number }> = [];
   for (const c of campaignList.slice(0, 10)) {
-    const perfData = await getCampaignPerformanceByDate(c.id, lookback);
-    allPerformances.push(...perfData);
+    try {
+      const perfData = await getCampaignPerformanceByDate(c.id, lookback);
+      if (Array.isArray(perfData)) {
+        allPerformances.push(...perfData);
+      }
+    } catch {
+      // Skip campaigns with no data
+    }
+  }
+
+  // Aggregate by date across campaigns to get daily totals
+  const byDate = new Map<string, { date: string; clicks: number; cost: number; conversions: number; conversionValue: number }>();
+  for (const p of allPerformances) {
+    const existing = byDate.get(p.date);
+    if (existing) {
+      existing.clicks += p.clicks || 0;
+      existing.cost += p.cost || 0;
+      existing.conversions += p.conversions || 0;
+      existing.conversionValue += p.conversionValue || 0;
+    } else {
+      byDate.set(p.date, { date: p.date, clicks: p.clicks || 0, cost: p.cost || 0, conversions: p.conversions || 0, conversionValue: p.conversionValue || 0 });
+    }
   }
 
   // Sort by date ascending
-  const performances = allPerformances.sort((a, b) => a.date.localeCompare(b.date));
+  const performances = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   if (performances.length < 7) {
     return { predicted: 0, confidence: 0, trend: "insufficient_data", breakdown: [] };
