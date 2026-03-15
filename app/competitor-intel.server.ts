@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { withRetry } from "./retry.server";
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 
 interface SearchResult {
   position: number;
@@ -124,9 +125,12 @@ async function scrapeCompetitor(url: string): Promise<ScrapedData | null> {
     );
     const priceMatches = html.match(/\$[\d,.]+/g);
 
-    // Enhanced scraping: shipping, returns, USPs
-    const shippingMatch = html.match(/(?:free shipping|fast delivery|ships in \d+ days?|next[- ]day delivery)/i);
-    const returnMatch = html.match(/(?:\d+ days? returns?|free returns?|money[- ]back guarantee|easy returns?)/i);
+    // Enhanced scraping: shipping, returns, USPs — keyword search (avoids ReDoS)
+    const htmlLow = html.toLowerCase();
+    const shippingKw = ["free shipping", "fast delivery", "next day delivery"];
+    const shippingMatch = shippingKw.find(kw => htmlLow.includes(kw));
+    const returnKw = ["free returns", "money back guarantee", "easy returns"];
+    const returnMatch = returnKw.find(kw => htmlLow.includes(kw));
 
     // Extract USPs from common patterns
     const uspPatterns = [
@@ -146,8 +150,8 @@ async function scrapeCompetitor(url: string): Promise<ScrapedData | null> {
       metaDescription: metaDescMatch?.[1]?.trim() || "",
       metaKeywords: metaKwMatch?.[1]?.trim() || "",
       prices: priceMatches ? [...new Set(priceMatches)].slice(0, 5) : [],
-      shippingInfo: shippingMatch?.[0] || "",
-      returnPolicy: returnMatch?.[0] || "",
+      shippingInfo: shippingMatch || "",
+      returnPolicy: returnMatch || "",
       uniqueSellingPoints: usps,
     };
   } catch {
@@ -266,12 +270,12 @@ function extractJSON(text: string): any {
   try {
     return JSON.parse(cleaned);
   } catch(err: unknown) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err instanceof Error ? err.message : String(err)); }
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  const jsonMatch = extractJsonFromText(cleaned);
   if (jsonMatch) {
     try {
-      return JSON.parse(jsonMatch[0]);
+      return JSON.parse(jsonMatch);
     } catch(err: unknown) { console.error("[SmartAds] competitor-intel.server:extractJSON error:", err instanceof Error ? err.message : String(err)); }
-    let attempt = jsonMatch[0];
+    let attempt = jsonMatch;
     const ob = (attempt.match(/\{/g) || []).length;
     const cb = (attempt.match(/\}/g) || []).length;
     const oB = (attempt.match(/\[/g) || []).length;
@@ -635,11 +639,14 @@ async function scrapeCompetitorDeep(url: string): Promise<DeepScrapedData | null
     const collectionMatches = html.match(/\/collections?\//gi) || [];
     const productCount = Math.max(productLinkMatches.length, collectionMatches.length);
 
-    // Shipping info
-    const shippingMatch = html.match(/(?:free shipping|fast delivery|ships in \d+ days?|next[- ]day delivery|express shipping|\d+[- ]day shipping)/i);
+    // Shipping info — simple keyword search (avoids complex regex)
+    const htmlLower = html.toLowerCase();
+    const shippingKeywords = ["free shipping", "fast delivery", "next day delivery", "express shipping"];
+    const shippingMatch = shippingKeywords.find(kw => htmlLower.includes(kw));
 
-    // Return policy
-    const returnMatch = html.match(/(?:\d+ days? returns?|free returns?|money[- ]back guarantee|easy returns?|no[- ]hassle returns?|full refund)/i);
+    // Return policy — simple keyword search
+    const returnKeywords = ["free returns", "money back guarantee", "easy returns", "full refund"];
+    const returnMatch = returnKeywords.find(kw => htmlLower.includes(kw));
 
     // Social media links
     const socialPatterns = [
@@ -701,8 +708,8 @@ async function scrapeCompetitorDeep(url: string): Promise<DeepScrapedData | null
       messaging: messagingParts.join(" | "),
       prices,
       productCount,
-      shippingInfo: shippingMatch?.[0] || "",
-      returnPolicy: returnMatch?.[0] || "",
+      shippingInfo: shippingMatch || "",
+      returnPolicy: returnMatch || "",
       socialLinks,
       trustBadges,
       contentHash,

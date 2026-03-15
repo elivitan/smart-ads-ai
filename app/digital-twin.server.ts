@@ -5,10 +5,16 @@
  * before spending real money. Predicts revenue, ROAS, and risk for
  * campaign launches, budget changes, and seasonal planning.
  */
+import { randomBytes } from "node:crypto";
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
 import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ads.server.js";
 import { getStoreProfile } from "./store-context.server.js";
+
+/** Cryptographically random float in [0, 1) — safe alternative to Math.random for simulations */
+function secureRandom(): number {
+  return randomBytes(4).readUInt32BE(0) / 0x100000000;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,20 +140,20 @@ export async function runDigitalTwinSimulation(
 
       for (let day = 0; day < params.durationDays; day++) {
         // Revenue variation: +/-30% based on historical performance
-        const revenueVariation = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        const revenueVariation = 0.7 + secureRandom() * 0.6; // 0.7 to 1.3
 
         // Seasonal factor: random 0.7-1.3
-        const seasonalFactor = 0.7 + Math.random() * 0.6;
+        const seasonalFactor = 0.7 + secureRandom() * 0.6;
 
         // Competition factor: random 0.8-1.2
-        const competitionFactor = 0.8 + Math.random() * 0.4;
+        const competitionFactor = 0.8 + secureRandom() * 0.4;
 
         // Day-of-week factor (weekdays 1.0-1.1, weekends 0.85-0.95)
         const dayOfWeek = (day % 7);
         const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
         const dayFactor = isWeekend
-          ? 0.85 + Math.random() * 0.1
-          : 1.0 + Math.random() * 0.1;
+          ? 0.85 + secureRandom() * 0.1
+          : 1.0 + secureRandom() * 0.1;
 
         // Calculate daily revenue for this scenario
         const dailyRevenue =
@@ -292,7 +298,7 @@ export async function simulateBudgetChange(
     const revenueResults: number[] = [];
 
     for (let i = 0; i < SCENARIOS; i++) {
-      const variation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+      const variation = 0.8 + secureRandom() * 0.4; // 0.8 to 1.2
       const scenarioRoas = baseRoas * variation;
       const scenarioRevenue = newBudget * scenarioRoas * 30; // monthly projection
       revenueResults.push(scenarioRevenue);

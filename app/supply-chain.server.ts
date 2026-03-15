@@ -7,6 +7,7 @@
 
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -258,9 +259,9 @@ export async function getPreWarmCandidates(
 
         const text =
           response.content[0].type === "text" ? response.content[0].text : "";
-        const match = text.match(/\{[\s\S]*\}/);
+        const match = extractJsonFromText(text);
         if (match) {
-          teaserCopy = JSON.parse(match[0]);
+          teaserCopy = JSON.parse(match);
         }
       } catch (aiErr) {
         logger.error("supply-chain", "AI teaser generation failed, using defaults", {

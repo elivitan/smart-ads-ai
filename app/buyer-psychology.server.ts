@@ -6,6 +6,7 @@
 
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -171,8 +172,8 @@ Return JSON: { "triggers": [{ "type": "...", "phrase": "...", "effectiveness": 0
     const text = firstContent.text;
     let parsed: any;
     try {
-      const match = text.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : { triggers: [] };
+      const match = extractJsonFromText(text);
+      parsed = match ? JSON.parse(match) : { triggers: [] };
     } catch { parsed = { triggers: [] }; }
 
     const triggers = Array.isArray(parsed.triggers) ? parsed.triggers : [];
@@ -250,8 +251,8 @@ Each headline/description MUST leverage at least one emotional trigger.` }],
     const text = secondContent.text;
     let parsed: any;
     try {
-      const match = text.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : { headlines: [], descriptions: [] };
+      const match = extractJsonFromText(text);
+      parsed = match ? JSON.parse(match) : { headlines: [], descriptions: [] };
     } catch { parsed = { headlines: [], descriptions: [] }; }
 
     return {

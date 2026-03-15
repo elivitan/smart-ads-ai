@@ -7,6 +7,7 @@
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ads.server.js";
 import { scanInventoryLevels } from "./inventory-ads.server.js";
 
@@ -41,9 +42,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function parseAgentResponse(text: string): Omit<AgentVote, "agent"> {
   try {
-    const match = text.match(/\{[\s\S]*\}/);
+    const match = extractJsonFromText(text);
     if (match) {
-      const parsed = JSON.parse(match[0]);
+      const parsed = JSON.parse(match);
       return {
         recommendation: parsed.recommendation || "maintain",
         budgetSuggestion: parsed.budgetSuggestion || 0,
@@ -218,9 +219,9 @@ Return JSON only: {"action": "increase"|"decrease"|"maintain"|"pause", "budget":
     let consensus: ConsensusDecision;
 
     try {
-      const match = ceoText.match(/\{[\s\S]*\}/);
+      const match = extractJsonFromText(ceoText);
       if (match) {
-        const parsed = JSON.parse(match[0]);
+        const parsed = JSON.parse(match);
         consensus = {
           action: parsed.action || "maintain",
           budget: parsed.budget || avgDailyCost,

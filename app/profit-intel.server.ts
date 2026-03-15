@@ -1,9 +1,15 @@
 // Profit Intelligence Engine
 // Pure math-based profit analysis, Monte Carlo simulations, and dynamic pricing
 
+import { randomBytes } from "node:crypto";
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
 import { getCampaignPerformanceByDate } from "./google-ads.server.js";
+
+/** Cryptographically random float in [0, 1) */
+function secureRandom(): number {
+  return randomBytes(4).readUInt32BE(0) / 0x100000000;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -288,9 +294,9 @@ export async function runMonteCarloSimulation(
 
     for (let i = 0; i < numSimulations; i++) {
       // Random factors
-      const competitorPriceDrop = Math.random() * 0.20; // 0-20%
-      const seasonalEffect = (Math.random() * 0.60) - 0.30; // -30% to +30%
-      const demandShift = (Math.random() * 0.40) - 0.20; // -20% to +20%
+      const competitorPriceDrop = secureRandom() * 0.20; // 0-20%
+      const seasonalEffect = (secureRandom() * 0.60) - 0.30; // -30% to +30%
+      const demandShift = (secureRandom() * 0.40) - 0.20; // -20% to +20%
 
       // Revenue impact: competitor price drops hurt us, seasonal and demand shifts scale revenue
       const revenueMultiplier = (1 - competitorPriceDrop * 0.5) * (1 + seasonalEffect) * (1 + demandShift);

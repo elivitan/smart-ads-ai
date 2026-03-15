@@ -7,6 +7,7 @@
 
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -220,9 +221,9 @@ export async function createFlashSale(
 
       const text =
         response.content[0].type === "text" ? response.content[0].text : "";
-      const match = text.match(/\{[\s\S]*\}/);
+      const match = extractJsonFromText(text);
       if (match) {
-        adCopy = JSON.parse(match[0]) as FlashSaleAdCopy;
+        adCopy = JSON.parse(match) as FlashSaleAdCopy;
       }
     } catch (aiErr) {
       logger.error("flash-sale", "AI ad copy generation failed, using defaults", {

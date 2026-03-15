@@ -17,7 +17,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server";
 import { logPrompt } from "./utils/prompt-logger.server.js";
-import { sanitizeForPrompt, safeParseAiJson } from "./utils/ai-safety.server.js";
+import { sanitizeForPrompt, safeParseAiJson, stripHtmlTags } from "./utils/ai-safety.server.js";
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
 import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ads.server.js";
@@ -1832,13 +1832,7 @@ export async function scoreLandingPageAlignment(shop: string, productId?: string
       if (pageResponse.ok) {
         const html = await pageResponse.text();
         // Extract text content from HTML (strip tags)
-        pageContent = html
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 3000);
+        pageContent = stripHtmlTags(html).slice(0, 3000);
       }
     } catch {
       // Fetch failed — will mark as insufficient_data

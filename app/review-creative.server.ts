@@ -7,6 +7,7 @@
  */
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -91,14 +92,14 @@ Return JSON only: {"phrases": [{"phrase": "<the customer quote>", "sentiment": "
         });
 
         const responseText = response.content[0].type === "text" ? response.content[0].text : "";
-        const match = responseText.match(/\{[\s\S]*\}/);
+        const match = extractJsonFromText(responseText);
 
         if (!match) {
           logger.warn("review-creative", `Failed to parse AI response for product ${product.id}`);
           continue;
         }
 
-        const parsed = JSON.parse(match[0]);
+        const parsed = JSON.parse(match);
         const phrases: ExtractedPhrase[] = parsed.phrases || [];
 
         // Save each phrase to database
@@ -206,7 +207,7 @@ Return JSON only: {"headlines": ["<headline1>", "<headline2>", "<headline3>", "<
     });
 
     const responseText = response.content[0].type === "text" ? response.content[0].text : "";
-    const match = responseText.match(/\{[\s\S]*\}/);
+    const match = extractJsonFromText(responseText);
 
     if (!match) {
       logger.warn("review-creative", "Failed to parse ad copy response");
@@ -216,7 +217,7 @@ Return JSON only: {"headlines": ["<headline1>", "<headline2>", "<headline3>", "<
       };
     }
 
-    const parsed = JSON.parse(match[0]);
+    const parsed = JSON.parse(match);
     const result: GeneratedAdCopy = {
       headlines: parsed.headlines || [],
       descriptions: parsed.descriptions || [],

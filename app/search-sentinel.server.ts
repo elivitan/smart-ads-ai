@@ -7,6 +7,7 @@
 
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
+import { extractJsonFromText } from "./utils/ai-safety.server.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ads.server.js";
 
@@ -105,9 +106,9 @@ export async function scanSearchTerms(shop: string): Promise<ScanResult> {
             response.content[0].type === "text"
               ? response.content[0].text
               : "";
-          const match = text.match(/\{[\s\S]*\}/);
+          const match = extractJsonFromText(text);
           if (match) {
-            const parsed = JSON.parse(match[0]);
+            const parsed = JSON.parse(match);
             wasteTerms = parsed.wasteTerms || [];
           }
         } catch (aiErr) {
