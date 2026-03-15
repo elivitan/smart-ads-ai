@@ -33,6 +33,8 @@ import { getDailyAdvice, getAiReflectionRules } from "../ai-brain.server.js";
 import { getStoreProfile } from "../store-context.server.js";
 import { getCompetitorTrends } from "../competitor-intel.server.js";
 import { scanInventoryLevels, throttleLowStockCampaigns, boostOverstockedCampaigns } from "../inventory-ads.server.js";
+import { getArbitrageWindows } from "../bid-arbitrage.server.js";
+import { getCurrencyEvents } from "../currency-margin.server.js";
 import { logger } from "./logger.js";
 
 const narrativeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -231,6 +233,103 @@ export async function runOptimization(shop: string): Promise<OptResult> {
       avoidRules = await getAiReflectionRules(shop);
     } catch {
       // Non-critical, continue without learned rules
+    }
+
+    // 2.9 Bid Arbitrage gate — check if current hour is an arbitrage window
+    let arbitrageBoost = false;
+    let arbitrageWindows: Array<{ dayOfWeek: number; hourStart: number; hourEnd: number; bidMultiplier: number; isArbitrage: boolean }> = [];
+    try {
+      const allWindows = await getArbitrageWindows(shop);
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentHour = now.getHours();
+      arbitrageWindows = allWindows;
+      const activeWindow = allWindows.find(
+        (w: any) => w.isArbitrage && w.dayOfWeek === currentDay && currentHour >= w.hourStart && currentHour < w.hourEnd
+      );
+      if (activeWindow) {
+        arbitrageBoost = true;
+        logger.info("optimizer", `Bid arbitrage window active: ${currentDay}/${currentHour}:00, multiplier ${activeWindow.bidMultiplier}x`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical, continue without arbitrage data
+    }
+
+    // 2.10 Currency margin gate — check for margin squeeze events
+    let marginSqueezeProducts: string[] = [];
+    try {
+      const events = await getCurrencyEvents(shop);
+      const recentSqueezes = events.filter(
+        (e: any) => e.eventType === "margin_squeeze" && (Date.now() - new Date(e.createdAt).getTime()) < 7 * 86400000
+      );
+      for (const squeeze of recentSqueezes) {
+        try {
+          const affected = JSON.parse(squeeze.productsAffected || "[]");
+          marginSqueezeProducts.push(...affected);
+        } catch { /* ignore parse errors */ }
+      }
+      if (marginSqueezeProducts.length > 0) {
+        logger.info("optimizer", `Currency margin squeeze affecting ${marginSqueezeProducts.length} products`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical, continue without currency data
+    }
+
+    // 2.11 Competitor Strike gate — check for active strikes to boost
+    let activeStrikeDomains: string[] = [];
+    try {
+      const activeStrikes = await prisma.competitorStrike.findMany({
+        where: { shop, status: "active" },
+        select: { competitorDomain: true, targetKeywords: true },
+      });
+      activeStrikeDomains = activeStrikes.map((s) => s.competitorDomain);
+      if (activeStrikeDomains.length > 0) {
+        logger.info("optimizer", `Active competitor strikes: ${activeStrikeDomains.join(", ")}`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // 2.12 Ghost Campaign gate — check for testing ghosts that need validation
+    try {
+      const testingGhosts = await prisma.ghostCampaign.findMany({
+        where: { shop, status: "testing" },
+        select: { id: true, keyword: true, campaignId: true },
+      });
+      if (testingGhosts.length > 0) {
+        logger.info("optimizer", `${testingGhosts.length} ghost campaigns in testing phase`, {
+          extra: { shop },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // 2.13 Life Moment gate — check for upcoming moments
+    try {
+      const upcomingMoments = await prisma.lifeMomentCampaign.findMany({
+        where: { shop, status: "draft" },
+        select: { momentType: true, seasonStart: true },
+      });
+      const now = new Date();
+      for (const moment of upcomingMoments) {
+        if (moment.seasonStart) {
+          const daysUntil = Math.ceil((moment.seasonStart.getTime() - now.getTime()) / 86400000);
+          if (daysUntil <= 14 && daysUntil > 0) {
+            logger.info("optimizer", `Life moment "${moment.momentType}" starts in ${daysUntil} days — draft campaign exists`, {
+              extra: { shop },
+            });
+          }
+        }
+      }
+    } catch {
+      // Non-critical
     }
 
     // 3. Apply optimization rules to each campaign
@@ -631,6 +730,84 @@ export async function runOptimization(shop: string): Promise<OptResult> {
             campaignName: campaign.name,
             action: "alert_creative_fatigue",
             reason: `המודעות שלך מתחילות "להתיש" את הקהל — ${fatigue.weeksOfDecline} שבועות רצופים של ירידה בלחיצות (מ-${fatigue.peakCtr.toFixed(1)}% ל-${fatigue.currentCtr.toFixed(1)}%). הגיע הזמן לרענן את הטקסטים.`,
+            aiGrade: result.aiGrade,
+          });
+        }
+      }
+
+      // ── Engine 22: Bid Arbitrage — boost budget during arbitrage windows ──
+      if (
+        arbitrageBoost &&
+        campaign.status === "ENABLED" &&
+        dailyBudget > 0 &&
+        roas >= minRoas &&
+        canAddAction()
+      ) {
+        const boostPct = 0.15; // 15% budget boost during low-CPC windows
+        const newBudget = Math.round(dailyBudget * (1 + boostPct));
+        plannedActions.push({
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          action: "adjust_budget",
+          reason: `נמצא חלון ארביטראז' — העלות לקליק נמוכה כרגע אבל ההמרות גבוהות. מעלה תקציב ב-15% כדי לנצל את ההזדמנות.`,
+          previousValue: `budget:${dailyBudget}`,
+          newValue: `budget:${newBudget}`,
+          aiGrade: result.aiGrade,
+        });
+      }
+
+      // ── Engine 23: Currency Margin — reduce budget if margin squeeze ──
+      if (
+        marginSqueezeProducts.length > 0 &&
+        campaign.status === "ENABLED" &&
+        dailyBudget > 1 &&
+        canAddAction()
+      ) {
+        // Check if this campaign's products are affected by margin squeeze
+        try {
+          const campaignJob = await prisma.campaignJob.findFirst({
+            where: { googleCampaignId: campaign.id, shop },
+            select: { payload: true },
+          });
+          if (campaignJob?.payload) {
+            const payload = JSON.parse(campaignJob.payload);
+            const productId = payload.productId || payload.productTitle;
+            if (productId && marginSqueezeProducts.includes(productId)) {
+              const reducePct = 0.2;
+              const newBudget = Math.max(1, Math.round(dailyBudget * (1 - reducePct)));
+              plannedActions.push({
+                campaignId: campaign.id,
+                campaignName: campaign.name,
+                action: "adjust_budget",
+                reason: `שער המטבע ירד ופוגע במרווח הרווח של המוצרים בקמפיין הזה. מקטין תקציב ב-20% עד שהמצב משתפר.`,
+                previousValue: `budget:${dailyBudget}`,
+                newValue: `budget:${newBudget}`,
+                aiGrade: result.aiGrade,
+              });
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // ── Engine 19: Competitor Strike — boost campaigns during active strikes ──
+      if (
+        activeStrikeDomains.length > 0 &&
+        campaign.status === "ENABLED" &&
+        roas >= minRoas &&
+        dailyBudget > 0 &&
+        canAddAction()
+      ) {
+        // Boost performing campaigns when we have active strikes
+        const boostPct = 0.1;
+        const newBudget = Math.round(dailyBudget * (1 + boostPct));
+        if (newBudget > dailyBudget) {
+          plannedActions.push({
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            action: "adjust_budget",
+            reason: `מתקפה תחרותית פעילה נגד ${activeStrikeDomains[0]}. מעלה תקציב ב-10% כדי לתפוס נתח שוק בזמן שהמתחרה חלש.`,
+            previousValue: `budget:${dailyBudget}`,
+            newValue: `budget:${newBudget}`,
             aiGrade: result.aiGrade,
           });
         }

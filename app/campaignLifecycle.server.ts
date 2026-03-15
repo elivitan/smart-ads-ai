@@ -21,6 +21,7 @@ import { createCampaign } from "./google-ads.server";
 import { withRetry } from "./retry.server";
 import prisma from "./db.server";
 import { withDbRetry } from "./utils/db-health";
+import { logger } from "./utils/logger";
 
 // ── Campaign States ──────────────────────────────────────────────────────
 export const CAMPAIGN_STATES = {
@@ -163,6 +164,25 @@ export async function launchCampaign(shop: any, payload: any) {
         validationErrors: validation.errors,
         retryable: false,
       };
+    }
+
+    // ── Step 1.5: AI INTELLIGENCE ENRICHMENT ────────────────────────
+    // Enrich campaign with data from engines 19-23 before creation
+    try {
+      const enrichment = await enrichCampaignWithIntelligence(shop, payload);
+      if (enrichment.adjustedBudget) {
+        payload.budgetAmount = String(enrichment.adjustedBudget);
+      }
+      if (enrichment.additionalKeywords?.length > 0) {
+        payload.keywords = [...(payload.keywords || []), ...enrichment.additionalKeywords];
+      }
+      if (enrichment.warnings?.length > 0) {
+        logger.info("campaign-lifecycle", "Intelligence enrichment warnings", {
+          extra: { shop, warnings: enrichment.warnings },
+        });
+      }
+    } catch {
+      // Non-critical — continue with original payload
     }
 
     // ── Step 2: CREATING ─────────────────────────────────────────────
@@ -426,4 +446,88 @@ function isRetryableError(err: any) {
     msg.includes("ECONNRESET") ||
     msg.includes("ETIMEDOUT")
   );
+}
+
+/**
+ * Enrich campaign payload with intelligence from engines 19-23.
+ * Non-critical — if any engine fails, we continue with the original payload.
+ */
+async function enrichCampaignWithIntelligence(
+  shop: string,
+  payload: any,
+): Promise<{
+  adjustedBudget: number | null;
+  additionalKeywords: string[];
+  warnings: string[];
+}> {
+  const result = { adjustedBudget: null as number | null, additionalKeywords: [] as string[], warnings: [] as string[] };
+  const budget = parseFloat(payload.budgetAmount) || 50;
+
+  // Engine 22: Bid Arbitrage — check if now is a good time to launch
+  try {
+    const windows = await prisma.bidArbitrageWindow.findMany({
+      where: { shop, isArbitrage: true },
+      orderBy: { avgCpc: "asc" },
+      take: 5,
+    });
+    if (windows.length > 0) {
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentHour = now.getHours();
+      const activeWindow = windows.find(
+        (w) => w.dayOfWeek === currentDay && currentHour >= w.hourStart && currentHour < w.hourEnd,
+      );
+      if (activeWindow) {
+        // Great time to launch — boost initial budget slightly
+        result.adjustedBudget = Math.round(budget * 1.1);
+        result.warnings.push(`Launching during arbitrage window — CPC is low now. Budget boosted 10%.`);
+      }
+    }
+  } catch { /* non-critical */ }
+
+  // Engine 23: Currency Margin — check if margin squeeze affects this product
+  try {
+    const recentSqueezes = await prisma.currencyMarginEvent.findMany({
+      where: {
+        shop,
+        eventType: "margin_squeeze",
+        createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
+      },
+      take: 5,
+    });
+    if (recentSqueezes.length > 0) {
+      result.warnings.push(`Currency margin squeeze detected — monitor ROAS closely.`);
+    }
+  } catch { /* non-critical */ }
+
+  // Engine 20: Ghost Campaign — add validated ghost keywords
+  try {
+    const validatedGhosts = await prisma.ghostCampaign.findMany({
+      where: { shop, status: "validated" },
+      orderBy: { opportunityScore: "desc" },
+      take: 5,
+    });
+    for (const ghost of validatedGhosts) {
+      if (ghost.keyword && !payload.keywords?.includes(ghost.keyword)) {
+        result.additionalKeywords.push(ghost.keyword);
+      }
+    }
+    if (result.additionalKeywords.length > 0) {
+      result.warnings.push(`Added ${result.additionalKeywords.length} validated ghost keywords from discovery engine.`);
+    }
+  } catch { /* non-critical */ }
+
+  // Engine 19: Competitor Strike — warn if competitor is being attacked
+  try {
+    const activeStrikes = await prisma.competitorStrike.findMany({
+      where: { shop, status: "active" },
+      take: 3,
+    });
+    if (activeStrikes.length > 0) {
+      const domains = activeStrikes.map((s) => s.competitorDomain).join(", ");
+      result.warnings.push(`Active competitor strikes on ${domains} — new campaigns may benefit from reduced competition.`);
+    }
+  } catch { /* non-critical */ }
+
+  return result;
 }
