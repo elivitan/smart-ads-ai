@@ -277,3 +277,101 @@ model OptimizationRecommendation {
   @@index([campaignId])
   @@index([createdAt])
 }
+
+model CompetitorProfile {
+  id                String    @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  healthScore       Int       @default(50)
+  marketPosition    String    @default("unknown")
+  lastWebsiteHash   String?   @db.Text
+  lastPrices        String    @default("[]") @db.Text
+  lastMessaging     String?   @db.Text
+  lastProductCount  Int?
+  adCopyHistory     String    @default("[]") @db.Text
+  hiringSignal      String?
+  reviewRating      Float?
+  reviewCount       Int?
+  reviewSentiment   String?
+  shippingSpeed     String?
+  returnPolicy      String?
+  vulnerabilities   String    @default("[]") @db.Text
+  strengths         String    @default("[]") @db.Text
+  lastScrapedAt     DateTime?
+  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime  @default(now())
+
+  @@unique([shop, competitorDomain])
+  @@index([shop])
+}
+
+model CompetitorChange {
+  id                String   @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  changeType        String   // "price_change" | "messaging_change" | "product_added" | "product_removed" | "ad_copy_change" | "review_change"
+  summary           String   @db.Text
+  oldValue          String?  @db.Text
+  newValue          String?  @db.Text
+  severity          String   @default("low") // "low" | "medium" | "high"
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, competitorDomain])
+  @@index([createdAt])
+}
+
+model ABTest {
+  id              String    @id @default(cuid())
+  shop            String
+  campaignId      String
+  campaignName    String    @default("")
+  status          String    @default("running") // "running" | "winner_found" | "cancelled"
+  variations      String    @db.Text  // JSON: [{id, headlines[], descriptions[], impressions, clicks, conversions, cost, startedAt}]
+  winnerId        String?
+  winnerReason    String?   @db.Text
+  confidenceLevel Float?
+  triggerReason   String    @default("manual") // "manual" | "creative_fatigue" | "scheduled"
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([status])
+}
+
+model WeeklyReport {
+  id               String   @id @default(cuid())
+  shop             String
+  weekStart        DateTime
+  weekEnd          DateTime
+  reportJson       String   @db.Text
+  summary          String   @db.Text
+  performanceGrade String   @default("?")
+  totalSpend       Float    @default(0)
+  totalRevenue     Float    @default(0)
+  totalActions     Int      @default(0)
+  competitorChanges Int     @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, weekStart])
+}
+
+model KeywordGapAnalysis {
+  id               String   @id @default(cuid())
+  shop             String
+  keyword          String
+  source           String   // competitor domain(s)
+  estimatedVolume  Int?
+  competitionLevel String   @default("medium") // "low" | "medium" | "high"
+  opportunityScore Int      @default(50)       // 0-100
+  suggestedBid     Float?
+  status           String   @default("new")    // "new" | "targeted" | "dismissed"
+  createdAt        DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, opportunityScore])
+}

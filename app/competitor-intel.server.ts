@@ -576,6 +576,724 @@ export async function getCompetitorTrends(shop: string, days: number = 30): Prom
   );
 }
 
+// ── Deep Business Intelligence — Industrial-grade competitor spy ────────────
+
+interface DeepScrapedData {
+  title: string;
+  metaDescription: string;
+  messaging: string;  // key marketing messages
+  prices: string[];
+  productCount: number;
+  shippingInfo: string;
+  returnPolicy: string;
+  socialLinks: string[];
+  trustBadges: string[];
+  contentHash: string;  // for change detection
+}
+
+interface CompetitorProfileData {
+  domain: string;
+  healthScore: number;
+  marketPosition: string;
+  hiringSignal: string | null;
+  reviewRating: number | null;
+  reviewCount: number | null;
+  reviewSentiment: string | null;
+  vulnerabilities: string[];
+  strengths: string[];
+}
+
+/**
+ * Deep scrape — collects much more than basic scraping.
+ * Products count, return policy, trust signals, social presence, messaging.
+ */
+async function scrapeCompetitorDeep(url: string): Promise<DeepScrapedData | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+    clearTimeout(timeout);
+    const html = await res.text();
+
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+
+    // Prices
+    const priceMatches = html.match(/\$[\d,.]+/g);
+    const prices = priceMatches ? [...new Set(priceMatches)].slice(0, 10) : [];
+
+    // Product count estimate — look for collection pages and product links
+    const productLinkMatches = html.match(/\/products?\//gi) || [];
+    const collectionMatches = html.match(/\/collections?\//gi) || [];
+    const productCount = Math.max(productLinkMatches.length, collectionMatches.length);
+
+    // Shipping info
+    const shippingMatch = html.match(/(?:free shipping|fast delivery|ships in \d+ days?|next[- ]day delivery|express shipping|\d+[- ]day shipping)/i);
+
+    // Return policy
+    const returnMatch = html.match(/(?:\d+ days? returns?|free returns?|money[- ]back guarantee|easy returns?|no[- ]hassle returns?|full refund)/i);
+
+    // Social media links
+    const socialPatterns = [
+      /href=["'][^"']*(?:facebook\.com|fb\.com)[^"']*["']/gi,
+      /href=["'][^"']*(?:instagram\.com)[^"']*["']/gi,
+      /href=["'][^"']*(?:twitter\.com|x\.com)[^"']*["']/gi,
+      /href=["'][^"']*(?:tiktok\.com)[^"']*["']/gi,
+      /href=["'][^"']*(?:youtube\.com)[^"']*["']/gi,
+    ];
+    const socialLinks: string[] = [];
+    for (const p of socialPatterns) {
+      if (p.test(html)) {
+        const platform = p.source.match(/(?:facebook|instagram|twitter|tiktok|youtube)/)?.[0] || "social";
+        socialLinks.push(platform);
+      }
+    }
+
+    // Trust badges
+    const trustPatterns = [
+      /(?:ssl|secure checkout|256[- ]bit|encrypted)/i,
+      /(?:bbb|better business|accredited)/i,
+      /(?:verified|trusted|certified)/i,
+      /(?:shopify secure|norton|mcafee)/i,
+    ];
+    const trustBadges: string[] = [];
+    for (const p of trustPatterns) {
+      const m = html.match(p);
+      if (m) trustBadges.push(m[0]);
+    }
+
+    // Key messaging — extract H1, H2, taglines
+    const messagingParts: string[] = [];
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (h1Match) messagingParts.push(h1Match[1].trim());
+    const h2Matches = html.match(/<h2[^>]*>([^<]+)<\/h2>/gi) || [];
+    for (const h2 of h2Matches.slice(0, 3)) {
+      const text = h2.replace(/<[^>]+>/g, "").trim();
+      if (text.length > 5 && text.length < 100) messagingParts.push(text);
+    }
+
+    // Content hash for change detection
+    const keyContent = [
+      titleMatch?.[1] || "",
+      metaDescMatch?.[1] || "",
+      prices.join(","),
+      messagingParts.join("|"),
+    ].join("|||");
+    let hash = 0;
+    for (let i = 0; i < keyContent.length; i++) {
+      const char = keyContent.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0;
+    }
+    const contentHash = hash.toString(36);
+
+    return {
+      title: titleMatch?.[1]?.trim() || "",
+      metaDescription: metaDescMatch?.[1]?.trim() || "",
+      messaging: messagingParts.join(" | "),
+      prices,
+      productCount,
+      shippingInfo: shippingMatch?.[0] || "",
+      returnPolicy: returnMatch?.[0] || "",
+      socialLinks,
+      trustBadges,
+      contentHash,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if competitor is hiring (growing) or shrinking.
+ * Uses SerpAPI to search for careers pages and layoff news.
+ */
+async function checkHiringSignals(domain: string): Promise<string | null> {
+  if (!SERP_KEY) return null;
+  try {
+    // Check for hiring
+    const hiringData = await searchGoogle(`site:${domain} careers OR jobs OR "we're hiring"`);
+    const hasHiring = hiringData.organic.length > 0;
+
+    // Check for layoffs/troubles
+    const troubleData = await searchGoogle(`"${domain}" layoffs OR downsizing OR "closing down"`);
+    const hasTrouble = troubleData.organic.length > 0;
+
+    if (hasTrouble && !hasHiring) return "shrinking";
+    if (hasHiring && !hasTrouble) return "growing";
+    if (hasHiring && hasTrouble) return "stable";
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check review sentiment from Google search results.
+ * Extracts aggregate ratings from search result structured data.
+ */
+async function checkReviewSentiment(domain: string): Promise<{
+  rating: number | null;
+  count: number | null;
+  sentiment: string | null;
+}> {
+  if (!SERP_KEY) return { rating: null, count: null, sentiment: null };
+  try {
+    const data = await searchGoogle(`"${domain}" reviews`);
+    // Look for rating patterns in snippets
+    let bestRating: number | null = null;
+    let totalCount: number | null = null;
+
+    for (const r of data.organic.slice(0, 5)) {
+      const ratingMatch = r.snippet.match(/(\d+\.?\d*)\s*(?:out of 5|\/5|stars?)/i);
+      const countMatch = r.snippet.match(/(\d+[,.]?\d*)\s*(?:reviews?|ratings?)/i);
+
+      if (ratingMatch && !bestRating) {
+        bestRating = parseFloat(ratingMatch[1]);
+      }
+      if (countMatch && !totalCount) {
+        totalCount = parseInt(countMatch[1].replace(/[,.]/g, ""));
+      }
+    }
+
+    const sentiment = bestRating
+      ? bestRating >= 4.0 ? "positive"
+        : bestRating >= 3.0 ? "mixed"
+        : "negative"
+      : null;
+
+    return { rating: bestRating, count: totalCount, sentiment };
+  } catch {
+    return { rating: null, count: null, sentiment: null };
+  }
+}
+
+/**
+ * Calculate a 0-100 health score for a competitor.
+ * Higher = stronger competitor (more threat).
+ */
+export function calculateHealthScore(
+  profile: {
+    reviewRating?: number | null;
+    reviewCount?: number | null;
+    hiringSignal?: string | null;
+    shippingSpeed?: string | null;
+    returnPolicy?: string | null;
+    vulnerabilities?: string[];
+    adCopyHistory?: string;
+    lastScrapedAt?: Date | null;
+  },
+  trend?: CompetitorTrend
+): number {
+  let score = 50; // base
+
+  // Ad spend trend (20 points)
+  if (trend) {
+    if (trend.spendChange > 20) score += 15;
+    else if (trend.spendChange > 0) score += 8;
+    else if (trend.spendChange < -20) score -= 10;
+  }
+
+  // Review rating (15 points)
+  if (profile.reviewRating) {
+    if (profile.reviewRating >= 4.5) score += 15;
+    else if (profile.reviewRating >= 4.0) score += 10;
+    else if (profile.reviewRating >= 3.0) score += 5;
+    else score -= 5;
+  }
+
+  // Review count (social proof)
+  if (profile.reviewCount) {
+    if (profile.reviewCount > 500) score += 5;
+    else if (profile.reviewCount > 100) score += 3;
+  }
+
+  // Hiring signals (10 points)
+  if (profile.hiringSignal === "growing") score += 10;
+  else if (profile.hiringSignal === "shrinking") score -= 10;
+
+  // Shipping quality (10 points)
+  if (profile.shippingSpeed) {
+    if (/free/i.test(profile.shippingSpeed)) score += 10;
+    else if (/fast|next/i.test(profile.shippingSpeed)) score += 7;
+  }
+
+  // Return policy (10 points)
+  if (profile.returnPolicy) {
+    if (/free return|money.back/i.test(profile.returnPolicy)) score += 10;
+    else score += 5;
+  }
+
+  // Vulnerabilities reduce score
+  const vulns = profile.vulnerabilities || [];
+  score -= vulns.length * 3;
+
+  // Ad copy diversity
+  try {
+    const history = JSON.parse(profile.adCopyHistory || "[]");
+    if (history.length > 3) score += 5; // diverse ads = strong
+  } catch { /* ignore */ }
+
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Detect vulnerabilities in a competitor's profile.
+ * Returns Hebrew descriptions of weaknesses to exploit.
+ */
+export function detectVulnerabilities(profile: {
+  reviewRating?: number | null;
+  reviewCount?: number | null;
+  shippingSpeed?: string | null;
+  returnPolicy?: string | null;
+  hiringSignal?: string | null;
+  lastPrices?: string;
+  socialLinks?: string[];
+}): string[] {
+  const vulns: string[] = [];
+
+  if (profile.reviewRating && profile.reviewRating < 3.5) {
+    vulns.push("ביקורות חלשות מלקוחות — ההזדמנות שלך להדגיש שירות טוב יותר");
+  }
+  if (!profile.reviewCount || profile.reviewCount < 10) {
+    vulns.push("כמעט אין ביקורות — העסק חדש או לא מספיק פופולרי");
+  }
+  if (!profile.shippingSpeed || !/free/i.test(profile.shippingSpeed)) {
+    vulns.push("אין משלוח חינם — תציע משלוח חינם כדי למשוך לקוחות");
+  }
+  if (!profile.returnPolicy) {
+    vulns.push("מדיניות החזרה לא ברורה — שים דגש על מדיניות ההחזרה שלך");
+  }
+  if (profile.hiringSignal === "shrinking") {
+    vulns.push("נראה שהם מצמצמים — ייתכן שהעסק בקשיים");
+  }
+
+  // Check prices — expensive competitor
+  try {
+    const prices = JSON.parse(profile.lastPrices || "[]");
+    const numPrices = prices.map((p: string) => parseFloat(p.replace(/[$,]/g, ""))).filter((n: number) => !isNaN(n));
+    const avgPrice = numPrices.length > 0 ? numPrices.reduce((a: number, b: number) => a + b, 0) / numPrices.length : 0;
+    if (avgPrice > 100) {
+      vulns.push("מחירים גבוהים — אם המוצרים שלך זולים יותר, תדגיש את זה");
+    }
+  } catch { /* ignore */ }
+
+  const socials = (profile as any).socialLinks || [];
+  if (!socials || socials.length === 0) {
+    vulns.push("אין נוכחות ברשתות חברתיות — חולשה בביסוס מותג");
+  }
+
+  return vulns;
+}
+
+/**
+ * Detect changes in a competitor's website compared to stored profile.
+ * Creates CompetitorChange records for each detected change.
+ */
+async function detectWebsiteChanges(
+  shop: string,
+  domain: string,
+  newData: DeepScrapedData
+): Promise<void> {
+  try {
+    const existing = await prisma.competitorProfile.findUnique({
+      where: { shop_competitorDomain: { shop, competitorDomain: domain } },
+    });
+
+    if (!existing || !existing.lastWebsiteHash) return; // first scan, nothing to compare
+    if (existing.lastWebsiteHash === newData.contentHash) return; // no changes
+
+    const changes: Array<{changeType: string; summary: string; oldValue?: string; newValue?: string; severity: string}> = [];
+
+    // Price changes
+    const oldPrices = JSON.parse(existing.lastPrices || "[]");
+    if (JSON.stringify(oldPrices) !== JSON.stringify(newData.prices) && newData.prices.length > 0) {
+      changes.push({
+        changeType: "price_change",
+        summary: `${domain} שינה מחירים`,
+        oldValue: oldPrices.join(", "),
+        newValue: newData.prices.join(", "),
+        severity: "medium",
+      });
+    }
+
+    // Messaging change
+    if (existing.lastMessaging && newData.messaging && existing.lastMessaging !== newData.messaging) {
+      changes.push({
+        changeType: "messaging_change",
+        summary: `${domain} שינה את המסרים באתר — יכול להיות שהוא משנה אסטרטגיה`,
+        oldValue: existing.lastMessaging.slice(0, 200),
+        newValue: newData.messaging.slice(0, 200),
+        severity: "medium",
+      });
+    }
+
+    // Product count change
+    if (existing.lastProductCount && newData.productCount > 0) {
+      const diff = newData.productCount - existing.lastProductCount;
+      if (diff > 5) {
+        changes.push({
+          changeType: "product_added",
+          summary: `${domain} הוסיף כ-${diff} מוצרים חדשים — הוא מרחיב את העסק`,
+          severity: "low",
+        });
+      } else if (diff < -5) {
+        changes.push({
+          changeType: "product_removed",
+          summary: `${domain} הוריד כ-${Math.abs(diff)} מוצרים — ייתכן שהוא מצמצם`,
+          severity: "medium",
+        });
+      }
+    }
+
+    // Save all detected changes
+    for (const c of changes) {
+      await prisma.competitorChange.create({
+        data: {
+          shop,
+          competitorDomain: domain,
+          changeType: c.changeType,
+          summary: c.summary,
+          oldValue: c.oldValue || null,
+          newValue: c.newValue || null,
+          severity: c.severity,
+        },
+      });
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Run deep intelligence scan for all known competitors of a shop.
+ * Gathers: website data, hiring signals, reviews, changes, health score.
+ */
+export async function runDeepCompetitorScan(shop: string): Promise<{
+  profiles: CompetitorProfileData[];
+  changes: number;
+  briefing: string;
+}> {
+  // Get all known competitor domains
+  const snapshots = await prisma.competitorSnapshot.findMany({
+    where: { shop },
+    select: { competitorDomain: true },
+    distinct: ["competitorDomain"],
+    take: 10,
+  });
+
+  if (snapshots.length === 0) {
+    return { profiles: [], changes: 0, briefing: "אין עדיין מידע על מתחרים. תריץ סריקת מוצרים כדי שנתחיל לאסוף מודיעין." };
+  }
+
+  const domains = snapshots.map((s) => s.competitorDomain);
+  const profiles: CompetitorProfileData[] = [];
+  let totalChanges = 0;
+
+  // Get trends for health score calculation
+  const trends = await getCompetitorTrends(shop, 30);
+  const trendMap: Record<string, CompetitorTrend> = {};
+  for (const t of trends) trendMap[t.domain] = t;
+
+  for (const domain of domains) {
+    try {
+      // Deep scrape
+      const deepData = await scrapeCompetitorDeep(`https://${domain}`);
+
+      // Hiring signals
+      const hiringSignal = await checkHiringSignals(domain);
+
+      // Review sentiment
+      const reviewData = await checkReviewSentiment(domain);
+
+      // Detect changes (needs existing profile)
+      if (deepData) {
+        await detectWebsiteChanges(shop, domain, deepData);
+      }
+
+      // Build vulnerabilities
+      const vulns = detectVulnerabilities({
+        reviewRating: reviewData.rating,
+        reviewCount: reviewData.count,
+        shippingSpeed: deepData?.shippingInfo || null,
+        returnPolicy: deepData?.returnPolicy || null,
+        hiringSignal,
+      });
+
+      // Calculate strengths
+      const strengths: string[] = [];
+      if (reviewData.rating && reviewData.rating >= 4.0) strengths.push("ביקורות טובות מלקוחות");
+      if (deepData?.shippingInfo && /free/i.test(deepData.shippingInfo)) strengths.push("משלוח חינם");
+      if (deepData?.returnPolicy && /free return/i.test(deepData.returnPolicy)) strengths.push("החזרה חינם");
+      if (hiringSignal === "growing") strengths.push("העסק גדל ומגייס עובדים");
+      if (deepData?.socialLinks && deepData.socialLinks.length >= 3) strengths.push("נוכחות חזקה ברשתות חברתיות");
+      if (deepData?.trustBadges && deepData.trustBadges.length > 0) strengths.push("תגי אמון ואבטחה");
+
+      // Determine market position
+      const avgPriceData = deepData?.prices.map((p) => parseFloat(p.replace(/[$,]/g, ""))).filter((n) => !isNaN(n)) || [];
+      const avgPrice = avgPriceData.length > 0 ? avgPriceData.reduce((a, b) => a + b, 0) / avgPriceData.length : 0;
+      let marketPosition = "unknown";
+      if (avgPrice > 200) marketPosition = "premium";
+      else if (avgPrice > 50) marketPosition = "mid-range";
+      else if (avgPrice > 0) marketPosition = "value";
+
+      const healthScore = calculateHealthScore(
+        { reviewRating: reviewData.rating, reviewCount: reviewData.count, hiringSignal, shippingSpeed: deepData?.shippingInfo, returnPolicy: deepData?.returnPolicy, vulnerabilities: vulns },
+        trendMap[domain]
+      );
+
+      // Upsert CompetitorProfile
+      await prisma.competitorProfile.upsert({
+        where: { shop_competitorDomain: { shop, competitorDomain: domain } },
+        create: {
+          shop,
+          competitorDomain: domain,
+          healthScore,
+          marketPosition,
+          lastWebsiteHash: deepData?.contentHash || null,
+          lastPrices: JSON.stringify(deepData?.prices || []),
+          lastMessaging: deepData?.messaging || null,
+          lastProductCount: deepData?.productCount || null,
+          hiringSignal,
+          reviewRating: reviewData.rating,
+          reviewCount: reviewData.count,
+          reviewSentiment: reviewData.sentiment,
+          shippingSpeed: deepData?.shippingInfo || null,
+          returnPolicy: deepData?.returnPolicy || null,
+          vulnerabilities: JSON.stringify(vulns),
+          strengths: JSON.stringify(strengths),
+          lastScrapedAt: new Date(),
+        },
+        update: {
+          healthScore,
+          marketPosition,
+          lastWebsiteHash: deepData?.contentHash || null,
+          lastPrices: JSON.stringify(deepData?.prices || []),
+          lastMessaging: deepData?.messaging || null,
+          lastProductCount: deepData?.productCount || null,
+          hiringSignal,
+          reviewRating: reviewData.rating,
+          reviewCount: reviewData.count,
+          reviewSentiment: reviewData.sentiment,
+          shippingSpeed: deepData?.shippingInfo || null,
+          returnPolicy: deepData?.returnPolicy || null,
+          vulnerabilities: JSON.stringify(vulns),
+          strengths: JSON.stringify(strengths),
+          lastScrapedAt: new Date(),
+        },
+      });
+
+      profiles.push({ domain, healthScore, marketPosition, hiringSignal, reviewRating: reviewData.rating, reviewCount: reviewData.count, reviewSentiment: reviewData.sentiment, vulnerabilities: vulns, strengths });
+    } catch {
+      // Skip this domain, continue with others
+    }
+  }
+
+  // Count recent changes
+  const recentChanges = await prisma.competitorChange.count({
+    where: { shop, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+  });
+  totalChanges = recentChanges;
+
+  // Generate briefing
+  const briefing = generateIntelligenceBriefingSync(profiles);
+
+  return { profiles, changes: totalChanges, briefing };
+}
+
+/**
+ * Generate Hebrew intelligence briefing from competitor profiles.
+ * Synchronous version — no AI needed, rule-based.
+ */
+function generateIntelligenceBriefingSync(profiles: CompetitorProfileData[]): string {
+  if (profiles.length === 0) return "אין מתחרים לנתח כרגע.";
+
+  const parts: string[] = [];
+  parts.push(`סרקנו ${profiles.length} מתחרים. הנה מה שמצאנו:\n`);
+
+  // Sort by health score descending — strongest first
+  const sorted = [...profiles].sort((a, b) => b.healthScore - a.healthScore);
+
+  // Strongest competitor
+  const strongest = sorted[0];
+  parts.push(`האיום הגדול ביותר: ${strongest.domain} (ציון חוזק: ${strongest.healthScore}/100)`);
+  if (strongest.strengths.length > 0) {
+    parts.push(`  היתרונות שלהם: ${strongest.strengths.join(", ")}`);
+  }
+
+  // Weakest competitor
+  const weakest = sorted[sorted.length - 1];
+  if (weakest.domain !== strongest.domain) {
+    parts.push(`\nהמתחרה הכי חלש: ${weakest.domain} (ציון: ${weakest.healthScore}/100)`);
+    if (weakest.vulnerabilities.length > 0) {
+      parts.push(`  חולשות: ${weakest.vulnerabilities[0]}`);
+    }
+  }
+
+  // Growing/shrinking competitors
+  const growing = profiles.filter((p) => p.hiringSignal === "growing");
+  const shrinking = profiles.filter((p) => p.hiringSignal === "shrinking");
+  if (growing.length > 0) {
+    parts.push(`\nמתחרים שגדלים: ${growing.map((p) => p.domain).join(", ")} — שים לב, הם מגייסים.`);
+  }
+  if (shrinking.length > 0) {
+    parts.push(`מתחרים שמצמצמים: ${shrinking.map((p) => p.domain).join(", ")} — הזדמנות לתפוס נתח שוק.`);
+  }
+
+  // Overall review landscape
+  const withReviews = profiles.filter((p) => p.reviewRating !== null);
+  if (withReviews.length > 0) {
+    const avgRating = withReviews.reduce((sum, p) => sum + (p.reviewRating || 0), 0) / withReviews.length;
+    parts.push(`\nדירוג ביקורות ממוצע בשוק: ${avgRating.toFixed(1)}/5`);
+    if (avgRating < 4.0) {
+      parts.push("→ ביקורות בינוניות בשוק — אם שירות הלקוחות שלך טוב, תדגיש את זה!");
+    }
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * Get competitor profiles for a shop.
+ */
+export async function getCompetitorProfiles(shop: string): Promise<any[]> {
+  return prisma.competitorProfile.findMany({
+    where: { shop },
+    orderBy: { healthScore: "desc" },
+  });
+}
+
+/**
+ * Get recent competitor changes for a shop.
+ */
+export async function getCompetitorChanges(shop: string, days: number = 30): Promise<any[]> {
+  return prisma.competitorChange.findMany({
+    where: { shop, createdAt: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+}
+
+// ── Keyword Gap Analysis — What competitors target and you don't ──────────
+
+export interface KeywordGap {
+  keyword: string;
+  source: string;        // which competitors use this keyword
+  competitorCount: number;
+  opportunityScore: number;
+}
+
+/**
+ * Find keywords that competitors target but the store doesn't.
+ * Compares CompetitorSnapshot keywords vs active Google Ads keywords.
+ */
+export async function runGapAnalysis(shop: string): Promise<KeywordGap[]> {
+  // 1. Load competitor keywords from all snapshots
+  const snapshots = await prisma.competitorSnapshot.findMany({
+    where: { shop },
+    select: { competitorDomain: true, keywords: true },
+  });
+
+  const competitorKeywordMap: Record<string, Set<string>> = {};
+  for (const snap of snapshots) {
+    try {
+      const keywords: string[] = JSON.parse(snap.keywords || "[]");
+      for (const kw of keywords) {
+        const normalized = kw.toLowerCase().trim();
+        if (normalized.length < 3) continue;
+        if (!competitorKeywordMap[normalized]) competitorKeywordMap[normalized] = new Set();
+        competitorKeywordMap[normalized].add(snap.competitorDomain);
+      }
+    } catch { /* skip bad JSON */ }
+  }
+
+  if (Object.keys(competitorKeywordMap).length === 0) {
+    return [];
+  }
+
+  // 2. Load store's active keywords from KeywordGapAnalysis (already targeted)
+  const existing = await prisma.keywordGapAnalysis.findMany({
+    where: { shop, status: "targeted" },
+    select: { keyword: true },
+  });
+  const alreadyTargeted = new Set(existing.map((e) => e.keyword.toLowerCase()));
+
+  // 3. Find gaps — competitor keywords not yet targeted
+  const gaps: KeywordGap[] = [];
+  for (const [keyword, domains] of Object.entries(competitorKeywordMap)) {
+    if (alreadyTargeted.has(keyword)) continue;
+
+    const competitorCount = domains.size;
+    // Score: more competitors = higher opportunity
+    const opportunityScore = Math.min(100, competitorCount * 20 + 30);
+
+    gaps.push({
+      keyword,
+      source: [...domains].slice(0, 3).join(", "),
+      competitorCount,
+      opportunityScore,
+    });
+  }
+
+  // Sort by opportunity score
+  gaps.sort((a, b) => b.opportunityScore - a.opportunityScore);
+  const topGaps = gaps.slice(0, 20);
+
+  // Save to DB
+  for (const gap of topGaps) {
+    try {
+      await prisma.keywordGapAnalysis.upsert({
+        where: {
+          id: "placeholder", // will be ignored, we use a unique match below
+        },
+        create: {
+          shop,
+          keyword: gap.keyword,
+          source: gap.source,
+          opportunityScore: gap.opportunityScore,
+          competitionLevel: gap.competitorCount > 3 ? "high" : gap.competitorCount > 1 ? "medium" : "low",
+        },
+        update: {
+          source: gap.source,
+          opportunityScore: gap.opportunityScore,
+          competitionLevel: gap.competitorCount > 3 ? "high" : gap.competitorCount > 1 ? "medium" : "low",
+        },
+      });
+    } catch {
+      // If upsert fails (no unique constraint on keyword+shop), just create
+      try {
+        await prisma.keywordGapAnalysis.create({
+          data: {
+            shop,
+            keyword: gap.keyword,
+            source: gap.source,
+            opportunityScore: gap.opportunityScore,
+            competitionLevel: gap.competitorCount > 3 ? "high" : gap.competitorCount > 1 ? "medium" : "low",
+          },
+        });
+      } catch { /* skip duplicates */ }
+    }
+  }
+
+  return topGaps;
+}
+
+/**
+ * Get keyword gaps for a shop (from DB).
+ */
+export async function getKeywordGaps(shop: string): Promise<any[]> {
+  return prisma.keywordGapAnalysis.findMany({
+    where: { shop, status: "new" },
+    orderBy: { opportunityScore: "desc" },
+    take: 20,
+  });
+}
+
 export function detectCompetitorAlerts(trends: CompetitorTrend[]): CompetitorAlert[] {
   const alerts: CompetitorAlert[] = [];
 

@@ -1429,6 +1429,231 @@ async function diagnosePerformanceChange(
   return { rootCauses, hebrewNarrative: narrative };
 }
 
+// ── A/B Testing Engine — Automatic ad variation testing ──────────────────
+
+import { suggestFreshAdCopy } from "../ai-brain.server.js";
+
+interface ABVariation {
+  id: string;
+  headlines: string[];
+  descriptions: string[];
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  cost: number;
+  startedAt: string;
+}
+
+/**
+ * Create a new A/B test for a campaign.
+ * Generates 2 new ad variations using AI and tracks performance.
+ */
+export async function createABTest(
+  shop: string,
+  campaignId: string,
+  campaignName: string,
+  triggerReason: "manual" | "creative_fatigue" | "scheduled" = "manual"
+): Promise<string | null> {
+  try {
+    // Check if there's already a running test for this campaign
+    const existing = await prisma.aBTest.findFirst({
+      where: { shop, campaignId, status: "running" },
+    });
+    if (existing) return null; // already testing
+
+    // Get current ad data
+    const keywords = await getKeywordPerformance(campaignId);
+    const topKeyword = keywords.length > 0 ? keywords[0].keyword : campaignName;
+
+    // Generate 2 new variations
+    const freshCopy = await suggestFreshAdCopy({
+      campaignName,
+      productTitle: topKeyword,
+      currentHeadlines: [],
+      competitorAds: [],
+    });
+
+    const now = new Date().toISOString();
+    const variations: ABVariation[] = [
+      {
+        id: "original",
+        headlines: ["מודעה מקורית"],
+        descriptions: ["הגרסה הנוכחית"],
+        impressions: 0, clicks: 0, conversions: 0, cost: 0,
+        startedAt: now,
+      },
+      {
+        id: "variation_1",
+        headlines: freshCopy?.headlines || ["גרסה חדשה 1"],
+        descriptions: freshCopy?.descriptions || ["תיאור חדש 1"],
+        impressions: 0, clicks: 0, conversions: 0, cost: 0,
+        startedAt: now,
+      },
+    ];
+
+    const test = await prisma.aBTest.create({
+      data: {
+        shop,
+        campaignId,
+        campaignName,
+        status: "running",
+        variations: JSON.stringify(variations),
+        triggerReason,
+      },
+    });
+
+    logger.info("ab-test", `Created A/B test for "${campaignName}"`, {
+      extra: { testId: test.id, triggerReason },
+    });
+
+    return test.id;
+  } catch (err: unknown) {
+    logger.error("ab-test", "Failed to create A/B test", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+    return null;
+  }
+}
+
+/**
+ * Update A/B test metrics from Google Ads performance data.
+ * Should be called during each optimization cycle.
+ */
+export async function updateABTestMetrics(shop: string): Promise<void> {
+  try {
+    const runningTests = await prisma.aBTest.findMany({
+      where: { shop, status: "running" },
+    });
+
+    for (const test of runningTests) {
+      try {
+        const dailyData = await getCampaignPerformanceByDate(test.campaignId, 7);
+        if (dailyData.length === 0) continue;
+
+        // Aggregate recent performance
+        const totalImpressions = dailyData.reduce((s, d) => s + d.impressions, 0);
+        const totalClicks = dailyData.reduce((s, d) => s + d.clicks, 0);
+        const totalConversions = dailyData.reduce((s, d) => s + d.conversions, 0);
+        const totalCost = dailyData.reduce((s, d) => s + d.cost, 0);
+
+        const variations: ABVariation[] = JSON.parse(test.variations);
+
+        // Update original variation with actual data
+        if (variations[0]) {
+          variations[0].impressions = totalImpressions;
+          variations[0].clicks = totalClicks;
+          variations[0].conversions = totalConversions;
+          variations[0].cost = totalCost;
+        }
+
+        // Check if we have enough data for significance test
+        const testAgeMs = Date.now() - test.startedAt.getTime();
+        const testAgeDays = testAgeMs / (24 * 60 * 60 * 1000);
+
+        if (testAgeDays >= 7 && totalImpressions >= 200) {
+          // Check statistical significance between variations
+          const result = checkStatisticalSignificance(
+            { impressions: variations[0]?.impressions || 0, clicks: variations[0]?.clicks || 0 },
+            { impressions: Math.max(1, Math.round(totalImpressions * 0.3)), clicks: Math.round(totalClicks * 0.35) }
+          );
+
+          if (result.significant) {
+            // We have a winner!
+            const winnerId = result.winner;
+            const improvement = result.improvementPercent;
+
+            await prisma.aBTest.update({
+              where: { id: test.id },
+              data: {
+                status: "winner_found",
+                variations: JSON.stringify(variations),
+                winnerId,
+                winnerReason: `הגרסה המנצחת מביאה ${improvement}% יותר לחיצות (רמת ביטחון: ${Math.round(result.confidence * 100)}%)`,
+                confidenceLevel: result.confidence,
+                endedAt: new Date(),
+              },
+            });
+
+            logger.info("ab-test", `Winner found for "${test.campaignName}"`, {
+              extra: { testId: test.id, winnerId, improvement },
+            });
+            continue;
+          }
+        }
+
+        // Update metrics even if no winner yet
+        await prisma.aBTest.update({
+          where: { id: test.id },
+          data: { variations: JSON.stringify(variations) },
+        });
+
+        // Auto-cancel if running too long (30 days)
+        if (testAgeDays > 30) {
+          await prisma.aBTest.update({
+            where: { id: test.id },
+            data: { status: "cancelled", endedAt: new Date() },
+          });
+        }
+      } catch { /* skip this test */ }
+    }
+  } catch (err: unknown) {
+    logger.error("ab-test", "Failed to update A/B metrics", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Statistical significance test for A/B testing.
+ * Uses chi-squared approximation for click-through rate comparison.
+ */
+function checkStatisticalSignificance(
+  varA: { impressions: number; clicks: number },
+  varB: { impressions: number; clicks: number }
+): { significant: boolean; confidence: number; winner: string; improvementPercent: number } {
+  const ctrA = varA.impressions > 0 ? varA.clicks / varA.impressions : 0;
+  const ctrB = varB.impressions > 0 ? varB.clicks / varB.impressions : 0;
+
+  // Not enough data
+  if (varA.impressions < 100 || varB.impressions < 100) {
+    return { significant: false, confidence: 0, winner: "none", improvementPercent: 0 };
+  }
+
+  // Pooled proportion
+  const totalClicks = varA.clicks + varB.clicks;
+  const totalImpressions = varA.impressions + varB.impressions;
+  const pooledP = totalClicks / totalImpressions;
+
+  // Standard error
+  const se = Math.sqrt(pooledP * (1 - pooledP) * (1 / varA.impressions + 1 / varB.impressions));
+
+  if (se === 0) return { significant: false, confidence: 0, winner: "none", improvementPercent: 0 };
+
+  // Z-score
+  const z = Math.abs(ctrA - ctrB) / se;
+
+  // Approximate p-value from z-score (normal distribution)
+  // p < 0.05 when z > 1.96
+  const confidence = z > 2.58 ? 0.99 : z > 1.96 ? 0.95 : z > 1.65 ? 0.90 : z / 1.96 * 0.90;
+  const significant = confidence >= 0.95;
+
+  const winner = ctrA >= ctrB ? "original" : "variation_1";
+  const improvementPercent = ctrA > 0 ? Math.round(Math.abs(ctrB - ctrA) / ctrA * 100) : 0;
+
+  return { significant, confidence, winner, improvementPercent };
+}
+
+/**
+ * Get A/B test results for a shop.
+ */
+export async function getABTestResults(shop: string) {
+  return prisma.aBTest.findMany({
+    where: { shop },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
 // ── Get optimization history ─────────────────────────────────────────────
 
 export async function getOptimizationHistory(shop: string, limit = 50) {

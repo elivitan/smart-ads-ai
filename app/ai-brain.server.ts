@@ -1119,6 +1119,169 @@ Rules:
  * AD COPY IMPROVER — "Make this headline better"
  * Claude looks at competitor ads and writes better copy.
  */
+// ── Weekly Intelligence Report ──────────────────────────────────────────
+// Like a real agency report: what happened, what we did, what's next.
+
+import prisma from "./db.server.js";
+
+interface WeeklyReportData {
+  executive_summary: string;
+  performance_grade: string;
+  weekly_highlights: Array<{title: string; detail: string; impact: string}>;
+  what_ai_did: Array<{action: string; count: number; result: string}>;
+  competitor_report: string;
+  keyword_opportunities: Array<{keyword: string; reason: string; urgency: string}>;
+  next_week_plan: Array<{goal: string; strategy: string}>;
+  money_summary: {
+    total_spend: number;
+    total_revenue: number;
+    profit_or_loss: number;
+    roas: number;
+    verdict: string;
+  };
+}
+
+export async function generateWeeklyReport(shop: string): Promise<WeeklyReportData> {
+  checkCostLimits();
+
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Gather 7 days of data
+  const [optimizationLogs, competitorChanges, abTests, keywordGaps, learnings] = await Promise.all([
+    prisma.optimizationLog.findMany({
+      where: { shop, createdAt: { gte: weekAgo } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.competitorChange.findMany({
+      where: { shop, createdAt: { gte: weekAgo } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.aBTest.findMany({
+      where: { shop, updatedAt: { gte: weekAgo } },
+    }),
+    prisma.keywordGapAnalysis.findMany({
+      where: { shop, status: "new", createdAt: { gte: weekAgo } },
+      take: 10,
+    }),
+    prisma.optimizerLearning.findMany({
+      where: { shop },
+    }),
+  ]);
+
+  // Aggregate optimization actions
+  const actionCounts: Record<string, number> = {};
+  let totalSpend = 0;
+  let totalRevenue = 0;
+  for (const log of optimizationLogs) {
+    actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
+  }
+
+  // Build data summary for Claude
+  const dataSummary = `
+נתונים של 7 ימים אחרונים לחנות ${shop}:
+
+פעולות אופטימיזציה שביצענו:
+${Object.entries(actionCounts).map(([action, count]) => `- ${action}: ${count} פעמים`).join("\n") || "אין פעולות"}
+
+שינויים אצל מתחרים:
+${competitorChanges.slice(0, 5).map((c) => `- ${c.competitorDomain}: ${c.summary}`).join("\n") || "אין שינויים"}
+
+מבחני A/B:
+${abTests.map((t) => `- ${t.campaignName}: ${t.status === "winner_found" ? "נמצא מנצח!" : "עדיין רץ"}`).join("\n") || "אין מבחנים"}
+
+הזדמנויות מילות מפתח חדשות: ${keywordGaps.length}
+${keywordGaps.slice(0, 5).map((g) => `- "${g.keyword}" (מתחרים משתמשים: ${g.source})`).join("\n") || ""}
+
+למידת המערכת:
+${learnings.map((l) => `- ${l.actionType}: ${l.totalAttempts} ניסיונות, ${Math.round(l.successRate * 100)}% הצלחה`).join("\n") || "עדיין לומדת"}
+`.trim();
+
+  const prompt = `אתה מומחה לפרסום דיגיטלי שכותב דוח שבועי לבעל חנות.
+כתוב בשפה פשוטה שכל אדם מבין — בלי מושגים מקצועיים.
+
+${dataSummary}
+
+תחזיר JSON בלבד (בלי markdown, בלי טקסט נוסף):
+{
+  "executive_summary": "2-3 משפטים פשוטים שמסכמים את השבוע",
+  "performance_grade": "A/B/C/D/F",
+  "weekly_highlights": [{"title": "כותרת קצרה", "detail": "מה קרה", "impact": "positive/negative/neutral"}],
+  "what_ai_did": [{"action": "מה עשינו", "count": 1, "result": "מה יצא מזה"}],
+  "competitor_report": "פסקה קצרה על מה שקורה אצל המתחרים",
+  "keyword_opportunities": [{"keyword": "מילה", "reason": "למה כדאי", "urgency": "high/medium/low"}],
+  "next_week_plan": [{"goal": "מטרה", "strategy": "איך נעשה את זה"}],
+  "money_summary": {
+    "total_spend": 0,
+    "total_revenue": 0,
+    "profit_or_loss": 0,
+    "roas": 0,
+    "verdict": "משפט אחד פשוט על מצב הכסף"
+  }
+}
+
+חוקים:
+- שפה פשוטה, בלי מילים באנגלית חוץ ממושגים ש"כל אדם מכיר"
+- כל משפט צריך להיות מובן לאדם שמעולם לא פרסם
+- תהיה כנה — אם השבוע היה גרוע, תגיד`;
+
+  const startMs = Date.now();
+  const response = await withRetry(
+    () => client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+    { label: "AI-Brain:weekly-report" }
+  );
+
+  const text = (response.content[0] as { type: string; text: string }).text;
+  const parsed = safeParseAiJson(text);
+  const result = (parsed.data || parsed) as unknown as WeeklyReportData;
+
+  logPrompt({
+    shop,
+    action: "weekly_report",
+    model: "claude-sonnet-4-20250514",
+    promptTokens: response.usage?.input_tokens || 0,
+    outputTokens: response.usage?.output_tokens || 0,
+    durationMs: Date.now() - startMs,
+    success: true,
+    metadata: { type: "weekly_report" },
+  });
+
+  // Save to DB
+  const weekStart = weekAgo;
+  const weekEnd = new Date();
+  await prisma.weeklyReport.create({
+    data: {
+      shop,
+      weekStart,
+      weekEnd,
+      reportJson: JSON.stringify(result),
+      summary: result.executive_summary || "",
+      performanceGrade: result.performance_grade || "?",
+      totalSpend: result.money_summary?.total_spend || totalSpend,
+      totalRevenue: result.money_summary?.total_revenue || totalRevenue,
+      totalActions: optimizationLogs.length,
+      competitorChanges: competitorChanges.length,
+    },
+  });
+
+  return result;
+}
+
+/**
+ * Get weekly report history for a shop.
+ */
+export async function getWeeklyReports(shop: string, limit = 12) {
+  return prisma.weeklyReport.findMany({
+    where: { shop },
+    orderBy: { weekStart: "desc" },
+    take: limit,
+  });
+}
+
 export async function improveAdCopy(data: ImproveAdCopyInput): Promise<string | null> {
   const {
     text,             // current headline or description

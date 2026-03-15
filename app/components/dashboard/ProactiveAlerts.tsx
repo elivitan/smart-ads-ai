@@ -21,7 +21,7 @@ import { AlertCircleIcon, ArrowUpIcon, TargetIcon } from "@shopify/polaris-icons
 
 interface Alert {
   id: string;
-  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio";
+  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio" | "deep_intel" | "keyword_gap" | "ab_test" | "weekly_report";
   title: string;
   message: string;
   urgency: "now" | "today" | "this_week";
@@ -43,6 +43,10 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   detective: { tone: "warning", icon: AlertCircleIcon },
   creative_fatigue: { tone: "warning", icon: ArrowUpIcon },
   portfolio: { tone: "info", icon: TargetIcon },
+  deep_intel: { tone: "warning", icon: AlertCircleIcon },
+  keyword_gap: { tone: "success", icon: ArrowUpIcon },
+  ab_test: { tone: "success", icon: TargetIcon },
+  weekly_report: { tone: "info", icon: TargetIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
@@ -118,6 +122,10 @@ export function generateAlerts(data: {
   portfolioHealth?: { cannibalizationCount: number; totalWastedSpend: number; rebalanceCount: number };
   detectiveReports?: Array<{ campaignName: string; narrative: string }>;
   learningInsights?: { overallSuccessRate: number; totalActionsLearned: number };
+  deepIntelAlerts?: Array<{ domain: string; message: string; urgency: string }>;
+  keywordGaps?: Array<{ keyword: string; opportunityScore: number; source: string }>;
+  abTestResults?: Array<{ campaignName: string; improvement: number }>;
+  weeklyReportReady?: boolean;
 }): Alert[] {
   const alerts: Alert[] = [];
   const now = Date.now();
@@ -321,6 +329,57 @@ export function generateAlerts(data: {
       type: "milestone",
       title: "המערכת לומדת ומשתפרת",
       message: `המערכת ביצעה ${data.learningInsights.totalActionsLearned} פעולות ולמדה מהתוצאות. שיעור הצלחה: ${successPct}%.`,
+      urgency: "this_week",
+    });
+  }
+
+  // Deep intelligence alerts — competitor changes and vulnerabilities
+  if (data.deepIntelAlerts) {
+    for (const intel of data.deepIntelAlerts) {
+      alerts.push({
+        id: `deep-intel-${intel.domain}-${now}`,
+        type: "deep_intel",
+        title: `מודיעין: ${intel.domain}`,
+        message: intel.message,
+        urgency: intel.urgency as "now" | "today" | "this_week",
+      });
+    }
+  }
+
+  // Keyword gap alerts — competitor keywords you're not targeting
+  if (data.keywordGaps) {
+    const topGaps = data.keywordGaps.filter((g) => g.opportunityScore >= 70).slice(0, 3);
+    for (const gap of topGaps) {
+      alerts.push({
+        id: `keyword-gap-${gap.keyword}-${now}`,
+        type: "keyword_gap",
+        title: "הזדמנות שהמתחרים כבר תפסו",
+        message: `המתחרים (${gap.source}) מפרסמים על "${gap.keyword}" ואתה לא — זו הזדמנות שאתה מפספס.`,
+        urgency: "today",
+      });
+    }
+  }
+
+  // A/B test results
+  if (data.abTestResults) {
+    for (const result of data.abTestResults) {
+      alerts.push({
+        id: `ab-test-${result.campaignName}-${now}`,
+        type: "ab_test",
+        title: "יש מנצח במבחן המודעות!",
+        message: `בדקנו גרסאות שונות של המודעה ב-"${result.campaignName}". הגרסה המנצחת מביאה ${result.improvement}% יותר לחיצות!`,
+        urgency: "today",
+      });
+    }
+  }
+
+  // Weekly report ready
+  if (data.weeklyReportReady) {
+    alerts.push({
+      id: `weekly-report-${now}`,
+      type: "weekly_report",
+      title: "הדוח השבועי מוכן",
+      message: "סיכום של מה שקרה בשבוע האחרון — מה עשינו, מה השתנה, ומה התוכנית להמשך.",
       urgency: "this_week",
     });
   }
