@@ -442,8 +442,8 @@ body{-webkit-overflow-scrolling:touch}
 .lp-missing-btn{padding:12px 24px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
 .lp-missing-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(99,102,241,.4)}
 @media(max-width:768px){.lp-budget-results{grid-template-columns:repeat(2,1fr)}.lp-missing-stats{grid-template-columns:1fr}.lp-missing-stat{border-right:none;border-bottom:1px solid rgba(255,255,255,.06)}.lp-missing-stat:last-child{border-bottom:none}}
-.speedo-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
-.speedo-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.speedo-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.speedo-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 8px;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .speedo-card:hover{background:rgba(255,255,255,.07);border-color:rgba(99,102,241,.3)}
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
 .stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;text-align:center;transition:all .2s}
@@ -790,7 +790,7 @@ body{-webkit-overflow-scrolling:touch}
 @keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0deg)}15%{opacity:1}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
 
 /* RESPONSIVE */
-@media(max-width:1024px){.health-pulse-row{grid-template-columns:1fr}.speedo-row{grid-template-columns:repeat(2,1fr)}.status-row{grid-template-columns:repeat(3,1fr)}.status-bar-inner{height:auto;padding:8px 16px;flex-wrap:wrap;gap:6px}}
+@media(max-width:1024px){.health-pulse-row{grid-template-columns:1fr}.speedo-row{grid-template-columns:repeat(3,1fr)}.status-row{grid-template-columns:repeat(3,1fr)}.status-bar-inner{height:auto;padding:8px 16px;flex-wrap:wrap;gap:6px}}
 @media(max-width:768px){.stats-row,.speedo-row{grid-template-columns:repeat(2,1fr)}.status-row{grid-template-columns:1fr 1fr}.pain-grid,.sol-grid,.steps-grid,.feat-grid,.test-grid{grid-template-columns:1fr}.hero-h{font-size:30px}.plan-cards,.plan-cards-3{grid-template-columns:1fr}.da{padding:20px 16px}.auto-campaign-card,.upgrade-publish-card{flex-direction:column;text-align:center}.scan-credit-packages{grid-template-columns:1fr}.pulse-metrics-row{grid-template-columns:repeat(2,1fr)}.health-top{flex-direction:column;text-align:center}}
 
 /* ═══ RESPONSIVE FIXES (added) ═══ */
@@ -813,11 +813,16 @@ body{-webkit-overflow-scrolling:touch}
 .ds-chevron-open{transform:rotate(180deg)}
 .ds-badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 @media(max-width:768px){.ds-badges{display:none}}
-.ds-hub{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+.ds-hub{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px}
 @media(max-width:768px){.ds-hub{grid-template-columns:1fr}}
-.ds-hub-card{border-radius:14px;padding:14px 16px;cursor:pointer;transition:all .25s ease;position:relative;overflow:hidden}
-.ds-hub-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.ds-hub-card-active{ring:2px;transform:translateY(-1px)}
+.ds-hub-card{border-radius:16px;padding:18px 20px;cursor:pointer;transition:all .3s ease;position:relative;overflow:hidden}
+.ds-hub-card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.ds-hub-card-active{transform:translateY(-1px)}
+/* expand/collapse animation */
+.ds-expand-wrap{overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1),opacity .3s ease;will-change:max-height,opacity}
+.ds-expand-enter{max-height:0;opacity:0}
+.ds-expand-open{max-height:3000px;opacity:1}
+.ds-expand-inner{padding-top:16px}
 /* ═══ End Dashboard Section ═══ */
 
 /* RESPONSIVE FIX: narrow mobile */

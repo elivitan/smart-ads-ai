@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { Counter, ScoreRing, Speedometer } from "./ui/SmallWidgets";
 import { Confetti } from "./SmallComponents";
@@ -82,6 +82,34 @@ class WidgetErrorBoundary extends React.Component<{children: React.ReactNode; la
     );
     return (this.props as any).children;
   }
+}
+
+/* ═══ Animated Expand Wrapper ═══ */
+function ExpandableSection({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [animClass, setAnimClass] = useState(isOpen ? "ds-expand-open" : "ds-expand-enter");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (isOpen) {
+      setShouldRender(true);
+      // Start collapsed, then open next frame
+      setAnimClass("ds-expand-enter");
+      timerRef.current = setTimeout(() => setAnimClass("ds-expand-open"), 20);
+    } else {
+      setAnimClass("ds-expand-enter");
+      timerRef.current = setTimeout(() => setShouldRender(false), 400);
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [isOpen]);
+
+  if (!shouldRender) return null;
+  return (
+    <div className={`ds-expand-wrap ${animClass}`}>
+      <div className="ds-expand-inner">{children}</div>
+    </div>
+  );
 }
 
 /* ═══ Collapsible Dashboard Section ═══ */
@@ -401,64 +429,68 @@ export function DashboardView({
 
             {/* ══ AI ENGINES HUB — 2×2 category cards ══ */}
             <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:10,textAlign:"center"}}>23 AI Engines · Click to explore</div>
+              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:12,textAlign:"center"}}>23 AI Engines · Click to explore</div>
               <div className="ds-hub">
                 {/* Card 1: Competitive Intelligence */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.2),rgba(129,140,248,.08))":"linear-gradient(135deg,rgba(129,140,248,.1),rgba(129,140,248,.03))",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.4:.15})`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(129,140,248,.35)"}}>🕵️</div>
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.22),rgba(129,140,248,.08))":"linear-gradient(135deg,rgba(129,140,248,.08),rgba(129,140,248,.02))",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.45:.12})`,boxShadow:activeCategory==="intel"?"0 0 20px rgba(129,140,248,.2), inset 0 1px 0 rgba(129,140,248,.15)":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(129,140,248,.35)"}}>🕵️</div>
                     <div>
-                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>5 engines · Track, analyze & strike</div>
+                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
+                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Track, analyze & strike</div>
                     </div>
+                    {activeCategory==="intel" && <div style={{marginLeft:"auto",fontSize:11,color:"#818cf8",fontWeight:700}}>▲ Close</div>}
                   </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{competitorCount} tracked</span>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{keywordGaps.length} gaps</span>
-                    {totalMonthlyGapLoss>0 && <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(239,68,68,.1)",color:"#ef4444",fontWeight:600}}>${totalMonthlyGapLoss.toLocaleString()}/mo loss</span>}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(129,140,248,.1)",color:"#818cf8",fontWeight:600}}>{competitorCount} tracked</span>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(129,140,248,.1)",color:"#818cf8",fontWeight:600}}>{keywordGaps.length} gaps</span>
+                    {totalMonthlyGapLoss>0 && <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(239,68,68,.08)",color:"#ef4444",fontWeight:600}}>${totalMonthlyGapLoss.toLocaleString()}/mo loss</span>}
                   </div>
                 </div>
                 {/* Card 2: Revenue & Profit */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08))":"linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.03))",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.4:.15})`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(34,197,94,.35)"}}>💰</div>
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.22),rgba(34,197,94,.08))":"linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.02))",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.45:.12})`,boxShadow:activeCategory==="revenue"?"0 0 20px rgba(34,197,94,.2), inset 0 1px 0 rgba(34,197,94,.15)":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(34,197,94,.35)"}}>💰</div>
                     <div>
-                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>6 engines · Forecast, optimize & grow</div>
+                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
+                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>6 engines · Forecast, optimize & grow</div>
                     </div>
+                    {activeCategory==="revenue" && <div style={{marginLeft:"auto",fontSize:11,color:"#22c55e",fontWeight:700}}>▲ Close</div>}
                   </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>ROAS {mockRoas}x</span>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>{mockCampaigns} campaigns</span>
-                    {profitMargin && <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>Margin {profitMargin}%</span>}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>ROAS {mockRoas}x</span>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>{mockCampaigns} campaigns</span>
+                    {profitMargin && <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>Margin {profitMargin}%</span>}
                   </div>
                 </div>
                 {/* Card 3: Campaign Operations */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.2),rgba(168,85,247,.08))":"linear-gradient(135deg,rgba(168,85,247,.1),rgba(168,85,247,.03))",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.4:.15})`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(168,85,247,.35)"}}>⚙️</div>
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.22),rgba(168,85,247,.08))":"linear-gradient(135deg,rgba(168,85,247,.08),rgba(168,85,247,.02))",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.45:.12})`,boxShadow:activeCategory==="ops"?"0 0 20px rgba(168,85,247,.2), inset 0 1px 0 rgba(168,85,247,.15)":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(168,85,247,.35)"}}>⚙️</div>
                     <div>
-                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>7 engines · Automate & orchestrate</div>
+                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
+                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>7 engines · Automate & orchestrate</div>
                     </div>
+                    {activeCategory==="ops" && <div style={{marginLeft:"auto",fontSize:11,color:"#a855f7",fontWeight:700}}>▲ Close</div>}
                   </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(168,85,247,.12)",color:"#a855f7",fontWeight:600}}>{mockCampaigns} active</span>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.12)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>Sync {isPaid?"ON":"OFF"}</span>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(168,85,247,.1)",color:"#a855f7",fontWeight:600}}>{mockCampaigns} active</span>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>Sync {isPaid?"ON":"OFF"}</span>
                   </div>
                 </div>
                 {/* Card 4: Quality & Protection */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.2),rgba(245,158,11,.08))":"linear-gradient(135deg,rgba(245,158,11,.1),rgba(245,158,11,.03))",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.4:.15})`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(245,158,11,.35)"}}>🛡️</div>
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.22),rgba(245,158,11,.08))":"linear-gradient(135deg,rgba(245,158,11,.08),rgba(245,158,11,.02))",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.45:.12})`,boxShadow:activeCategory==="quality"?"0 0 20px rgba(245,158,11,.2), inset 0 1px 0 rgba(245,158,11,.15)":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(245,158,11,.35)"}}>🛡️</div>
                     <div>
-                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>5 engines · Test, guard & report</div>
+                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
+                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Test, guard & report</div>
                     </div>
+                    {activeCategory==="quality" && <div style={{marginLeft:"auto",fontSize:11,color:"#f59e0b",fontWeight:700}}>▲ Close</div>}
                   </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(245,158,11,.12)",color:"#f59e0b",fontWeight:600}}>A/B Active</span>
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.12)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>{isPaid?"Protected":"Locked"}</span>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(245,158,11,.1)",color:"#f59e0b",fontWeight:600}}>A/B Active</span>
+                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>{isPaid?"Protected":"Locked"}</span>
                   </div>
                 </div>
               </div>
@@ -466,11 +498,11 @@ export function DashboardView({
           </div>
 
           {/* ══ EXPANDED CATEGORY CONTENT — appears below metrics panel when a card is clicked ══ */}
-          {activeCategory==="intel" && (
-            <div style={{marginBottom:20}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🕵️</div>
-                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Competitive Intelligence</span>
+          <ExpandableSection isOpen={activeCategory==="intel"}>
+            <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(129,140,248,.3)"}}>🕵️</div>
+                <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Competitive Intelligence</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
               </div>
               <div className="ds-grid">
@@ -499,13 +531,13 @@ export function DashboardView({
                 {analyzedCount > 0 && (<div style={{gridColumn:"1 / -1"}}><WidgetErrorBoundary label="Competitor Gap Finder"><CompetitorGapFinder keywordGaps={keywordGaps} totalMonthlyGapLoss={totalMonthlyGapLoss} analyzedCount={analyzedCount} canPublish={canPublish} onUpgrade={handleUpgradeClick}/></WidgetErrorBoundary></div>)}
               </div>
             </div>
-          )}
+          </ExpandableSection>
 
-          {activeCategory==="revenue" && (
-            <div style={{marginBottom:20}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>💰</div>
-                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Revenue & Profit</span>
+          <ExpandableSection isOpen={activeCategory==="revenue"}>
+            <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(34,197,94,.3)"}}>💰</div>
+                <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Revenue & Profit</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>6 engines</span>
               </div>
               <div className="ds-grid">
@@ -517,13 +549,13 @@ export function DashboardView({
                 <div style={{minWidth:0}}><WidgetErrorBoundary label="Currency Margin"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Currency & Margin Optimizer">{isPaid && <CurrencyMarginWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
               </div>
             </div>
-          )}
+          </ExpandableSection>
 
-          {activeCategory==="ops" && (
-            <div style={{marginBottom:20}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>⚙️</div>
-                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Campaign Operations</span>
+          <ExpandableSection isOpen={activeCategory==="ops"}>
+            <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(168,85,247,.3)"}}>⚙️</div>
+                <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Campaign Operations</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>7 engines</span>
               </div>
               <div className="ds-grid">
@@ -536,13 +568,13 @@ export function DashboardView({
                 <div style={{minWidth:0}}><WidgetErrorBoundary label="Agent Bidding War Room"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Agent Bidding War Room">{isPaid && <AgentBiddingWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
               </div>
             </div>
-          )}
+          </ExpandableSection>
 
-          {activeCategory==="quality" && (
-            <div style={{marginBottom:20}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🛡️</div>
-                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Quality & Protection</span>
+          <ExpandableSection isOpen={activeCategory==="quality"}>
+            <div style={{maxWidth:920,margin:"0 auto",marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 3px 10px rgba(245,158,11,.3)"}}>🛡️</div>
+                <span style={{fontSize:16,fontWeight:700,color:"#fff"}}>Quality & Protection</span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
               </div>
               <div className="ds-grid">
@@ -553,7 +585,7 @@ export function DashboardView({
                 <div style={{minWidth:0}}><WidgetErrorBoundary label="Weekly Reports"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weekly Reports">{isPaid && <WeeklyReportWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
               </div>
             </div>
-          )}
+          </ExpandableSection>
 
           {/* ══ COMMAND CENTER — core ops ══ */}
           <WidgetErrorBoundary label="Market Intelligence">
