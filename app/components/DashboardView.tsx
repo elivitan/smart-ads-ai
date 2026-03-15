@@ -84,6 +84,93 @@ class WidgetErrorBoundary extends React.Component<{children: React.ReactNode; la
   }
 }
 
+/* ═══ Collapsible Dashboard Section ═══ */
+interface DashboardSectionProps {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  themeColor: string;
+  themeColorRgb: string;
+  summaryBadges?: { label: string; value: string | number; color?: string }[];
+  defaultExpanded?: boolean;
+  alwaysExpanded?: boolean;
+  columns?: 1 | 2;
+  children: React.ReactNode;
+}
+
+function DashboardSection({ id, icon, title, description, themeColor, themeColorRgb, summaryBadges, defaultExpanded, alwaysExpanded, columns = 2, children }: DashboardSectionProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false);
+  const isOpen = alwaysExpanded || expanded;
+
+  return (
+    <div style={{ marginBottom: 20 }} id={`section-${id}`}>
+      {/* Header bar */}
+      <div
+        role={alwaysExpanded ? undefined : "button"}
+        tabIndex={alwaysExpanded ? undefined : 0}
+        onKeyDown={alwaysExpanded ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(v => !v); } }}
+        onClick={alwaysExpanded ? undefined : () => setExpanded(v => !v)}
+        style={{
+          background: `linear-gradient(135deg, rgba(${themeColorRgb},.14), rgba(${themeColorRgb},.04))`,
+          border: `1px solid rgba(${themeColorRgb},.22)`,
+          borderRadius: 16,
+          padding: "14px 20px",
+          marginBottom: isOpen ? 16 : 0,
+          cursor: alwaysExpanded ? "default" : "pointer",
+          transition: "all .3s ease",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          userSelect: "none",
+        }}
+      >
+        {/* Icon circle */}
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          background: `linear-gradient(135deg, ${themeColor}, ${themeColor}88)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 22,
+          boxShadow: `0 4px 14px rgba(${themeColorRgb},.35)`,
+        }}>
+          {icon}
+        </div>
+        {/* Title & description */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{title}</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.45)", marginTop: 2 }}>{description}</div>
+        </div>
+        {/* Summary badges (shown when collapsed) */}
+        {!isOpen && summaryBadges && summaryBadges.length > 0 && (
+          <div className="ds-badges">
+            {summaryBadges.map((b, i) => (
+              <div key={i} style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "3px 10px", borderRadius: 20,
+                background: `rgba(${themeColorRgb},.1)`,
+                border: `1px solid rgba(${themeColorRgb},.2)`,
+              }}>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,.4)", textTransform: "uppercase", letterSpacing: .5, fontWeight: 600 }}>{b.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: b.color || themeColor }}>{b.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Chevron */}
+        {!alwaysExpanded && (
+          <div className={`ds-chevron ${isOpen ? "ds-chevron-open" : ""}`}>▼</div>
+        )}
+      </div>
+      {/* Children */}
+      {isOpen && (
+        <div className={columns === 2 ? "ds-grid" : undefined}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DashboardView({
   analyzedDbProducts, totalProducts, analyzedCount, avgScore,
   topCompetitors, liveAds, keywordGaps, totalMonthlyGapLoss,
@@ -143,6 +230,7 @@ export function DashboardView({
   }), shallow);
   const isPaid = !!selectedPlan;
   const canPublish = isPaid;  const [showManualPicker, setShowManualPicker] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const hasScanAccess = isPaid || scanCredits > 0;
   const handleUpgradeClick = useCallback(() => {
     setShowOnboard(true); setOnboardTab("subscription"); setOnboardStep(1);
@@ -273,296 +361,222 @@ export function DashboardView({
           </div>
           </WidgetErrorBoundary>
 
-          {/* SPEEDOMETERS */}
-          <div className="speedo-row">
-            <div className="speedo-card"><Speedometer value={avgScore} max={100} label="Avg Ad Score" color="#6366f1" size={130}/></div>
-            <div className="speedo-card"><Speedometer value={highPotential} max={Math.max(totalProducts,1)} label="High-Potential" color="#22c55e" size={130}/></div>
-            <div className="speedo-card"><Speedometer value={Math.min(mockCampaigns,20)} max={20} label="Active Campaigns" color="#06b6d4" size={130}/></div>
-            <div className="speedo-card"><Speedometer value={parseFloat(mockRoas)*10} max={100} label="ROAS Score" color="#f59e0b" size={130}/></div>
-          </div>
+          {/* ══ UNIFIED METRICS PANEL — gauges + key stats in one compact block ══ */}
+          <div style={{background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.06)",borderRadius:16,padding:"16px 20px",marginBottom:20}}>
+            {/* Row 1: 6 Speedometers — core + engine metrics */}
+            <div className="speedo-row" style={{marginBottom:12}}>
+              <div className="speedo-card"><Speedometer value={avgScore} max={100} label="Ad Score" color="#6366f1" size={105}/></div>
+              <div className="speedo-card"><Speedometer value={parseFloat(mockRoas)*10} max={100} label="ROAS" color="#f59e0b" size={105}/></div>
+              <div className="speedo-card"><Speedometer value={competitorThreat==="Low"?25:competitorThreat==="Moderate"?55:85} max={100} label="Threat Level" color={threatColor} size={105}/></div>
+              <div className="speedo-card"><Speedometer value={Math.min(competitorCount*10,100)} max={100} label="Intel Coverage" color="#818cf8" size={105}/></div>
+              <div className="speedo-card"><Speedometer value={Math.min(mockCampaigns,20)} max={20} label="Campaigns" color="#22c55e" size={105}/></div>
+              <div className="speedo-card"><Speedometer value={highPotential} max={Math.max(totalProducts,1)} label="High-Potential" color="#06b6d4" size={105}/></div>
+            </div>
+            {/* Row 2: Compact inline metric strip */}
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
+              {([
+                { icon: "🔑", label: "Keywords", value: analyzedCount > 0 ? totalKeywords.toLocaleString() : "—", color: "#a5b4fc" },
+                { icon: "💸", label: "Gap Loss", value: totalMonthlyGapLoss > 0 ? `$${totalMonthlyGapLoss.toLocaleString()}/mo` : "—", color: "#ef4444" },
+                { icon: "👁", label: "Impressions", value: liveAds.impressions ? liveAds.impressions.toLocaleString() : `~${(mockCampaigns*4200).toLocaleString()}`, color: "#06b6d4" },
+                { icon: "👆", label: "Clicks", value: liveAds.clicks ? liveAds.clicks.toLocaleString() : `~${(mockCampaigns*180).toLocaleString()}`, color: "#a5b4fc" },
+                ...(campaignId && realSpend != null ? [{ icon: "💰", label: "Spend", value: `$${Number(realSpend).toFixed(2)}`, color: "#22c55e" }] : []),
+                { icon: "📊", label: "Rank", value: googleRankStatus==="page_1"?"Page 1":googleRankStatus==="page_2"?"Page 2":"Page 3+", color: threatColor },
+                { icon: "🤖", label: "AI Engines", value: "23 active", color: "#8b5cf6" },
+                ...(profitMargin ? [{ icon: "📈", label: "Margin", value: `${profitMargin}%`, color: "#22c55e" }] : []),
+              ] as { icon: string; label: string; value: string; color: string }[]).map((m, i) => (
+                <div key={i} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <span style={{fontSize:12}}>{m.icon}</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,.35)",textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>{m.label}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:m.color}}>{m.value}</span>
+                </div>
+              ))}
+            </div>
+            {/* Row 3: Quick launch strip */}
+            {isPaid && (
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginTop:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,.06)"}}>
+                <span style={{fontSize:13,color:"rgba(255,255,255,.5)"}}>{mockCampaigns} campaign{mockCampaigns!==1?"s":""} running</span>
+                <button onClick={()=>setShowLaunchChoice(true)} style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"8px 18px",borderRadius:10,fontSize:12,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 12px rgba(34,197,94,.3)"}}>🚀 Launch Campaign</button>
+              </div>
+            )}
 
-          {/* STATS */}
-          <div className="stats-row" style={{marginBottom:24}}>
-            <div className="stat-card"><div className="stat-icon">📦</div><div className="stat-val"><Counter end={totalProducts}/></div><div className="stat-lbl">Total Products</div></div>
-            <div className="stat-card"><div className="stat-icon">🎯</div><div className="stat-val">{analyzedCount>0?<Counter end={avgScore} suffix="/100"/>:<span style={{color:"rgba(255,255,255,.3)"}}>—</span>}</div><div className="stat-lbl">Avg Score</div></div>
-            <div className="stat-card"><div className="stat-icon">🔑</div><div className="stat-val">{analyzedCount>0?<Counter end={totalKeywords}/>:<span style={{color:"rgba(255,255,255,.3)"}}>—</span>}</div><div className="stat-lbl">Keywords</div></div>
-            <div className="stat-card"><div className="stat-icon">✅</div><div className="stat-val"><Counter end={analyzedCount}/><span style={{fontSize:13,color:"rgba(255,255,255,.3)"}}> / {totalProducts}</span></div><div className="stat-lbl">Analyzed</div></div>
-          </div>
-
-          
-          {/* CAMPAIGN HERO CARD */}
-          {isPaid && (
-            <div style={{background:"linear-gradient(135deg,rgba(34,197,94,.08),rgba(16,185,129,.06))",border:"1px solid rgba(34,197,94,.15)",borderRadius:16,padding:"20px 24px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-              <div style={{display:"flex",alignItems:"center",gap:16}}>
-                <div style={{width:64,height:64,borderRadius:16,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:"0 4px 16px rgba(34,197,94,.3)"}}>📈</div>
-                <div>
-                  <div style={{fontSize:32,fontWeight:800,color:"#fff",lineHeight:1}}>{mockCampaigns}</div>
-                  <div style={{fontSize:13,color:"rgba(255,255,255,.6)",marginTop:4}}>{mockCampaigns === 1 ? "Active Campaign" : "Active Campaigns"}</div>
+            {/* ══ AI ENGINES HUB — 2×2 category cards ══ */}
+            <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.06)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:10,textAlign:"center"}}>23 AI Engines · Click to explore</div>
+              <div className="ds-hub">
+                {/* Card 1: Competitive Intelligence */}
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.2),rgba(129,140,248,.08))":"linear-gradient(135deg,rgba(129,140,248,.1),rgba(129,140,248,.03))",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.4:.15})`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(129,140,248,.35)"}}>🕵️</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>5 engines · Track, analyze & strike</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{competitorCount} tracked</span>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{keywordGaps.length} gaps</span>
+                    {totalMonthlyGapLoss>0 && <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(239,68,68,.1)",color:"#ef4444",fontWeight:600}}>${totalMonthlyGapLoss.toLocaleString()}/mo loss</span>}
+                  </div>
+                </div>
+                {/* Card 2: Revenue & Profit */}
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08))":"linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.03))",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.4:.15})`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(34,197,94,.35)"}}>💰</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>6 engines · Forecast, optimize & grow</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>ROAS {mockRoas}x</span>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>{mockCampaigns} campaigns</span>
+                    {profitMargin && <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>Margin {profitMargin}%</span>}
+                  </div>
+                </div>
+                {/* Card 3: Campaign Operations */}
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.2),rgba(168,85,247,.08))":"linear-gradient(135deg,rgba(168,85,247,.1),rgba(168,85,247,.03))",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.4:.15})`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(168,85,247,.35)"}}>⚙️</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>7 engines · Automate & orchestrate</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(168,85,247,.12)",color:"#a855f7",fontWeight:600}}>{mockCampaigns} active</span>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.12)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>Sync {isPaid?"ON":"OFF"}</span>
+                  </div>
+                </div>
+                {/* Card 4: Quality & Protection */}
+                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.2),rgba(245,158,11,.08))":"linear-gradient(135deg,rgba(245,158,11,.1),rgba(245,158,11,.03))",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.4:.15})`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 3px 10px rgba(245,158,11,.35)"}}>🛡️</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>5 engines · Test, guard & report</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(245,158,11,.12)",color:"#f59e0b",fontWeight:600}}>A/B Active</span>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.12)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>{isPaid?"Protected":"Locked"}</span>
+                  </div>
                 </div>
               </div>
-              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👁</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.impressions ? liveAds.impressions.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Impressions</div></div>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>👆</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.clicks ? liveAds.clicks.toLocaleString() : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>Clicks</div></div>
-                <div style={{textAlign:"center",minWidth:70}}><div style={{fontSize:16,marginBottom:2}}>💰</div><div style={{fontSize:18,fontWeight:700,color:"#fff"}}>{liveAds.roas ? liveAds.roas+"x" : "—"}</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:.5}}>ROAS</div></div>
+            </div>
+          </div>
+
+          {/* ══ EXPANDED CATEGORY CONTENT — appears below metrics panel when a card is clicked ══ */}
+          {activeCategory==="intel" && (
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🕵️</div>
+                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Competitive Intelligence</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
               </div>
-              <button onClick={()=>setShowLaunchChoice(true)} style={{background:"linear-gradient(135deg,#22c55e,#10b981)",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 4px 12px rgba(34,197,94,.3)",whiteSpace:"nowrap",border:"none",cursor:"pointer",fontFamily:"inherit"}}>🚀 Launch Campaign →</button>
+              <div className="ds-grid">
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Competitor Intelligence"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Deep Business Intelligence">{isPaid && <CompetitorIntelWidget shopDomain={shopDomain}/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Keyword Gap Analysis"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Keyword Gap Analysis">{isPaid && <KeywordGapWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Competitor Ad Spend"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Competitor Ad Spend">{isPaid && <CompetitorSpendWidget shopDomain={shopDomain}/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Competitor Strike"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Predatory Competitor Strike">{isPaid && <CompetitorStrikeWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Ghost Campaign"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Ghost Campaign Discovery">{isPaid && <GhostCampaignWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                {topCompetitors.length>0 && (
+                  <div style={{gridColumn:"1 / -1"}}>
+                    <div className="competitor-panel">
+                      <div className="competitor-panel-header">
+                        <div style={{display:"flex",alignItems:"center",gap:8}}><div className="clf-live-dot"/><span className="competitor-panel-title">🕵️ Top Competitors Detected</span><span className="clf-live-badge">LIVE</span></div>
+                        <span className="competitor-panel-sub">Across {analyzedCount} analyzed products · sorted by frequency</span>
+                      </div>
+                      <div className="competitor-list">
+                        {topCompetitors.map(([domain,data],i)=>{
+                          const tc = data.strength==="strong"?"#ef4444":data.strength==="medium"?"#f59e0b":"#22c55e";
+                          const keywords = analyzedDbProducts.flatMap(p=>(p.aiAnalysis?.competitor_intel?.top_competitors||[]).filter(c=>c.domain===domain).flatMap(c=>c.keywords||[])).filter(Boolean).slice(0,3);
+                          return (<div key={i} className="competitor-item competitor-item-clickable" onClick={()=>setSelCompetitor({domain})}><div className="competitor-rank">#{i+1}</div><div className="competitor-favicon"><img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" onError={e=>{(e.target as HTMLElement).style.display="none"}} style={{width:16,height:16}}/></div><a href={`https://${domain}`} target="_blank" rel="noopener noreferrer" className="competitor-domain competitor-domain-link" onClick={e=>e.stopPropagation()}>{domain}</a>{keywords.length>0 && (<div className="competitor-keywords">{keywords.map((k,ki)=><span key={ki} className="competitor-kw-tag">{typeof k==="string"?k:k?.text||k}</span>)}</div>)}<div className="competitor-count">{data.count} product{data.count!==1?"s":""}</div><div className="competitor-strength" style={{color:tc}}>{data.strength}</div><div className="competitor-click-hint">View ads →</div></div>);
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {analyzedCount > 0 && (<div style={{gridColumn:"1 / -1"}}><WidgetErrorBoundary label="Competitor Gap Finder"><CompetitorGapFinder keywordGaps={keywordGaps} totalMonthlyGapLoss={totalMonthlyGapLoss} analyzedCount={analyzedCount} canPublish={canPublish} onUpgrade={handleUpgradeClick}/></WidgetErrorBoundary></div>)}
+              </div>
             </div>
           )}
 
-          
-          {/* STATUS ROW */}
-          <div className="status-row">
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>📈</div><div><div className="status-card-label">Campaigns Active</div><div className="status-card-val">{mockCampaigns} running</div></div><div className="status-card-trend">{canPublish?`+${Math.round(mockCampaigns*0.2)} this week`:"Subscribe to launch"}</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(6,182,212,.1)",color:"#06b6d4"}}>👁</div><div><div className="status-card-label">Impressions</div><div className="status-card-val">{(mockCampaigns*4200).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(99,102,241,.1)",color:"#a5b4fc"}}>👆</div><div><div className="status-card-label">Est. Clicks</div><div className="status-card-val">{(mockCampaigns*180).toLocaleString()}/mo</div></div><div className="status-card-trend up">est.</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:`rgba(${threatColor==="#22c55e"?"34,197,94":threatColor==="#f59e0b"?"245,158,11":"239,68,68"},.1)`,color:threatColor}}>🕵️</div><div><div className="status-card-label">Competitor Threat</div><div className="status-card-val" style={{color:threatColor}}>{competitorThreat}</div></div><div className="status-card-trend" style={{color:threatColor}}>{googleRankStatus==="page_1"?"Page 1":googleRankStatus==="page_2"?"Page 2":"Page 3+"} rank</div></div>
-            <div className="status-card"><div className="status-card-icon" style={{background:"rgba(245,158,11,.1)",color:"#fbbf24"}}>💰</div><div><div className="status-card-label">Est. ROAS</div><div className="status-card-val">{mockRoas}x</div></div><div className="status-card-trend up">based on scores</div></div>
-            {/* Total Spend Card */}
-            {campaignId && (
-              <div className="status-card status-card-spend">
-                <div className="status-card-icon" style={{background:"rgba(34,197,94,.1)",color:"#22c55e"}}>💸</div>
-                <div>
-                  <div className="status-card-label">Total Spend</div>
-                  <div className="status-card-val">
-                    {realSpend != null ? `$${Number(realSpend).toFixed(2)}` : "Fetching…"}
-                  </div>
-                </div>
-                <div className="status-card-trend up">{realSpend != null ? "live from Google" : "connecting…"}</div>
+          {activeCategory==="revenue" && (
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>💰</div>
+                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Revenue & Profit</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>6 engines</span>
               </div>
-            )}
-          </div>
-          {/* MARKET INTELLIGENCE */}
+              <div className="ds-grid">
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Profit Intelligence"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Profit Intelligence">{isPaid && <ProfitIntelWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Revenue Forecast"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Revenue Forecast">{isPaid && <ForecastWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Industry Benchmarks"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="You vs Industry">{isPaid && <BenchmarksWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Digital Twin Simulator"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Digital Twin Simulator">{isPaid && <DigitalTwinWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Bid Arbitrage"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Bid Time Arbitrage">{isPaid && <BidArbitrageWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Currency Margin"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Currency & Margin Optimizer">{isPaid && <CurrencyMarginWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+              </div>
+            </div>
+          )}
+
+          {activeCategory==="ops" && (
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>⚙️</div>
+                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Campaign Operations</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>7 engines</span>
+              </div>
+              <div className="ds-grid">
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Full Funnel Orchestrator"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Full Funnel Orchestrator">{isPaid && <FunnelWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Inventory-Aware Ads"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Inventory-Aware Ads">{isPaid && <InventoryWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Flash Sale Engine"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Flash Sale Engine">{isPaid && <FlashSaleWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Supply Chain Ads"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Supply Chain Ads">{isPaid && <SupplyChainWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Weather & Event Arbitrage"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weather & Event Arbitrage">{isPaid && <WeatherArbitrageWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Life Moment"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Life Moment Targeting">{isPaid && <LifeMomentWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Agent Bidding War Room"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Agent Bidding War Room">{isPaid && <AgentBiddingWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+              </div>
+            </div>
+          )}
+
+          {activeCategory==="quality" && (
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🛡️</div>
+                <span style={{fontSize:15,fontWeight:700,color:"#fff"}}>Quality & Protection</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,.3)",marginLeft:"auto"}}>5 engines</span>
+              </div>
+              <div className="ds-grid">
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="A/B Testing"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="A/B Testing">{isPaid && <ABTestWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Review-to-Creative Pipeline"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Review-to-Creative Pipeline">{isPaid && <ReviewCreativeWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Silent Profit Sentinel"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Silent Profit Sentinel">{isPaid && <SearchSentinelWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Performance Insurance"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Performance Insurance">{isPaid && <PerformanceGuardWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+                <div style={{minWidth:0}}><WidgetErrorBoundary label="Weekly Reports"><LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weekly Reports">{isPaid && <WeeklyReportWidget/>}</LockedOverlay></WidgetErrorBoundary></div>
+              </div>
+            </div>
+          )}
+
+          {/* ══ COMMAND CENTER — core ops ══ */}
           <WidgetErrorBoundary label="Market Intelligence">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Market Intelligence">
           <MarketAlert shopDomain={shopDomain}/>
           </LockedOverlay>
           </WidgetErrorBoundary>
 
-          {/* STORE PERFORMANCE ANALYTICS */}
           <WidgetErrorBoundary label="Store Performance">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Store Performance Analytics">
           <StoreAnalyticsWidget/>
           </LockedOverlay>
           </WidgetErrorBoundary>
 
-
-          {/* ══ INTELLIGENCE DASHBOARD — 4 new feature blocks ══ */}
-          <WidgetErrorBoundary label="Competitor Intelligence">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Deep Business Intelligence">
-          {isPaid && <CompetitorIntelWidget shopDomain={shopDomain}/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Keyword Gap Analysis">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Keyword Gap Analysis">
-          {isPaid && <KeywordGapWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="A/B Testing">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="A/B Testing">
-          {isPaid && <ABTestWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Weekly Reports">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weekly Reports">
-          {isPaid && <WeeklyReportWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          {/* ══ AI ENGINE WIDGETS — 6 new engine blocks ══ */}
-          <WidgetErrorBoundary label="Profit Intelligence">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Profit Intelligence">
-          {isPaid && <ProfitIntelWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Inventory-Aware Ads">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Inventory-Aware Ads">
-          {isPaid && <InventoryWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Competitor Ad Spend">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Competitor Ad Spend">
-          {isPaid && <CompetitorSpendWidget shopDomain={shopDomain}/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Revenue Forecast">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Revenue Forecast">
-          {isPaid && <ForecastWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Industry Benchmarks">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="You vs Industry">
-          {isPaid && <BenchmarksWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Full Funnel Orchestrator">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Full Funnel Orchestrator">
-          {isPaid && <FunnelWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          {/* ═══ ADVANCED AI ENGINES (11-18) ═══ */}
-
-          <WidgetErrorBoundary label="Digital Twin Simulator">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Digital Twin Simulator">
-          {isPaid && <DigitalTwinWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Agent Bidding War Room">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Agent Bidding War Room">
-          {isPaid && <AgentBiddingWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Weather & Event Arbitrage">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weather & Event Arbitrage">
-          {isPaid && <WeatherArbitrageWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Review-to-Creative Pipeline">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Review-to-Creative Pipeline">
-          {isPaid && <ReviewCreativeWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Flash Sale Engine">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Flash Sale Engine">
-          {isPaid && <FlashSaleWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Silent Profit Sentinel">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Silent Profit Sentinel">
-          {isPaid && <SearchSentinelWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Performance Insurance">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Performance Insurance">
-          {isPaid && <PerformanceGuardWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Supply Chain Ads">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Supply Chain Ads">
-          {isPaid && <SupplyChainWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Competitor Strike">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Predatory Competitor Strike">
-          {isPaid && <CompetitorStrikeWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Ghost Campaign">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Ghost Campaign Discovery">
-          {isPaid && <GhostCampaignWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Life Moment">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Life Moment Targeting">
-          {isPaid && <LifeMomentWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Bid Arbitrage">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Bid Time Arbitrage">
-          {isPaid && <BidArbitrageWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          <WidgetErrorBoundary label="Currency Margin">
-          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Currency & Margin Optimizer">
-          {isPaid && <CurrencyMarginWidget/>}
-          </LockedOverlay>
-          </WidgetErrorBoundary>
-
-          {/* COMPETITOR PANEL */}
-          {topCompetitors.length>0 && (
-            <div className="competitor-panel">
-              <div className="competitor-panel-header">
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div className="clf-live-dot"/>
-                  <span className="competitor-panel-title">🕵️ Top Competitors Detected</span>
-                  <span className="clf-live-badge">LIVE</span>
-                </div>
-                <span className="competitor-panel-sub">Across {analyzedCount} analyzed products · sorted by frequency</span>
-              </div>
-              <div className="competitor-list">
-                {topCompetitors.map(([domain,data],i)=>{
-                  const tc = data.strength==="strong"?"#ef4444":data.strength==="medium"?"#f59e0b":"#22c55e";
-                  const keywords = analyzedDbProducts
-                    .flatMap(p=>(p.aiAnalysis?.competitor_intel?.top_competitors||[]).filter(c=>c.domain===domain).flatMap(c=>c.keywords||[]))
-                    .filter(Boolean).slice(0,3);
-                  return (
-                    <div key={i} className="competitor-item competitor-item-clickable" onClick={()=>setSelCompetitor({domain})}>
-                      <div className="competitor-rank">#{i+1}</div>
-                      <div className="competitor-favicon">
-                        <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" onError={e=>{(e.target as HTMLElement).style.display="none"}} style={{width:16,height:16}}/>
-                      </div>
-                      <a href={`https://${domain}`} target="_blank" rel="noopener noreferrer" className="competitor-domain competitor-domain-link" onClick={e=>e.stopPropagation()}>{domain}</a>
-                      {keywords.length>0 && (
-                        <div className="competitor-keywords">
-                          {keywords.map((k,ki)=><span key={ki} className="competitor-kw-tag">{typeof k==="string"?k:k?.text||k}</span>)}
-                        </div>
-                      )}
-                      <div className="competitor-count">{data.count} product{data.count!==1?"s":""}</div>
-                      <div className="competitor-strength" style={{color:tc}}>{data.strength}</div>
-                      <div className="competitor-click-hint">View ads →</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* COMPETITOR GAP FINDER */}
-          {analyzedCount > 0 && (
-            <WidgetErrorBoundary label="Competitor Gap Finder">
-            <CompetitorGapFinder
-              keywordGaps={keywordGaps}
-              totalMonthlyGapLoss={totalMonthlyGapLoss}
-              analyzedCount={analyzedCount}
-              canPublish={canPublish}
-              onUpgrade={handleUpgradeClick}
-            />
-            </WidgetErrorBoundary>
-          )}
-
-          {/* BUDGET SIMULATOR */}
           <WidgetErrorBoundary label="Budget Simulator">
-          <BudgetSimulator
-            avgScore={avgScore}
-            avgCpc={liveAds?.avgCpc || null}
-            canPublish={canPublish}
-            onUpgrade={handleUpgradeClick}
-          />
+          <BudgetSimulator avgScore={avgScore} avgCpc={liveAds?.avgCpc || null} canPublish={canPublish} onUpgrade={handleUpgradeClick}/>
           </WidgetErrorBoundary>
 
-          {/* AD PREVIEW PANEL */}
           <WidgetErrorBoundary label="Ad Preview">
-          <AdPreviewPanel
-            topProduct={topProduct}
-            mockCampaigns={mockCampaigns}
-            canPublish={canPublish}
-            shop={shopDomain}
-            onLaunch={canPublish ? ()=>navigate("/app/campaigns?intent=autoLaunch") : handleUpgradeClick}
-            onViewProduct={handleProductClickCb}
-          />
+          <AdPreviewPanel topProduct={topProduct} mockCampaigns={mockCampaigns} canPublish={canPublish} shop={shopDomain}
+            onLaunch={canPublish ? ()=>navigate("/app/campaigns?intent=autoLaunch") : handleUpgradeClick} onViewProduct={handleProductClickCb}/>
           </WidgetErrorBoundary>
 
-          {/* AI SUMMARY */}
           {analyzedCount>0 && (
             <div className="ai-summary-card" style={{marginBottom:24}}>
               <span className="ai-summary-icon">🤖</span>
@@ -573,7 +587,6 @@ export function DashboardView({
             </div>
           )}
 
-          {/* ACTION CARD */}
           {canPublish ? (
             <div className="auto-campaign-card">
               <div className="auto-campaign-left">

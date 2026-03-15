@@ -806,4 +806,18 @@ body{-webkit-overflow-scrolling:touch}
 }
 /* Fix .da needs position:relative so bg-m stays behind it */
 .da{position:relative;z-index:1}
+/* ═══ Dashboard Section — collapsible category layout ═══ */
+.ds-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:8px}
+@media(max-width:1024px){.ds-grid{grid-template-columns:1fr}}
+.ds-chevron{transition:transform .3s ease;font-size:18px;color:rgba(255,255,255,.4);user-select:none;line-height:1}
+.ds-chevron-open{transform:rotate(180deg)}
+.ds-badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+@media(max-width:768px){.ds-badges{display:none}}
+.ds-hub{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:768px){.ds-hub{grid-template-columns:1fr}}
+.ds-hub-card{border-radius:14px;padding:14px 16px;cursor:pointer;transition:all .25s ease;position:relative;overflow:hidden}
+.ds-hub-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.ds-hub-card-active{ring:2px;transform:translateY(-1px)}
+/* ═══ End Dashboard Section ═══ */
+
 /* RESPONSIVE FIX: narrow mobile */
