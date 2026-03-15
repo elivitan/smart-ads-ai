@@ -22,7 +22,7 @@ import { AlertCircleIcon, ArrowUpIcon, TargetIcon } from "@shopify/polaris-icons
 
 interface Alert {
   id: string;
-  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio" | "deep_intel" | "keyword_gap" | "ab_test" | "weekly_report" | "inventory_low" | "inventory_overstock" | "stockout_predicted" | "profit_negative" | "competitor_spend_surge" | "competitor_spend_drop" | "forecast_revenue_up" | "forecast_revenue_down" | "landing_mismatch" | "funnel_rebalanced";
+  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio" | "deep_intel" | "keyword_gap" | "ab_test" | "weekly_report" | "inventory_low" | "inventory_overstock" | "stockout_predicted" | "profit_negative" | "competitor_spend_surge" | "competitor_spend_drop" | "forecast_revenue_up" | "forecast_revenue_down" | "landing_mismatch" | "funnel_rebalanced" | "competitor_weakness_found" | "strike_completed" | "ghost_opportunity" | "ghost_validated" | "ghost_rejected" | "life_moment_upcoming" | "life_moment_launched" | "arbitrage_window_found" | "arbitrage_savings" | "currency_favorable" | "currency_margin_squeeze";
   title: string;
   message: string;
   urgency: "now" | "today" | "this_week";
@@ -72,6 +72,18 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   supply_chain_arriving: { tone: "info", icon: ArrowUpIcon },
   supply_chain_delay: { tone: "warning", icon: AlertCircleIcon },
   review_insight_found: { tone: "success", icon: TargetIcon },
+  // 11 revolutionary engine alert types (engines 19-23)
+  competitor_weakness_found: { tone: "success", icon: ArrowUpIcon },
+  strike_completed: { tone: "info", icon: TargetIcon },
+  ghost_opportunity: { tone: "success", icon: ArrowUpIcon },
+  ghost_validated: { tone: "success", icon: TargetIcon },
+  ghost_rejected: { tone: "info", icon: AlertCircleIcon },
+  life_moment_upcoming: { tone: "warning", icon: ArrowUpIcon },
+  life_moment_launched: { tone: "info", icon: TargetIcon },
+  arbitrage_window_found: { tone: "success", icon: ArrowUpIcon },
+  arbitrage_savings: { tone: "info", icon: TargetIcon },
+  currency_favorable: { tone: "success", icon: ArrowUpIcon },
+  currency_margin_squeeze: { tone: "warning", icon: AlertCircleIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
@@ -158,6 +170,18 @@ export function generateAlerts(data: {
   forecastAlerts?: Array<{ type: string; predicted: number; trend: string }>;
   landingMismatches?: Array<{ productId: string; pageUrl: string; score: number }>;
   funnelRebalanced?: { changesCount: number; totalBudget: number };
+  // Revolutionary engine inputs (19-23)
+  competitorWeaknesses?: Array<{ domain: string; weakness: string; score: number }>;
+  strikeResults?: Array<{ competitorDomain: string; strikeType: string; saved: number }>;
+  ghostOpportunities?: Array<{ keyword: string; score: number; type: string }>;
+  ghostValidated?: Array<{ keyword: string; roas: number }>;
+  ghostRejected?: Array<{ keyword: string; reason: string }>;
+  lifeMomentsUpcoming?: Array<{ momentType: string; daysUntil: number; products: number }>;
+  lifeMomentsLaunched?: Array<{ momentType: string; campaigns: number }>;
+  arbitrageWindows?: Array<{ day: string; hour: number; savings: number }>;
+  arbitrageSavings?: { totalSaved: number; windowsUsed: number };
+  currencyFavorable?: Array<{ pair: string; changePct: number }>;
+  currencyMarginSqueeze?: Array<{ pair: string; impactPct: number; productsAffected: number }>;
 }): Alert[] {
   const alerts: Alert[] = [];
   const now = Date.now();
@@ -530,6 +554,151 @@ export function generateAlerts(data: {
       message: `Redistributed $${data.funnelRebalanced.totalBudget.toFixed(0)} daily budget across ${data.funnelRebalanced.changesCount} campaigns based on performance.`,
       urgency: "this_week",
     });
+  }
+
+  // ── Revolutionary Engine Alerts (19-23) ──
+
+  // Competitor weakness found (Engine 19)
+  if (data.competitorWeaknesses) {
+    for (const cw of data.competitorWeaknesses) {
+      alerts.push({
+        id: `comp-weakness-${cw.domain}-${now}`,
+        type: "competitor_weakness_found",
+        title: `Weakness found: ${cw.domain}`,
+        message: `Detected exploitable gap: ${cw.weakness}. Opportunity score: ${cw.score}/100.`,
+        urgency: cw.score >= 80 ? "now" : "today",
+      });
+    }
+  }
+
+  // Strike completed (Engine 19)
+  if (data.strikeResults) {
+    for (const sr of data.strikeResults) {
+      alerts.push({
+        id: `strike-done-${sr.competitorDomain}-${now}`,
+        type: "strike_completed",
+        title: `Strike on ${sr.competitorDomain} completed`,
+        message: `${sr.strikeType} strike finished. Estimated savings: $${sr.saved.toFixed(0)}.`,
+        urgency: "this_week",
+      });
+    }
+  }
+
+  // Ghost opportunity (Engine 20)
+  if (data.ghostOpportunities) {
+    for (const go of data.ghostOpportunities) {
+      if (go.score >= 60) {
+        alerts.push({
+          id: `ghost-opp-${go.keyword}-${now}`,
+          type: "ghost_opportunity",
+          title: `Untapped niche: "${go.keyword}"`,
+          message: `${go.type} opportunity with score ${go.score}/100. Low competition, high potential.`,
+          urgency: go.score >= 80 ? "now" : "today",
+        });
+      }
+    }
+  }
+
+  // Ghost validated (Engine 20)
+  if (data.ghostValidated) {
+    for (const gv of data.ghostValidated) {
+      alerts.push({
+        id: `ghost-valid-${gv.keyword}-${now}`,
+        type: "ghost_validated",
+        title: `Ghost campaign validated: "${gv.keyword}"`,
+        message: `Test campaign achieved ${gv.roas.toFixed(1)}x ROAS. Ready to scale.`,
+        urgency: "today",
+      });
+    }
+  }
+
+  // Ghost rejected (Engine 20)
+  if (data.ghostRejected) {
+    for (const gr of data.ghostRejected) {
+      alerts.push({
+        id: `ghost-reject-${gr.keyword}-${now}`,
+        type: "ghost_rejected",
+        title: `Ghost campaign rejected: "${gr.keyword}"`,
+        message: `Test didn't meet thresholds. Reason: ${gr.reason}. Campaign stopped.`,
+        urgency: "this_week",
+      });
+    }
+  }
+
+  // Life moment upcoming (Engine 21)
+  if (data.lifeMomentsUpcoming) {
+    for (const lm of data.lifeMomentsUpcoming) {
+      alerts.push({
+        id: `moment-upcoming-${lm.momentType}-${now}`,
+        type: "life_moment_upcoming",
+        title: `${lm.momentType} season in ${lm.daysUntil} days`,
+        message: `${lm.products} products match this life moment. Create targeted campaigns now for maximum impact.`,
+        urgency: lm.daysUntil <= 7 ? "now" : "today",
+      });
+    }
+  }
+
+  // Life moment launched (Engine 21)
+  if (data.lifeMomentsLaunched) {
+    for (const ll of data.lifeMomentsLaunched) {
+      alerts.push({
+        id: `moment-launched-${ll.momentType}-${now}`,
+        type: "life_moment_launched",
+        title: `${ll.momentType} campaigns launched`,
+        message: `${ll.campaigns} targeted campaigns are now live for this life moment.`,
+        urgency: "this_week",
+      });
+    }
+  }
+
+  // Arbitrage window found (Engine 22)
+  if (data.arbitrageWindows) {
+    for (const aw of data.arbitrageWindows.slice(0, 3)) {
+      alerts.push({
+        id: `arb-window-${aw.day}-${aw.hour}-${now}`,
+        type: "arbitrage_window_found",
+        title: `Low-CPC window: ${aw.day} ${aw.hour}:00`,
+        message: `CPC drops significantly during this hour. Estimated savings: $${aw.savings.toFixed(0)}/month by shifting budget here.`,
+        urgency: "this_week",
+      });
+    }
+  }
+
+  // Arbitrage savings report (Engine 22)
+  if (data.arbitrageSavings && data.arbitrageSavings.totalSaved > 0) {
+    alerts.push({
+      id: `arb-savings-${now}`,
+      type: "arbitrage_savings",
+      title: "Bid arbitrage savings report",
+      message: `Saved $${data.arbitrageSavings.totalSaved.toFixed(0)} this week using ${data.arbitrageSavings.windowsUsed} time-optimized windows.`,
+      urgency: "this_week",
+    });
+  }
+
+  // Currency favorable (Engine 23)
+  if (data.currencyFavorable) {
+    for (const cf of data.currencyFavorable) {
+      alerts.push({
+        id: `currency-fav-${cf.pair}-${now}`,
+        type: "currency_favorable",
+        title: `Favorable rate: ${cf.pair}`,
+        message: `Exchange rate improved by ${cf.changePct.toFixed(1)}%. Your margins just got better — consider aggressive pricing.`,
+        urgency: "today",
+      });
+    }
+  }
+
+  // Currency margin squeeze (Engine 23)
+  if (data.currencyMarginSqueeze) {
+    for (const cms of data.currencyMarginSqueeze) {
+      alerts.push({
+        id: `currency-squeeze-${cms.pair}-${now}`,
+        type: "currency_margin_squeeze",
+        title: `Margin squeeze: ${cms.pair}`,
+        message: `Exchange rate hurting margins by ${cms.impactPct.toFixed(1)}% across ${cms.productsAffected} products. Consider price adjustments.`,
+        urgency: cms.impactPct > 10 ? "now" : "today",
+      });
+    }
   }
 
   return alerts;

@@ -14,6 +14,7 @@ import { ProactiveAlerts, generateAlerts } from "./dashboard/ProactiveAlerts";
 import { CompetitorIntelWidget, KeywordGapWidget, ABTestWidget, WeeklyReportWidget } from "./dashboard/IntelligenceDashboard";
 import { ProfitIntelWidget, InventoryWidget, CompetitorSpendWidget, ForecastWidget, BenchmarksWidget, FunnelWidget } from "./dashboard/EngineWidgets";
 import { DigitalTwinWidget, AgentBiddingWidget, WeatherArbitrageWidget, ReviewCreativeWidget, FlashSaleWidget, SearchSentinelWidget, PerformanceGuardWidget, SupplyChainWidget } from "./dashboard/AdvancedEngineWidgets";
+import { CompetitorStrikeWidget, GhostCampaignWidget, LifeMomentWidget, BidArbitrageWidget, CurrencyMarginWidget } from "./dashboard/RevolutionaryWidgets";
 import { StoreOnboardingBanner } from "./StoreOnboarding";
 import useAppStore from "../stores/useAppStore";
 import { shallow } from "zustand/shallow";
@@ -454,6 +455,36 @@ export function DashboardView({
           <WidgetErrorBoundary label="Supply Chain Ads">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Supply Chain Ads">
           {isPaid && <SupplyChainWidget/>}
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Competitor Strike">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Predatory Competitor Strike">
+          {isPaid && <CompetitorStrikeWidget/>}
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Ghost Campaign">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Ghost Campaign Discovery">
+          {isPaid && <GhostCampaignWidget/>}
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Life Moment">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Life Moment Targeting">
+          {isPaid && <LifeMomentWidget/>}
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Bid Arbitrage">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Bid Time Arbitrage">
+          {isPaid && <BidArbitrageWidget/>}
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Currency Margin">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Currency & Margin Optimizer">
+          {isPaid && <CurrencyMarginWidget/>}
           </LockedOverlay>
           </WidgetErrorBoundary>
 

@@ -14,6 +14,11 @@ import { scanInventoryLevels, throttleLowStockCampaigns, boostOverstockedCampaig
 import { rebalanceBudgets } from "../funnel-orchestrator.server.js";
 import { aggregateCrossStoreData } from "../cross-store.server.js";
 import { checkExpiredFlashSales } from "../flash-sale.server.js";
+import { analyzeCompetitorWeaknesses } from "../competitor-strike.server.js";
+import { discoverGhostOpportunities, validateGhostResults } from "../ghost-campaign.server.js";
+import { getUpcomingMoments } from "../life-moment.server.js";
+import { analyzeHourlyPerformance, detectArbitrageWindows } from "../bid-arbitrage.server.js";
+import { checkExchangeRates, calculateMarginImpact } from "../currency-margin.server.js";
 import { logger } from "./logger.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
@@ -184,7 +189,44 @@ export function startOptimizationScheduler(): void {
   });
   cronJobs.push(reviewJob);
 
-  logger.info("scheduler", "Optimization scheduler started (every 6 hours + daily feedback + weekly intel & reports + 13 engine jobs)");
+  // ── Revolutionary Engine Jobs (19-23) ──
+
+  // Daily competitor weakness scan — 03:00
+  const competitorStrikeJob = cron.schedule("0 3 * * *", async () => {
+    logger.info("scheduler", "Starting daily competitor weakness scan");
+    await runAllShopsCompetitorStrike();
+  });
+  cronJobs.push(competitorStrikeJob);
+
+  // Weekly ghost opportunity discovery — Monday 02:00
+  const ghostDiscoveryJob = cron.schedule("0 2 * * 1", async () => {
+    logger.info("scheduler", "Starting weekly ghost opportunity discovery");
+    await runAllShopsGhostDiscovery();
+  });
+  cronJobs.push(ghostDiscoveryJob);
+
+  // Daily bid arbitrage analysis — 06:00
+  const bidArbitrageJob = cron.schedule("0 6 * * *", async () => {
+    logger.info("scheduler", "Starting daily bid arbitrage analysis");
+    await runAllShopsBidArbitrage();
+  });
+  cronJobs.push(bidArbitrageJob);
+
+  // Weekly currency/margin check — Monday 07:00
+  const currencyMarginJob = cron.schedule("0 7 * * 1", async () => {
+    logger.info("scheduler", "Starting weekly currency/margin check");
+    await runAllShopsCurrencyMargin();
+  });
+  cronJobs.push(currencyMarginJob);
+
+  // Monthly life moment calendar update — 1st of month 08:00
+  const lifeMomentJob = cron.schedule("0 8 1 * *", async () => {
+    logger.info("scheduler", "Starting monthly life moment calendar update");
+    await runAllShopsLifeMoment();
+  });
+  cronJobs.push(lifeMomentJob);
+
+  logger.info("scheduler", "Optimization scheduler started (every 6 hours + daily feedback + weekly intel & reports + 18 engine jobs)");
 }
 
 /**
@@ -616,6 +658,124 @@ async function runAllShopsReviewExtraction(): Promise<void> {
     }
   } catch (err: unknown) {
     logger.error("scheduler", "Failed to run review extraction", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Daily competitor weakness scan — Engine 19.
+ */
+async function runAllShopsCompetitorStrike(): Promise<void> {
+  try {
+    const shops = await getActiveShops();
+    for (const shop of shops) {
+      try {
+        const weaknesses = await analyzeCompetitorWeaknesses(shop);
+        logger.info("scheduler", `Competitor strike scan for ${shop}: ${weaknesses.length} weaknesses found`);
+      } catch (err: unknown) {
+        logger.error("scheduler", `Competitor strike scan failed for ${shop}`, {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run competitor strike scan", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Weekly ghost opportunity discovery — Engine 20.
+ */
+async function runAllShopsGhostDiscovery(): Promise<void> {
+  try {
+    const shops = await getActiveShops();
+    for (const shop of shops) {
+      try {
+        const opportunities = await discoverGhostOpportunities(shop);
+        await validateGhostResults(shop);
+        logger.info("scheduler", `Ghost discovery for ${shop}: ${opportunities.length} opportunities`);
+      } catch (err: unknown) {
+        logger.error("scheduler", `Ghost discovery failed for ${shop}`, {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run ghost discovery", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Daily bid arbitrage analysis — Engine 22.
+ */
+async function runAllShopsBidArbitrage(): Promise<void> {
+  try {
+    const shops = await getActiveShops();
+    for (const shop of shops) {
+      try {
+        await analyzeHourlyPerformance(shop);
+        const windows = await detectArbitrageWindows(shop);
+        logger.info("scheduler", `Bid arbitrage for ${shop}: ${windows.length} windows found`);
+      } catch (err: unknown) {
+        logger.error("scheduler", `Bid arbitrage failed for ${shop}`, {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run bid arbitrage", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Weekly currency/margin check — Engine 23.
+ */
+async function runAllShopsCurrencyMargin(): Promise<void> {
+  try {
+    const shops = await getActiveShops();
+    for (const shop of shops) {
+      try {
+        await checkExchangeRates(shop);
+        const events = await calculateMarginImpact(shop);
+        logger.info("scheduler", `Currency margin for ${shop}: ${events.length} events`);
+      } catch (err: unknown) {
+        logger.error("scheduler", `Currency margin failed for ${shop}`, {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run currency margin check", {
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Monthly life moment calendar update — Engine 21.
+ */
+async function runAllShopsLifeMoment(): Promise<void> {
+  try {
+    const shops = await getActiveShops();
+    for (const shop of shops) {
+      try {
+        const moments = await getUpcomingMoments(shop);
+        logger.info("scheduler", `Life moment update for ${shop}: ${moments.length} upcoming moments`);
+      } catch (err: unknown) {
+        logger.error("scheduler", `Life moment update failed for ${shop}`, {
+          extra: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.error("scheduler", "Failed to run life moment update", {
       extra: { error: err instanceof Error ? err.message : String(err) },
     });
   }

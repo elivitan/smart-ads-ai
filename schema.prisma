@@ -740,3 +740,96 @@ model SupplyChainSignal {
   @@index([productId])
   @@index([estimatedArrival])
 }
+
+// Engine 19: Predatory Competitor Strike — exploit competitor weaknesses
+model CompetitorStrike {
+  id               String    @id @default(cuid())
+  shop             String
+  competitorDomain String
+  strikeType       String    // "undercut_bid" | "gap_exploit" | "weakness_attack" | "budget_drain"
+  targetKeywords   String    @db.Text // JSON array
+  estimatedImpact  String?   @db.Text // JSON
+  status           String    @default("planned") // "planned" | "active" | "completed" | "cancelled"
+  resultMetrics    String?   @db.Text // JSON
+  launchedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([shop, status])
+  @@index([shop, competitorDomain])
+}
+
+// Engine 20: Ghost Campaign — discover untapped product/keyword niches
+model GhostCampaign {
+  id               String   @id @default(cuid())
+  shop             String
+  discoveryType    String   // "micro_niche" | "seasonal_upcoming" | "competitor_abandoned" | "trend_emerging"
+  keyword          String
+  searchVolume     Int?
+  competition      String?  // "LOW" | "MEDIUM" | "HIGH"
+  opportunityScore Int      // 0-100
+  estimatedCpc     Float?
+  estimatedRoas    Float?
+  status           String   @default("discovered") // "discovered" | "testing" | "validated" | "rejected"
+  campaignId       String?
+  createdAt        DateTime @default(now())
+
+  @@index([shop, status])
+  @@index([shop, opportunityScore])
+}
+
+// Engine 21: Life Moment Targeting — target life events (wedding, baby, etc.)
+model LifeMomentCampaign {
+  id              String    @id @default(cuid())
+  shop            String
+  momentType      String    // "wedding" | "baby" | "moving" | "graduation" | "holiday" | "back_to_school" | "new_job" | "retirement"
+  targetAudience  String    @db.Text // JSON audience config
+  productIds      String    @db.Text // JSON array
+  adCopy          String?   @db.Text // JSON
+  status          String    @default("draft") // "draft" | "active" | "paused" | "completed"
+  performance     String?   @db.Text // JSON metrics
+  seasonStart     DateTime?
+  seasonEnd       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([shop, status])
+  @@index([shop, momentType])
+}
+
+// Engine 22: Bid Time Arbitrage — find low-CPC high-conversion time windows
+model BidArbitrageWindow {
+  id                  String   @id @default(cuid())
+  shop                String
+  dayOfWeek           Int      // 0-6 (Sunday=0)
+  hourStart           Int      // 0-23
+  hourEnd             Int      // 0-23
+  avgCpc              Float
+  avgConvRate         Float?
+  avgRoas             Float?
+  competitorActivity  String?  // "low" | "medium" | "high"
+  bidMultiplier       Float    @default(1.0)
+  isArbitrage         Boolean  @default(false) // true = low CPC + high conv
+  sampleSize          Int      @default(0)
+  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now())
+
+  @@unique([shop, dayOfWeek, hourStart])
+  @@index([shop, isArbitrage])
+}
+
+// Engine 23: Currency & Margin Optimizer — exploit exchange rate fluctuations
+model CurrencyMarginEvent {
+  id               String   @id @default(cuid())
+  shop             String
+  eventType        String   // "favorable_rate" | "margin_squeeze" | "arbitrage_opportunity" | "price_adjustment"
+  fromCurrency     String   // e.g. "USD"
+  toCurrency       String   // e.g. "EUR"
+  exchangeRate     Float
+  previousRate     Float?
+  marginImpactPct  Float?   // % change in margin
+  actionTaken      String?  @db.Text
+  productsAffected String?  @db.Text // JSON array of product IDs
+  createdAt        DateTime @default(now())
+
+  @@index([shop, eventType])
+  @@index([shop, fromCurrency, toCurrency])
+}
