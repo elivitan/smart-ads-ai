@@ -11,6 +11,8 @@ import { ProductModal } from "./ProductModal";
 import { MarketAlert } from "./MarketAlert";
 import { StoreAnalyticsWidget } from "./StoreAnalytics";
 import { ProactiveAlerts, generateAlerts } from "./dashboard/ProactiveAlerts";
+import { CompetitorIntelWidget, KeywordGapWidget, ABTestWidget, WeeklyReportWidget } from "./dashboard/IntelligenceDashboard";
+import { ProfitIntelWidget, InventoryWidget, CompetitorSpendWidget, ForecastWidget, BenchmarksWidget, FunnelWidget } from "./dashboard/EngineWidgets";
 import { StoreOnboardingBanner } from "./StoreOnboarding";
 import useAppStore from "../stores/useAppStore";
 import { shallow } from "zustand/shallow";
@@ -342,7 +344,67 @@ export function DashboardView({
           </WidgetErrorBoundary>
 
 
+          {/* ══ INTELLIGENCE DASHBOARD — 4 new feature blocks ══ */}
+          <WidgetErrorBoundary label="Competitor Intelligence">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Deep Business Intelligence">
+          <CompetitorIntelWidget shopDomain={shopDomain}/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
 
+          <WidgetErrorBoundary label="Keyword Gap Analysis">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Keyword Gap Analysis">
+          <KeywordGapWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="A/B Testing">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="A/B Testing">
+          <ABTestWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Weekly Reports">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weekly Reports">
+          <WeeklyReportWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          {/* ══ AI ENGINE WIDGETS — 6 new engine blocks ══ */}
+          <WidgetErrorBoundary label="Profit Intelligence">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Profit Intelligence">
+          <ProfitIntelWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Inventory-Aware Ads">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Inventory-Aware Ads">
+          <InventoryWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Competitor Ad Spend">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Competitor Ad Spend">
+          <CompetitorSpendWidget shopDomain={shopDomain}/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Revenue Forecast">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Revenue Forecast">
+          <ForecastWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Industry Benchmarks">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="You vs Industry">
+          <BenchmarksWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Full Funnel Orchestrator">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Full Funnel Orchestrator">
+          <FunnelWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
 
           {/* COMPETITOR PANEL */}
           {topCompetitors.length>0 && (

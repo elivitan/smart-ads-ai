@@ -15,7 +15,7 @@ function json(data: unknown, init?: { status?: number }) {
   });
 }
 import { authenticate } from "../shopify.server.js";
-import { runOptimization, getOptimizationHistory, getOptimizationStats } from "../utils/optimizer.server.js";
+import { runOptimization, getOptimizationHistory, getOptimizationStats, getABTestResults } from "../utils/optimizer.server.js";
 import { logger } from "../utils/logger.js";
 
 // ── GET: Dashboard data ──────────────────────────────────────────────────
@@ -74,6 +74,11 @@ export async function action({ request }: ActionFunctionArgs) {
         const limit = Math.min(body?.limit || 50, 100);
         const history = await getOptimizationHistory(shop, limit);
         return json({ success: true, history });
+      }
+
+      case "ab_tests": {
+        const tests = await getABTestResults(shop);
+        return json({ success: true, tests });
       }
 
       default:

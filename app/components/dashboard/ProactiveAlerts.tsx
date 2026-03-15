@@ -6,6 +6,7 @@
  * - Demand changes
  * - Competitor movements
  * - Budget optimization suggestions
+ * - Inventory alerts, profit warnings, forecasts, funnel status
  */
 
 import {
@@ -21,7 +22,7 @@ import { AlertCircleIcon, ArrowUpIcon, TargetIcon } from "@shopify/polaris-icons
 
 interface Alert {
   id: string;
-  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio" | "deep_intel" | "keyword_gap" | "ab_test" | "weekly_report";
+  type: "opportunity" | "warning" | "milestone" | "seasonal" | "competitor" | "health" | "detective" | "creative_fatigue" | "portfolio" | "deep_intel" | "keyword_gap" | "ab_test" | "weekly_report" | "inventory_low" | "inventory_overstock" | "stockout_predicted" | "profit_negative" | "competitor_spend_surge" | "competitor_spend_drop" | "forecast_revenue_up" | "forecast_revenue_down" | "landing_mismatch" | "funnel_rebalanced";
   title: string;
   message: string;
   urgency: "now" | "today" | "this_week";
@@ -47,12 +48,23 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   keyword_gap: { tone: "success", icon: ArrowUpIcon },
   ab_test: { tone: "success", icon: TargetIcon },
   weekly_report: { tone: "info", icon: TargetIcon },
+  // 10 new engine alert types
+  inventory_low: { tone: "critical", icon: AlertCircleIcon },
+  inventory_overstock: { tone: "info", icon: ArrowUpIcon },
+  stockout_predicted: { tone: "warning", icon: AlertCircleIcon },
+  profit_negative: { tone: "critical", icon: AlertCircleIcon },
+  competitor_spend_surge: { tone: "warning", icon: AlertCircleIcon },
+  competitor_spend_drop: { tone: "success", icon: ArrowUpIcon },
+  forecast_revenue_up: { tone: "success", icon: ArrowUpIcon },
+  forecast_revenue_down: { tone: "warning", icon: AlertCircleIcon },
+  landing_mismatch: { tone: "warning", icon: AlertCircleIcon },
+  funnel_rebalanced: { tone: "info", icon: TargetIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
-  now: "דחוף",
-  today: "היום",
-  this_week: "השבוע",
+  now: "Urgent",
+  today: "Today",
+  this_week: "This Week",
 };
 
 export function ProactiveAlerts({ alerts }: ProactiveAlertsProps) {
@@ -63,9 +75,9 @@ export function ProactiveAlerts({ alerts }: ProactiveAlertsProps) {
       <BlockStack gap="300">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            התראות חכמות מהסוכנות
+            Smart Agency Alerts
           </Text>
-          <Badge tone="info">{`${alerts.length} התראות`}</Badge>
+          <Badge tone="info">{`${alerts.length} alerts`}</Badge>
         </InlineStack>
 
         {alerts.map((alert) => {
@@ -126,6 +138,13 @@ export function generateAlerts(data: {
   keywordGaps?: Array<{ keyword: string; opportunityScore: number; source: string }>;
   abTestResults?: Array<{ campaignName: string; improvement: number }>;
   weeklyReportReady?: boolean;
+  // New engine data inputs
+  inventoryAlerts?: Array<{ productTitle: string; alertType: string; currentStock: number; daysUntilOut?: number }>;
+  profitAlerts?: Array<{ campaignName: string; netProfit: number; roas: number }>;
+  competitorSpendChanges?: Array<{ domain: string; direction: string; changePct: number }>;
+  forecastAlerts?: Array<{ type: string; predicted: number; trend: string }>;
+  landingMismatches?: Array<{ productId: string; pageUrl: string; score: number }>;
+  funnelRebalanced?: { changesCount: number; totalBudget: number };
 }): Alert[] {
   const alerts: Alert[] = [];
   const now = Date.now();
@@ -137,10 +156,10 @@ export function generateAlerts(data: {
         alerts.push({
           id: `seasonal-${h.name}-${now}`,
           type: "seasonal",
-          title: `${h.name} בעוד ${h.daysUntil} ימים`,
+          title: `${h.name} in ${h.daysUntil} days`,
           message: h.daysUntil <= 7
-            ? `זמן לפעול עכשיו! ה-CPC יעלה בקרוב. מומלץ להגדיל תקציב ולהכין מודעות ייעודיות.`
-            : `הזמן להתחיל להתכונן. תכנן תקציב גבוה יותר ומודעות מותאמות ל${h.name}.`,
+            ? `Time to act now! CPC will rise soon. Consider increasing budget and preparing dedicated ads.`
+            : `Start preparing now. Plan a higher budget and tailored ads for ${h.name}.`,
           urgency: h.daysUntil <= 7 ? "now" : "this_week",
         });
       }
@@ -152,16 +171,16 @@ export function generateAlerts(data: {
     alerts.push({
       id: `trend-rising-${now}`,
       type: "opportunity",
-      title: `הביקוש עלה ב-${data.trendChange}%`,
-      message: "מגמת חיפוש עולה — זמן טוב להגדיל תקציב ולתפוס נתח שוק לפני שהמתחרים מגיבים.",
+      title: `Demand up ${data.trendChange}%`,
+      message: "Search trend is rising — great time to increase budget and capture market share before competitors react.",
       urgency: "today",
     });
   } else if (data.trendDirection === "falling" && (data.trendChange || 0) < -20) {
     alerts.push({
       id: `trend-falling-${now}`,
       type: "warning",
-      title: "ירידה בביקוש",
-      message: `הביקוש ירד ב-${Math.abs(data.trendChange || 0)}%. מומלץ להקטין תקציב ולהתמקד במילות מפתח ממירות.`,
+      title: "Demand declining",
+      message: `Demand dropped ${Math.abs(data.trendChange || 0)}%. Consider reducing budget and focusing on high-converting keywords.`,
       urgency: "today",
     });
   }
@@ -171,13 +190,13 @@ export function generateAlerts(data: {
     for (const c of data.campaigns) {
       if (c.roas != null && c.roas < 1.0 && (c.spend || 0) > 10) {
         const marginNote = data.profitMargin
-          ? ` עם מרווח של ${data.profitMargin}%, אתה צריך ROAS של לפחות ${(100 / data.profitMargin).toFixed(1)}.`
+          ? ` With a ${data.profitMargin}% margin, you need a ROAS of at least ${(100 / data.profitMargin).toFixed(1)}.`
           : "";
         alerts.push({
           id: `roas-low-${c.name}-${now}`,
           type: "warning",
-          title: `ROAS נמוך: ${c.name}`,
-          message: `ROAS ${c.roas.toFixed(2)} אחרי $${(c.spend || 0).toFixed(0)} הוצאה.${marginNote} שקול להשהות או לשנות אסטרטגיה.`,
+          title: `Low ROAS: ${c.name}`,
+          message: `ROAS ${c.roas.toFixed(2)} after $${(c.spend || 0).toFixed(0)} spent.${marginNote} Consider pausing or changing strategy.`,
           urgency: "now",
         });
       }
@@ -189,8 +208,8 @@ export function generateAlerts(data: {
     alerts.push({
       id: `competition-high-${now}`,
       type: "warning",
-      title: "תחרות גבוהה",
-      message: `${data.competitorCount} מתחרים מפרסמים על מילות המפתח שלך. כדאי להתמקד בחיפושים יותר ספציפיים שבהם פחות תחרות.`,
+      title: "High competition",
+      message: `${data.competitorCount} competitors are bidding on your keywords. Focus on more specific searches with less competition.`,
       urgency: "this_week",
     });
   }
@@ -201,10 +220,10 @@ export function generateAlerts(data: {
       alerts.push({
         id: `competitor-${ct.type}-${ct.domain}-${now}`,
         type: "competitor",
-        title: ct.type === "new_competitor" ? "מתחרה חדש" :
-               ct.type === "competitor_left" ? "מתחרה עזב" :
-               ct.type === "spend_increase" ? "מתחרה מגדיל פרסום" :
-               "מתחרה הוריד מחירים",
+        title: ct.type === "new_competitor" ? "New competitor detected" :
+               ct.type === "competitor_left" ? "Competitor left" :
+               ct.type === "spend_increase" ? "Competitor increasing spend" :
+               "Competitor cut prices",
         message: ct.message,
         urgency: ct.urgency as "now" | "today" | "this_week",
       });
@@ -220,16 +239,16 @@ export function generateAlerts(data: {
         alerts.push({
           id: `pacing-fast-${now}`,
           type: "warning",
-          title: "התקציב נשרף מהר",
-          message: `כבר הוצאת $${spentToday.toFixed(0)} מתוך $${dailyBudget} יומי. בקצב הזה התקציב ייגמר לפני סוף היום ולא תופיע בחיפושים אחה"צ/ערב.`,
+          title: "Budget burning fast",
+          message: `Already spent $${spentToday.toFixed(0)} of $${dailyBudget} daily budget. At this rate, budget will run out before evening and ads won't show.`,
           urgency: "now",
         });
       } else if (hoursElapsed > 12 && projectedDaily < dailyBudget * 0.5) {
         alerts.push({
           id: `pacing-slow-${now}`,
           type: "health",
-          title: "התקציב לא מנוצל",
-          message: `רק $${spentToday.toFixed(0)} מתוך $${dailyBudget} נוצלו היום. ייתכן שמילות המפתח צרות מדי או שההצעות נמוכות.`,
+          title: "Budget underutilized",
+          message: `Only $${spentToday.toFixed(0)} of $${dailyBudget} used today. Keywords may be too narrow or bids too low.`,
           urgency: "today",
         });
       }
@@ -243,8 +262,8 @@ export function generateAlerts(data: {
       alerts.push({
         id: `conversion-health-${now}`,
         type: "health",
-        title: "אין מכירות מהפרסום",
-        message: `${daysWithoutConversions} ימים בלי אף מכירה למרות שאנשים רואים את המודעות. ייתכן שמעקב ההמרות לא מוגדר נכון — כדאי לבדוק.`,
+        title: "No sales from ads",
+        message: `${daysWithoutConversions} days without a single sale despite impressions. Conversion tracking may not be set up correctly.`,
         urgency: "now",
       });
     }
@@ -257,16 +276,16 @@ export function generateAlerts(data: {
       alerts.push({
         id: `ctr-drop-${now}`,
         type: "warning",
-        title: "פחות אנשים לוחצים",
-        message: `ירידה של ${Math.abs(Math.round(ctrChange))}% בכמות הלחיצות בשבוע האחרון. כדאי לרענן את טקסט המודעות או לבדוק שמתחרה חדש לא נכנס.`,
+        title: "Click rate dropping",
+        message: `CTR dropped ${Math.abs(Math.round(ctrChange))}% this week. Consider refreshing ad copy or checking for new competitors.`,
         urgency: "today",
       });
     } else if (ctrChange > 50) {
       alerts.push({
         id: `ctr-boost-${now}`,
         type: "opportunity",
-        title: "יותר אנשים לוחצים!",
-        message: `עלייה של ${Math.round(ctrChange)}% בלחיצות על המודעות! זה הזמן להגדיל תקציב ולנצל את המומנטום.`,
+        title: "Click rate surging!",
+        message: `CTR up ${Math.round(ctrChange)}%! Great time to increase budget and capitalize on this momentum.`,
         urgency: "today",
       });
     }
@@ -278,8 +297,8 @@ export function generateAlerts(data: {
       alerts.push({
         id: `fatigue-${fatigue.campaignName}-${now}`,
         type: "creative_fatigue",
-        title: "המודעות מתישנות",
-        message: `"${fatigue.campaignName}" — ${fatigue.weeksOfDecline} שבועות רצופים של ירידה (${Math.round(fatigue.declinePercent)}%). הגיע הזמן לרענן את הטקסטים.`,
+        title: "Ad fatigue detected",
+        message: `"${fatigue.campaignName}" — ${fatigue.weeksOfDecline} weeks of decline (${Math.round(fatigue.declinePercent)}%). Time to refresh ad copy.`,
         urgency: fatigue.declinePercent > 40 ? "now" : "today",
       });
     }
@@ -292,8 +311,8 @@ export function generateAlerts(data: {
       alerts.push({
         id: `portfolio-cannibal-${now}`,
         type: "portfolio",
-        title: "קמפיינים מתחרים זה בזה",
-        message: `${cannibalizationCount} מילות מפתח מופיעות ביותר מקמפיין אחד — $${Math.round(totalWastedSpend)} בזבוז. כדאי לחלק מילים או לאחד קמפיינים.`,
+        title: "Campaigns competing with each other",
+        message: `${cannibalizationCount} keywords appear in multiple campaigns — $${Math.round(totalWastedSpend)} wasted. Consider splitting keywords or merging campaigns.`,
         urgency: totalWastedSpend > 50 ? "now" : "this_week",
       });
     }
@@ -301,8 +320,8 @@ export function generateAlerts(data: {
       alerts.push({
         id: `portfolio-rebalance-${now}`,
         type: "portfolio",
-        title: "הזדמנות לאיזון תקציב",
-        message: `זיהינו שכדאי להעביר כסף מקמפיין חלש לחזק — ${rebalanceCount} העברות מומלצות.`,
+        title: "Budget rebalance opportunity",
+        message: `Found ${rebalanceCount} recommended budget transfers from weak to strong campaigns.`,
         urgency: "today",
       });
     }
@@ -314,7 +333,7 @@ export function generateAlerts(data: {
       alerts.push({
         id: `detective-${report.campaignName}-${now}`,
         type: "detective",
-        title: `חקירה: ${report.campaignName}`,
+        title: `Investigation: ${report.campaignName}`,
         message: report.narrative,
         urgency: "today",
       });
@@ -327,34 +346,34 @@ export function generateAlerts(data: {
     alerts.push({
       id: `learning-milestone-${now}`,
       type: "milestone",
-      title: "המערכת לומדת ומשתפרת",
-      message: `המערכת ביצעה ${data.learningInsights.totalActionsLearned} פעולות ולמדה מהתוצאות. שיעור הצלחה: ${successPct}%.`,
+      title: "System learning and improving",
+      message: `The system has performed ${data.learningInsights.totalActionsLearned} actions and learned from the results. Success rate: ${successPct}%.`,
       urgency: "this_week",
     });
   }
 
-  // Deep intelligence alerts — competitor changes and vulnerabilities
+  // Deep intelligence alerts
   if (data.deepIntelAlerts) {
     for (const intel of data.deepIntelAlerts) {
       alerts.push({
         id: `deep-intel-${intel.domain}-${now}`,
         type: "deep_intel",
-        title: `מודיעין: ${intel.domain}`,
+        title: `Intel: ${intel.domain}`,
         message: intel.message,
         urgency: intel.urgency as "now" | "today" | "this_week",
       });
     }
   }
 
-  // Keyword gap alerts — competitor keywords you're not targeting
+  // Keyword gap alerts
   if (data.keywordGaps) {
     const topGaps = data.keywordGaps.filter((g) => g.opportunityScore >= 70).slice(0, 3);
     for (const gap of topGaps) {
       alerts.push({
         id: `keyword-gap-${gap.keyword}-${now}`,
         type: "keyword_gap",
-        title: "הזדמנות שהמתחרים כבר תפסו",
-        message: `המתחרים (${gap.source}) מפרסמים על "${gap.keyword}" ואתה לא — זו הזדמנות שאתה מפספס.`,
+        title: "Opportunity competitors already found",
+        message: `Competitors (${gap.source}) are advertising on "${gap.keyword}" and you're not — you're missing this opportunity.`,
         urgency: "today",
       });
     }
@@ -366,8 +385,8 @@ export function generateAlerts(data: {
       alerts.push({
         id: `ab-test-${result.campaignName}-${now}`,
         type: "ab_test",
-        title: "יש מנצח במבחן המודעות!",
-        message: `בדקנו גרסאות שונות של המודעה ב-"${result.campaignName}". הגרסה המנצחת מביאה ${result.improvement}% יותר לחיצות!`,
+        title: "A/B test winner found!",
+        message: `Tested different ad versions for "${result.campaignName}". The winning version gets ${result.improvement}% more clicks!`,
         urgency: "today",
       });
     }
@@ -378,8 +397,124 @@ export function generateAlerts(data: {
     alerts.push({
       id: `weekly-report-${now}`,
       type: "weekly_report",
-      title: "הדוח השבועי מוכן",
-      message: "סיכום של מה שקרה בשבוע האחרון — מה עשינו, מה השתנה, ומה התוכנית להמשך.",
+      title: "Weekly report ready",
+      message: "Summary of this week — what was done, what changed, and what's planned next.",
+      urgency: "this_week",
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 10 NEW ENGINE ALERT TYPES
+  // ═══════════════════════════════════════════════════════════
+
+  // Inventory alerts
+  if (data.inventoryAlerts) {
+    for (const inv of data.inventoryAlerts) {
+      if (inv.alertType === "low_stock" || inv.alertType === "stockout_predicted") {
+        alerts.push({
+          id: `inventory-${inv.alertType}-${inv.productTitle}-${now}`,
+          type: inv.alertType === "low_stock" ? "inventory_low" : "stockout_predicted",
+          title: inv.alertType === "low_stock" ? `Low stock: ${inv.productTitle}` : `Stockout predicted: ${inv.productTitle}`,
+          message: inv.daysUntilOut != null
+            ? `Only ${inv.currentStock} units left. Estimated stockout in ${inv.daysUntilOut} days. Campaign budget reduced to prevent overselling.`
+            : `Stock is critically low (${inv.currentStock} units). Ad spend has been throttled automatically.`,
+          urgency: (inv.daysUntilOut != null && inv.daysUntilOut <= 3) ? "now" : "today",
+        });
+      } else if (inv.alertType === "overstock") {
+        alerts.push({
+          id: `inventory-overstock-${inv.productTitle}-${now}`,
+          type: "inventory_overstock",
+          title: `Overstocked: ${inv.productTitle}`,
+          message: `${inv.currentStock} units in stock — well above sales rate. Ad spend boosted to move inventory faster.`,
+          urgency: "this_week",
+        });
+      }
+    }
+  }
+
+  // Profit alerts
+  if (data.profitAlerts) {
+    for (const p of data.profitAlerts) {
+      if (p.netProfit < 0) {
+        alerts.push({
+          id: `profit-negative-${p.campaignName}-${now}`,
+          type: "profit_negative",
+          title: `Losing money: ${p.campaignName}`,
+          message: `This campaign is losing $${Math.abs(p.netProfit).toFixed(2)} per conversion after COGS. ROAS is ${p.roas.toFixed(2)} but true profit is negative.`,
+          urgency: "now",
+        });
+      }
+    }
+  }
+
+  // Competitor spend changes
+  if (data.competitorSpendChanges) {
+    for (const cs of data.competitorSpendChanges) {
+      if (cs.direction === "increasing" && cs.changePct > 50) {
+        alerts.push({
+          id: `comp-spend-surge-${cs.domain}-${now}`,
+          type: "competitor_spend_surge",
+          title: `${cs.domain} ramping up spend`,
+          message: `Competitor increased ad spend by ${cs.changePct.toFixed(0)}%. Expect higher CPCs — consider adjusting bids or targeting.`,
+          urgency: "today",
+        });
+      } else if (cs.direction === "decreasing" && cs.changePct > 30) {
+        alerts.push({
+          id: `comp-spend-drop-${cs.domain}-${now}`,
+          type: "competitor_spend_drop",
+          title: `${cs.domain} cutting spend`,
+          message: `Competitor reduced spend by ${cs.changePct.toFixed(0)}%. Opportunity to capture their market share at lower CPC.`,
+          urgency: "today",
+        });
+      }
+    }
+  }
+
+  // Forecast alerts
+  if (data.forecastAlerts) {
+    for (const f of data.forecastAlerts) {
+      if (f.trend === "growing") {
+        alerts.push({
+          id: `forecast-up-${now}`,
+          type: "forecast_revenue_up",
+          title: "Revenue growth predicted",
+          message: `Forecast shows $${f.predicted.toFixed(0)} predicted revenue — trend is upward. Good time to scale campaigns.`,
+          urgency: "this_week",
+        });
+      } else if (f.trend === "declining") {
+        alerts.push({
+          id: `forecast-down-${now}`,
+          type: "forecast_revenue_down",
+          title: "Revenue decline predicted",
+          message: `Forecast shows $${f.predicted.toFixed(0)} predicted revenue — declining trend detected. Review campaigns and tighten targeting.`,
+          urgency: "today",
+        });
+      }
+    }
+  }
+
+  // Landing page mismatch alerts
+  if (data.landingMismatches) {
+    for (const lm of data.landingMismatches) {
+      if (lm.score < 50) {
+        alerts.push({
+          id: `landing-mismatch-${lm.productId}-${now}`,
+          type: "landing_mismatch",
+          title: "Ad-to-page mismatch",
+          message: `Landing page alignment score is only ${lm.score}/100. Ad promises don't match page content — this hurts Quality Score and conversions.`,
+          urgency: lm.score < 30 ? "now" : "today",
+        });
+      }
+    }
+  }
+
+  // Funnel rebalanced
+  if (data.funnelRebalanced && data.funnelRebalanced.changesCount > 0) {
+    alerts.push({
+      id: `funnel-rebalanced-${now}`,
+      type: "funnel_rebalanced",
+      title: "Budget auto-rebalanced",
+      message: `Redistributed $${data.funnelRebalanced.totalBudget.toFixed(0)} daily budget across ${data.funnelRebalanced.changesCount} campaigns based on performance.`,
       urgency: "this_week",
     });
   }

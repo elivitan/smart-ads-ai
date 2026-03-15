@@ -29,9 +29,10 @@ import {
   addNegativeKeywords,
   getCampaignPerformanceByDate,
 } from "../google-ads.server.js";
-import { getDailyAdvice } from "../ai-brain.server.js";
+import { getDailyAdvice, getAiReflectionRules } from "../ai-brain.server.js";
 import { getStoreProfile } from "../store-context.server.js";
 import { getCompetitorTrends } from "../competitor-intel.server.js";
+import { scanInventoryLevels, throttleLowStockCampaigns, boostOverstockedCampaigns } from "../inventory-ads.server.js";
 import { logger } from "./logger.js";
 
 const narrativeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -211,6 +212,25 @@ export async function runOptimization(shop: string): Promise<OptResult> {
     const kwLearning = learning.byActionType["pause_keyword"];
     if (kwLearning?.adjustedThreshold != null) {
       (effectiveRules as any).KEYWORD_PAUSE_CLICKS = kwLearning.adjustedThreshold;
+    }
+
+    // 2.7 Inventory gate — throttle/boost campaigns based on stock levels
+    try {
+      await scanInventoryLevels(shop);
+      await throttleLowStockCampaigns(shop);
+      await boostOverstockedCampaigns(shop);
+    } catch (err: unknown) {
+      logger.warn("optimizer", "Inventory gate failed, continuing", {
+        extra: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
+
+    // 2.8 Self-learning filter — load rules AI learned from past decisions
+    let avoidRules: string[] = [];
+    try {
+      avoidRules = await getAiReflectionRules(shop);
+    } catch {
+      // Non-critical, continue without learned rules
     }
 
     // 3. Apply optimization rules to each campaign

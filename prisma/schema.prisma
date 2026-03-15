@@ -375,3 +375,193 @@ model KeywordGapAnalysis {
   @@index([shop])
   @@index([shop, opportunityScore])
 }
+
+// ═══════════════════════════════════════════════════
+// 10 NEW AI ENGINES — Session 58
+// ═══════════════════════════════════════════════════
+
+// Engine 1: Self-Evolving AI — learns from its own decisions
+model AiReflection {
+  id                     String   @id @default(cuid())
+  shop                   String
+  reflectionType         String   // "weekly_reflection" | "pre_optimization" | "pattern_discovery"
+  insights               String   @db.Text  // JSON: [{pattern, evidence, recommendation, confidence}]
+  rulesGenerated         String   @default("[]") @db.Text  // JSON: rules the AI learned
+  decisionsReviewed      Int      @default(0)
+  successRateImprovement Float?
+  createdAt              DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, reflectionType])
+  @@index([createdAt])
+}
+
+// Engine 2: Ad Creative DNA — winning ad element analysis
+model AdCreativeDNA {
+  id          String   @id @default(cuid())
+  shop        String
+  geneType    String   // "word" | "phrase" | "structure" | "emotion" | "cta" | "number"
+  geneValue   String
+  occurrences Int      @default(1)
+  avgCtr      Float?
+  avgConvRate Float?
+  avgRoas     Float?
+  winRate     Float    @default(0) // % of times it appeared in top-performing ads
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([shop, geneType, geneValue])
+  @@index([shop])
+  @@index([shop, winRate])
+}
+
+// Engine 3: Profit Intelligence — true profit per click/conversion
+model ProfitAnalysis {
+  id                String   @id @default(cuid())
+  shop              String
+  productId         String?
+  campaignId        String?
+  netProfitPerClick Float?
+  netProfitPerConv  Float?
+  cogs              Float?
+  profitScore       Int      @default(50) // 0-100
+  simulationResult  String?  @db.Text  // JSON: Monte Carlo output
+  pricingSuggestion String?  @db.Text  // JSON: {suggestedPrice, reason, competitorAvg}
+  analyzedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, profitScore])
+  @@index([productId])
+}
+
+// Engine 4: Inventory-Aware Ads — stock-based campaign control
+model InventoryAlert {
+  id            String   @id @default(cuid())
+  shop          String
+  productId     String
+  productTitle  String   @default("")
+  alertType     String   // "low_stock" | "overstock" | "stockout_predicted" | "throttled" | "boosted"
+  currentStock  Int      @default(0)
+  dailySalesRate Float?
+  daysUntilOut  Int?
+  actionTaken   String?  // "throttled_campaign" | "boosted_campaign" | "paused_campaign"
+  campaignId    String?
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, resolved])
+  @@index([productId])
+}
+
+// Engine 5: Competitor Ad Spend Estimator
+model CompetitorSpendEstimate {
+  id                String   @id @default(cuid())
+  shop              String
+  competitorDomain  String
+  estimatedMonthly  Float?
+  estimatedDaily    Float?
+  impressionShare   Float?   // 0-1
+  overlapRate       Float?   // 0-1
+  positionAboveRate Float?   // 0-1
+  dataSource        String   @default("auction_insights")
+  trendDirection    String   @default("stable") // "increasing" | "decreasing" | "stable"
+  trendPct          Float?
+  measuredAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, competitorDomain])
+  @@index([measuredAt])
+}
+
+// Engine 6: Buyer Psychology — emotional triggers that drive purchases
+model BuyerPsychology {
+  id            String   @id @default(cuid())
+  shop          String
+  productId     String?
+  triggerType   String   // "urgency" | "social_proof" | "fear_of_missing" | "aspiration" | "trust" | "value"
+  triggerPhrase String   @db.Text
+  effectiveness Float?   // 0-1
+  usedInAds     Int      @default(0)
+  ctrWhenUsed   Float?
+  createdAt     DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, triggerType])
+  @@index([productId])
+}
+
+// Engine 7: Predictive Engine — sales & performance forecasting
+model SalesForecast {
+  id           String   @id @default(cuid())
+  shop         String
+  forecastType String   // "weekly" | "monthly" | "product_lifecycle" | "campaign_what_if"
+  targetId     String?  // campaignId or productId
+  forecastJson String   @db.Text  // JSON: {predicted, confidence, factors[], scenarios[]}
+  actualValue  Float?   // filled in retrospectively
+  accuracy     Float?   // measured after period ends
+  periodStart  DateTime
+  periodEnd    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, forecastType])
+  @@index([periodStart])
+}
+
+// Engine 8: Cross-Store Intelligence — anonymous industry benchmarks
+model CrossStoreInsight {
+  id          String   @id @default(cuid())
+  category    String   // product category
+  insightType String   // "benchmark" | "trend" | "tactic"
+  metric      String   // "avg_roas" | "avg_ctr" | "top_ad_format" etc.
+  value       String   @db.Text  // JSON
+  sampleSize  Int      @default(0)
+  confidence  Float    @default(0.5)
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([category, insightType])
+  @@index([periodStart])
+}
+
+// Engine 9: Landing Page Optimizer — ad-to-page alignment
+model LandingPageAudit {
+  id             String   @id @default(cuid())
+  shop           String
+  productId      String
+  pageUrl        String   @db.Text
+  alignmentScore Int      @default(50) // 0-100
+  mismatches     String   @default("[]") @db.Text  // JSON: [{issue, adClaims, pageReality, impact}]
+  suggestions    String   @default("[]") @db.Text  // JSON: [{suggestion, expectedImpact}]
+  pageContent    String?  @db.Text
+  auditedAt      DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, alignmentScore])
+  @@index([productId])
+}
+
+// Engine 10: Full Funnel Orchestrator — zero-click campaign orchestration
+model FunnelOrchestration {
+  id               String    @id @default(cuid())
+  shop             String
+  productId        String?
+  funnelType       String    // "single_product" | "category" | "full_store"
+  status           String    @default("draft") // "draft" | "launching" | "active" | "paused" | "completed"
+  campaignIds      String    @default("[]") @db.Text
+  budgetAllocation String    @default("{}") @db.Text  // JSON: {campaignId: dailyBudget}
+  priorityQueue    String    @default("[]") @db.Text  // JSON: [{campaignId, priority, profitScore}]
+  totalDailyBudget Float     @default(0)
+  lastRebalancedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, status])
+}

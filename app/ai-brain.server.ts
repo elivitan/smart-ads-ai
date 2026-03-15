@@ -18,6 +18,9 @@ import { isCostLimitReached, recordCost } from "./utils/api-cost-tracker.js";
 import { withRetry } from "./retry.server";
 import { logPrompt } from "./utils/prompt-logger.server.js";
 import { sanitizeForPrompt, safeParseAiJson } from "./utils/ai-safety.server.js";
+import prisma from "./db.server.js";
+import { logger } from "./utils/logger.js";
+import { getCampaignPerformanceByDate, listSmartAdsCampaigns } from "./google-ads.server.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -1122,8 +1125,6 @@ Rules:
 // ── Weekly Intelligence Report ──────────────────────────────────────────
 // Like a real agency report: what happened, what we did, what's next.
 
-import prisma from "./db.server.js";
-
 interface WeeklyReportData {
   executive_summary: string;
   performance_grade: string;
@@ -1331,4 +1332,489 @@ Rules:
     console.error("[AI-Brain] Copy improve failed:", err.message);
     return null;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENGINE 1: Self-Evolving AI — learns from its own decision history
+// ═══════════════════════════════════════════════════════════════
+
+export async function getAiReflectionRules(shop: string): Promise<string[]> {
+  const reflections = await prisma.aiReflection.findMany({
+    where: { shop, reflectionType: "weekly_reflection" },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+  const rules: string[] = [];
+  for (const r of reflections) {
+    try {
+      const parsed = JSON.parse(r.rulesGenerated || "[]");
+      if (Array.isArray(parsed)) rules.push(...parsed);
+    } catch { /* skip bad JSON */ }
+  }
+  return rules.slice(0, 20); // max 20 rules
+}
+
+export async function runSelfReflection(shop: string): Promise<{ insights: string[]; rulesGenerated: string[]; decisionsReviewed: number; improvement: number | null }> {
+  checkCostLimits();
+
+  // Gather recent optimization decisions
+  const recentLearnings = await prisma.optimizerLearning.findMany({
+    where: { shop },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  if (recentLearnings.length < 5) {
+    return { insights: ["Not enough data for self-reflection yet"], rulesGenerated: [], decisionsReviewed: 0, improvement: null };
+  }
+
+  const avgSuccessRate = recentLearnings.reduce((sum, l) => sum + (l.successRate || 0), 0) / recentLearnings.length;
+
+  const prompt = `You are an AI system analyzing your own past optimization decisions for a Shopify store.
+
+RECENT DECISIONS (${recentLearnings.length} total, ${Math.round(avgSuccessRate * 100)}% avg success rate):
+${recentLearnings.slice(0, 20).map(l => `- Action: ${l.actionType} | Success Rate: ${((l.successRate || 0) * 100).toFixed(0)}% | Attempts: ${l.totalAttempts || 0} | ROAS Impact: ${l.avgImpactRoas || "N/A"}`).join("\n")}
+
+Analyze these decisions and return JSON:
+{
+  "insights": ["insight1", "insight2", ...],  // 3-5 key observations
+  "rules": ["rule1", "rule2", ...],           // 2-4 rules to follow going forward
+  "improvement_pct": number                    // estimated improvement if rules followed
+}`;
+
+  const startMs = Date.now();
+  try {
+    const response = await withRetry(
+      () => client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      { label: "AI-Brain:self-reflection" }
+    );
+
+    logPrompt({ shop, action: "self_reflection", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
+    const text = (response as any).content[0].text;
+    const parsed = (safeParseAiJson(text)?.data as any) || { insights: [], rules: [], improvement_pct: null };
+
+    const insights = Array.isArray(parsed.insights) ? parsed.insights : [];
+    const rules = Array.isArray(parsed.rules) ? parsed.rules : [];
+
+    await prisma.aiReflection.create({
+      data: {
+        shop,
+        reflectionType: "weekly_reflection",
+        insights: JSON.stringify(insights),
+        rulesGenerated: JSON.stringify(rules),
+        decisionsReviewed: recentLearnings.length,
+        successRateImprovement: typeof parsed.improvement_pct === "number" ? parsed.improvement_pct : null,
+      },
+    });
+
+    logger.info("ai-brain", "Self-reflection complete", { extra: { shop, insights: insights.length, rules: rules.length } });
+    return { insights, rulesGenerated: rules, decisionsReviewed: recentLearnings.length, improvement: parsed.improvement_pct ?? null };
+  } catch (err: any) {
+    logPrompt({ shop, action: "self_reflection", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
+    logger.error("ai-brain", "Self-reflection failed", { extra: { error: err.message } });
+    return { insights: [], rulesGenerated: [], decisionsReviewed: 0, improvement: null };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENGINE 2: Ad Creative DNA — extract winning elements, generate mutations
+// ═══════════════════════════════════════════════════════════════
+
+export async function analyzeAdDNA(shop: string): Promise<{ genesFound: number; topGenes: Array<{ type: string; value: string; winRate: number }> }> {
+  checkCostLimits();
+
+  // Get best performing ads from Google Ads API
+  const campaigns = await listSmartAdsCampaigns();
+  const sortedCampaigns = campaigns
+    .sort((a: any, b: any) => parseFloat(b.ctr || "0") - parseFloat(a.ctr || "0"))
+    .slice(0, 20);
+
+  // Get ad copy from AiAnalysis
+  const analyses = await prisma.aiAnalysis.findMany({
+    where: { shop },
+    take: 30,
+  });
+
+  const adTexts = [
+    ...analyses.filter((a: any) => a.headlines).map((a: any) => ({ text: a.headlines || "", ctr: parseFloat(a.adScore || "0") / 100, convRate: 0 })),
+    ...sortedCampaigns.map((c: any) => ({ text: c.name || "", ctr: parseFloat(c.ctr || "0") / 100, convRate: 0 })),
+  ];
+
+  if (adTexts.length < 3) {
+    return { genesFound: 0, topGenes: [] };
+  }
+
+  const prompt = `You are an ad creative DNA analyst. Extract the winning "genes" (patterns) from these top-performing Google Ads.
+
+TOP ADS:
+${adTexts.slice(0, 15).map((a, i) => `${i + 1}. "${a.text}" — CTR: ${(a.ctr * 100).toFixed(2)}%, Conv: ${(a.convRate * 100).toFixed(2)}%`).join("\n")}
+
+Extract patterns and return JSON:
+{
+  "genes": [
+    { "type": "word|phrase|structure|emotion|cta|number", "value": "the pattern", "win_rate": 0.0-1.0, "avg_ctr": 0.0-1.0 }
+  ]
+}
+
+Types: word (single power words), phrase (2-3 word combos), structure (sentence patterns like "Get X for Y"), emotion (emotional appeal type), cta (call to action style), number (use of specific numbers/percentages).
+Return 5-15 genes.`;
+
+  const startMs = Date.now();
+  try {
+    const response = await withRetry(
+      () => client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      { label: "AI-Brain:ad-dna" }
+    );
+
+    logPrompt({ shop, action: "ad_dna_analysis", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
+    const text = (response as any).content[0].text;
+    const parsed = (safeParseAiJson(text)?.data as any) || { genes: [] };
+    const genes = Array.isArray(parsed.genes) ? parsed.genes : [];
+
+    // Upsert genes into DB
+    for (const gene of genes) {
+      if (!gene.type || !gene.value) continue;
+      await prisma.adCreativeDNA.upsert({
+        where: { shop_geneType_geneValue: { shop, geneType: gene.type, geneValue: gene.value } },
+        update: {
+          occurrences: { increment: 1 },
+          avgCtr: gene.avg_ctr ?? null,
+          winRate: gene.win_rate ?? 0,
+          lastSeenAt: new Date(),
+        },
+        create: {
+          shop,
+          geneType: gene.type,
+          geneValue: gene.value,
+          occurrences: 1,
+          avgCtr: gene.avg_ctr ?? null,
+          winRate: gene.win_rate ?? 0,
+          lastSeenAt: new Date(),
+        },
+      });
+    }
+
+    const topGenes = genes.slice(0, 10).map((g: any) => ({ type: g.type, value: g.value, winRate: g.win_rate || 0 }));
+    logger.info("ai-brain", "Ad DNA analysis complete", { extra: { shop, genesFound: genes.length } });
+    return { genesFound: genes.length, topGenes };
+  } catch (err: any) {
+    logPrompt({ shop, action: "ad_dna_analysis", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
+    logger.error("ai-brain", "Ad DNA analysis failed", { extra: { error: err.message } });
+    return { genesFound: 0, topGenes: [] };
+  }
+}
+
+export async function generateDNAMutations(shop: string, productId?: string): Promise<{ headlines: string[]; descriptions: string[] }> {
+  checkCostLimits();
+
+  const topGenes = await prisma.adCreativeDNA.findMany({
+    where: { shop },
+    orderBy: { winRate: "desc" },
+    take: 10,
+  });
+
+  if (topGenes.length < 2) {
+    return { headlines: [], descriptions: [] };
+  }
+
+  let productContext = "";
+  if (productId) {
+    const profile = await prisma.storeProfile.findFirst({ where: { shop } });
+    const bizContext = profile?.competitiveEdge || profile?.uniqueSellingPoints || "";
+    productContext = bizContext ? `\nProduct context: ${bizContext}` : "";
+  }
+
+  const prompt = `You are a Google Ads copywriter using proven "winning genes" to create new ad variations.
+
+WINNING DNA PATTERNS:
+${topGenes.map(g => `- ${g.geneType}: "${g.geneValue}" (win rate: ${(g.winRate * 100).toFixed(0)}%)`).join("\n")}
+${productContext}
+
+Generate new ad copy that COMBINES these winning genes into fresh variations.
+
+Return JSON:
+{
+  "headlines": ["headline1", "headline2", "headline3"],   // max 30 chars each
+  "descriptions": ["desc1", "desc2"]                       // max 90 chars each
+}
+
+Rules:
+- Each headline/description must use at least 2 winning genes
+- Headlines: max 30 characters
+- Descriptions: max 90 characters
+- Be creative — combine genes in new ways`;
+
+  const startMs = Date.now();
+  try {
+    const response = await withRetry(
+      () => client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 500,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      { label: "AI-Brain:dna-mutations" }
+    );
+
+    logPrompt({ shop, action: "dna_mutations", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
+    const text = (response as any).content[0].text;
+    const parsed = (safeParseAiJson(text)?.data as any) || { headlines: [], descriptions: [] };
+
+    return {
+      headlines: (parsed.headlines || []).map((h: string) => h.slice(0, 30)),
+      descriptions: (parsed.descriptions || []).map((d: string) => d.slice(0, 90)),
+    };
+  } catch (err: any) {
+    logPrompt({ shop, action: "dna_mutations", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
+    return { headlines: [], descriptions: [] };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENGINE 7: Predictive Engine — sales forecasting, what-if, product lifecycle
+// ═══════════════════════════════════════════════════════════════
+
+export async function forecastSales(shop: string, period: "week" | "month"): Promise<{ predicted: number; confidence: number; trend: string; breakdown: any[] }> {
+  // Use historical campaign performance data for forecasting
+  const days = period === "week" ? 7 : 30;
+  const lookback = period === "week" ? 28 : 90; // 4x the forecast period for data
+
+  // Get all campaigns and fetch performance data
+  const campaignList = await listSmartAdsCampaigns();
+  const allPerformances: Array<{ date: string; clicks: number; cost: number; conversions: number; conversionValue: number }> = [];
+  for (const c of campaignList.slice(0, 10)) {
+    const perfData = await getCampaignPerformanceByDate(c.id, lookback);
+    allPerformances.push(...perfData);
+  }
+
+  // Sort by date ascending
+  const performances = allPerformances.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (performances.length < 7) {
+    return { predicted: 0, confidence: 0, trend: "insufficient_data", breakdown: [] };
+  }
+
+  // Simple moving average forecast
+  const recentRevenue = performances.slice(-days).reduce((sum, p) => sum + (p.conversions || 0) * (p.cost || 0) * 5, 0);
+  const olderRevenue = performances.slice(-days * 2, -days).reduce((sum, p) => sum + (p.conversions || 0) * (p.cost || 0) * 5, 0);
+
+  const growthRate = olderRevenue > 0 ? (recentRevenue - olderRevenue) / olderRevenue : 0;
+  const predicted = Math.max(0, recentRevenue * (1 + growthRate));
+  const confidence = Math.min(0.95, 0.5 + performances.length / 100);
+  const trend = growthRate > 0.05 ? "growing" : growthRate < -0.05 ? "declining" : "stable";
+
+  // Save forecast
+  const periodStart = new Date();
+  const periodEnd = new Date(Date.now() + days * 86400000);
+  await prisma.salesForecast.create({
+    data: {
+      shop,
+      forecastType: period === "week" ? "weekly" : "monthly",
+      forecastJson: JSON.stringify({ predicted, confidence, trend, growthRate }),
+      periodStart,
+      periodEnd,
+    },
+  });
+
+  return { predicted: Math.round(predicted * 100) / 100, confidence, trend, breakdown: [] };
+}
+
+export async function forecastCampaignWhatIf(shop: string, campaignId: string, budgetChangePct: number): Promise<{ currentRevenue: number; predictedRevenue: number; riskLevel: string; recommendation: string }> {
+  const performances = await getCampaignPerformanceByDate(campaignId, 30);
+
+  if (performances.length < 5) {
+    return { currentRevenue: 0, predictedRevenue: 0, riskLevel: "unknown", recommendation: "Not enough data" };
+  }
+
+  const avgConversions = performances.reduce((s: number, p: any) => s + (p.conversions || 0), 0) / performances.length;
+  const avgCost = performances.reduce((s: number, p: any) => s + (p.cost || 0), 0) / performances.length;
+  const avgRevenue = avgConversions * (avgCost > 0 ? (avgConversions / avgCost) * 50 : 0);
+
+  // Diminishing returns model: revenue scales as sqrt of budget change
+  const budgetMultiplier = 1 + budgetChangePct / 100;
+  const effectiveMultiplier = budgetChangePct > 0
+    ? Math.sqrt(budgetMultiplier)
+    : budgetMultiplier;
+
+  const predictedRevenue = avgRevenue * effectiveMultiplier;
+  const riskLevel = Math.abs(budgetChangePct) > 50 ? "high" : Math.abs(budgetChangePct) > 20 ? "medium" : "low";
+
+  let recommendation = "";
+  if (budgetChangePct > 0 && riskLevel === "high") {
+    recommendation = "Large budget increase carries risk of diminishing returns. Consider incremental increases of 20% at a time.";
+  } else if (budgetChangePct < -30) {
+    recommendation = "Significant budget cuts may cause campaign to lose momentum. Monitor closely.";
+  } else {
+    recommendation = `Budget change of ${budgetChangePct}% appears safe based on historical data.`;
+  }
+
+  await prisma.salesForecast.create({
+    data: {
+      shop,
+      forecastType: "campaign_what_if",
+      targetId: campaignId,
+      forecastJson: JSON.stringify({ budgetChangePct, predictedRevenue, riskLevel, recommendation }),
+      periodStart: new Date(),
+      periodEnd: new Date(Date.now() + 30 * 86400000),
+    },
+  });
+
+  return { currentRevenue: Math.round(avgRevenue * 100) / 100, predictedRevenue: Math.round(predictedRevenue * 100) / 100, riskLevel, recommendation };
+}
+
+export async function detectProductLifecycle(shop: string): Promise<Array<{ productId: string; title: string; stage: string; trend: number; recommendation: string }>> {
+  // Get all campaigns and fetch performance data from Google Ads API
+  const campaignList = await listSmartAdsCampaigns();
+
+  // Group by product (campaign name as proxy)
+  const productMap = new Map<string, Array<{ date: Date; clicks: number; conversions: number; cost: number }>>();
+  for (const c of campaignList.slice(0, 15)) {
+    const perfData = await getCampaignPerformanceByDate(c.id, 90);
+    for (const p of perfData) {
+      const key = c.name || c.id;
+      if (!productMap.has(key)) productMap.set(key, []);
+      productMap.get(key)!.push({ date: new Date(p.date), clicks: p.clicks || 0, conversions: p.conversions || 0, cost: p.cost || 0 });
+    }
+  }
+
+  const results: Array<{ productId: string; title: string; stage: string; trend: number; recommendation: string }> = [];
+
+  for (const [productKey, data] of productMap) {
+    if (data.length < 5) continue;
+
+    const sorted = data.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const half = Math.floor(sorted.length / 2);
+    const firstHalf = sorted.slice(0, half);
+    const secondHalf = sorted.slice(half);
+
+    const avgFirst = firstHalf.reduce((s, d) => s + d.conversions, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((s, d) => s + d.conversions, 0) / secondHalf.length;
+
+    const trend = avgFirst > 0 ? (avgSecond - avgFirst) / avgFirst : 0;
+
+    let stage: string;
+    let recommendation: string;
+    if (trend > 0.2) {
+      stage = "rising";
+      recommendation = "Increase budget to capitalize on growth momentum";
+    } else if (trend > -0.1) {
+      stage = "peak";
+      recommendation = "Maintain current strategy, focus on profitability";
+    } else if (trend > -0.4) {
+      stage = "declining";
+      recommendation = "Reduce budget gradually, test new creatives";
+    } else {
+      stage = "end_of_life";
+      recommendation = "Consider pausing campaign, reallocate budget to rising products";
+    }
+
+    results.push({ productId: productKey, title: productKey, stage, trend: Math.round(trend * 100) / 100, recommendation });
+  }
+
+  return results.sort((a, b) => b.trend - a.trend);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENGINE 9: Landing Page Optimizer — ad-to-page alignment scoring
+// ═══════════════════════════════════════════════════════════════
+
+export async function scoreLandingPageAlignment(shop: string, productId?: string): Promise<Array<{ productId: string; pageUrl: string; score: number; mismatches: string[]; suggestions: string[] }>> {
+  checkCostLimits();
+
+  const allCampaigns = await listSmartAdsCampaigns();
+  const campaigns = (productId
+    ? allCampaigns.filter((c: any) => (c.name || "").includes(productId))
+    : allCampaigns
+  ).sort((a: any, b: any) => parseInt(b.clicks || "0") - parseInt(a.clicks || "0")).slice(0, 10);
+
+  if (campaigns.length === 0) {
+    return [];
+  }
+
+  // Get existing competitor data (which includes scraped page content)
+  const competitorData = await prisma.competitorSnapshot.findMany({
+    where: { shop },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  const results: Array<{ productId: string; pageUrl: string; score: number; mismatches: string[]; suggestions: string[] }> = [];
+
+  for (const campaign of campaigns.slice(0, 5)) {
+    const adHeadlines = (campaign as any).name || "";
+    const adDescriptions = "";
+    const pageUrl = `https://${shop}/products/${((campaign as any).name || "").toLowerCase().replace(/\s+/g, "-")}`;
+
+    const prompt = `You are a landing page optimization expert. Analyze the alignment between this Google Ad and its landing page.
+
+AD HEADLINES: ${adHeadlines}
+AD DESCRIPTIONS: ${adDescriptions}
+STORE: ${shop}
+LANDING PAGE URL: ${pageUrl}
+
+Since I cannot access the actual page, analyze based on the ad content and common e-commerce patterns.
+
+Return JSON:
+{
+  "score": 0-100,           // alignment score
+  "mismatches": ["..."],    // 2-3 potential mismatches
+  "suggestions": ["..."]    // 2-3 improvement suggestions
+}`;
+
+    const startMs = Date.now();
+    try {
+      const response = await withRetry(
+        () => client.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 500,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        { label: "AI-Brain:landing-audit" }
+      );
+
+      logPrompt({ shop, action: "landing_audit", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
+      const text = (response as any).content[0].text;
+      const parsed = (safeParseAiJson(text)?.data as any) || { score: 50, mismatches: [], suggestions: [] };
+
+      const auditResult = {
+        productId: (campaign as any).id,
+        pageUrl,
+        score: parsed.score || 50,
+        mismatches: parsed.mismatches || [],
+        suggestions: parsed.suggestions || [],
+      };
+
+      // Save to DB
+      await prisma.landingPageAudit.create({
+        data: {
+          shop,
+          productId: (campaign as any).id,
+          pageUrl,
+          alignmentScore: auditResult.score,
+          mismatches: JSON.stringify(auditResult.mismatches),
+          suggestions: JSON.stringify(auditResult.suggestions),
+          auditedAt: new Date(),
+        },
+      });
+
+      results.push(auditResult);
+    } catch (err: any) {
+      logPrompt({ shop, action: "landing_audit", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
+      results.push({ productId: (campaign as any).id, pageUrl, score: 0, mismatches: ["Audit failed"], suggestions: [] });
+    }
+  }
+
+  logger.info("ai-brain", "Landing page audit complete", { extra: { shop, audited: results.length } });
+  return results;
 }
