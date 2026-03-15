@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { withRetry } from "./retry.server";
 import prisma from "./db.server.js";
 import { logger } from "./utils/logger.js";
-import { extractJsonFromText } from "./utils/ai-safety.server.js";
+import { extractJsonFromText, stripHtmlTags } from "./utils/ai-safety.server.js";
 
 interface SearchResult {
   position: number;
@@ -683,7 +683,7 @@ async function scrapeCompetitorDeep(url: string): Promise<DeepScrapedData | null
     if (h1Match) messagingParts.push(h1Match[1].trim());
     const h2Matches = html.match(/<h2[^>]*>([^<]+)<\/h2>/gi) || [];
     for (const h2 of h2Matches.slice(0, 3)) {
-      const text = h2.replace(/<[^>]+>/g, "").trim();
+      const text = stripHtmlTags(h2).trim();
       if (text.length > 5 && text.length < 100) messagingParts.push(text);
     }
 
@@ -743,6 +743,46 @@ async function checkHiringSignals(domain: string): Promise<string | null> {
   }
 }
 
+/** Extract a numeric rating (e.g. "4.5 out of 5", "4.5/5", "4 stars") from a snippet without regex */
+function extractRatingFromSnippet(snippet: string): number | null {
+  const lower = snippet.toLowerCase();
+  const markers = ["out of 5", "/5", "stars", "star"];
+  for (const marker of markers) {
+    const idx = lower.indexOf(marker);
+    if (idx === -1) continue;
+    // Walk backwards from marker to find the number
+    let end = idx;
+    while (end > 0 && snippet[end - 1] === " ") end--;
+    let start = end;
+    while (start > 0 && (snippet[start - 1] >= "0" && snippet[start - 1] <= "9" || snippet[start - 1] === ".")) start--;
+    if (start < end) {
+      const val = parseFloat(snippet.slice(start, end));
+      if (!isNaN(val) && val > 0 && val <= 5) return val;
+    }
+  }
+  return null;
+}
+
+/** Extract a review/rating count (e.g. "1,234 reviews") from a snippet without regex */
+function extractReviewCountFromSnippet(snippet: string): number | null {
+  const lower = snippet.toLowerCase();
+  const markers = ["reviews", "review", "ratings", "rating"];
+  for (const marker of markers) {
+    const idx = lower.indexOf(marker);
+    if (idx === -1) continue;
+    let end = idx;
+    while (end > 0 && snippet[end - 1] === " ") end--;
+    let start = end;
+    while (start > 0 && (snippet[start - 1] >= "0" && snippet[start - 1] <= "9" || snippet[start - 1] === "," || snippet[start - 1] === ".")) start--;
+    if (start < end) {
+      const numStr = snippet.slice(start, end).replace(/,/g, "");
+      const val = parseInt(numStr);
+      if (!isNaN(val) && val > 0) return val;
+    }
+  }
+  return null;
+}
+
 /**
  * Check review sentiment from Google search results.
  * Extracts aggregate ratings from search result structured data.
@@ -760,14 +800,14 @@ async function checkReviewSentiment(domain: string): Promise<{
     let totalCount: number | null = null;
 
     for (const r of data.organic.slice(0, 5)) {
-      const ratingMatch = r.snippet.match(/(\d+\.?\d*)\s*(?:out of 5|\/5|stars?)/i);
-      const countMatch = r.snippet.match(/(\d+[,.]?\d*)\s*(?:reviews?|ratings?)/i);
+      const parsedRating = extractRatingFromSnippet(r.snippet);
+      const parsedCount = extractReviewCountFromSnippet(r.snippet);
 
-      if (ratingMatch && !bestRating) {
-        bestRating = parseFloat(ratingMatch[1]);
+      if (parsedRating !== null && !bestRating) {
+        bestRating = parsedRating;
       }
-      if (countMatch && !totalCount) {
-        totalCount = parseInt(countMatch[1].replace(/,/g, ""));
+      if (parsedCount !== null && !totalCount) {
+        totalCount = parsedCount;
       }
     }
 
