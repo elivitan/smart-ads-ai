@@ -356,8 +356,8 @@ model WeeklyReport {
   competitorChanges Int     @default(0)
   createdAt        DateTime @default(now())
 
+  @@unique([shop, weekStart])
   @@index([shop])
-  @@index([shop, weekStart])
 }
 
 model KeywordGapAnalysis {

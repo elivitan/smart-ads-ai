@@ -202,7 +202,8 @@ Return ONLY valid JSON array, no markdown.`;
       messages: [{ role: "user", content: prompt }],
     });
 
-    const text = (response.content[0] as { type: string; text: string }).text.trim();
+    const textBlock = response.content.find((b) => b.type === "text") as { type: string; text: string } | undefined;
+    const text = (textBlock?.text || "").trim();
     const { data, error } = safeParseAiJson<GhostOpportunity[]>(text);
 
     if (!data) {

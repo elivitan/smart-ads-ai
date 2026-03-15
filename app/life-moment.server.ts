@@ -165,11 +165,18 @@ export async function generateMomentCampaign(
       throw new Error(`Unknown moment type: ${momentType}`);
     }
 
-    // Fetch product details
+    // Fetch product details — only use IDs that actually exist in the store
     const products = await prisma.product.findMany({
       where: { shop, id: { in: productIds } },
       select: { id: true, title: true, productType: true, description: true },
     });
+
+    if (products.length === 0) {
+      throw new Error("No valid products found for the given product IDs");
+    }
+
+    // Use only resolved product IDs going forward
+    const resolvedProductIds = products.map((p) => p.id);
 
     const response = await client.messages.create({
       model: AI_MODEL,
@@ -245,7 +252,7 @@ Return ONLY valid JSON, no markdown or explanation.`,
         shop,
         momentType,
         targetAudience: JSON.stringify(adCopy.targetAudience || ""),
-        productIds: JSON.stringify(productIds),
+        productIds: JSON.stringify(resolvedProductIds),
         adCopy: JSON.stringify(adCopy),
         status: "draft",
         seasonStart,

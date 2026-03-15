@@ -1220,6 +1220,11 @@ ${competitorChanges.slice(0, 5).map((c) => `- ${c.competitorDomain}: ${c.summary
 מבחני A/B:
 ${abTests.map((t) => `- ${t.campaignName}: ${t.status === "winner_found" ? "נמצא מנצח!" : "עדיין רץ"}`).join("\n") || "אין מבחנים"}
 
+נתוני הוצאה והכנסה:
+- סה"כ הוצאה על פרסום: $${totalSpend.toFixed(2)}
+- סה"כ הכנסות מהמרות: $${totalRevenue.toFixed(2)}
+- ROAS: ${totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(2) : "N/A"}
+
 הזדמנויות מילות מפתח חדשות: ${keywordGaps.length}
 ${keywordGaps.slice(0, 5).map((g) => `- "${g.keyword}" (מתחרים משתמשים: ${g.source})`).join("\n") || ""}
 
@@ -1242,10 +1247,10 @@ ${dataSummary}
   "keyword_opportunities": [{"keyword": "מילה", "reason": "למה כדאי", "urgency": "high/medium/low"}],
   "next_week_plan": [{"goal": "מטרה", "strategy": "איך נעשה את זה"}],
   "money_summary": {
-    "total_spend": 0,
-    "total_revenue": 0,
-    "profit_or_loss": 0,
-    "roas": 0,
+    "total_spend": ${totalSpend.toFixed(2)},
+    "total_revenue": ${totalRevenue.toFixed(2)},
+    "profit_or_loss": ${(totalRevenue - totalSpend).toFixed(2)},
+    "roas": ${totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(2) : 0},
     "verdict": "משפט אחד פשוט על מצב הכסף"
   }
 }
@@ -1284,10 +1289,21 @@ ${dataSummary}
   });
 
   // Save to DB
-  await prisma.weeklyReport.create({
-    data: {
+  await prisma.weeklyReport.upsert({
+    where: { shop_weekStart: { shop, weekStart } },
+    create: {
       shop,
       weekStart,
+      weekEnd,
+      reportJson: JSON.stringify(result),
+      summary: result.executive_summary || "",
+      performanceGrade: result.performance_grade || "?",
+      totalSpend,
+      totalRevenue,
+      totalActions: optimizationLogs.length,
+      competitorChanges: competitorChanges.length,
+    },
+    update: {
       weekEnd,
       reportJson: JSON.stringify(result),
       summary: result.executive_summary || "",
