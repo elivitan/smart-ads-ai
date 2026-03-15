@@ -13,6 +13,7 @@ import { StoreAnalyticsWidget } from "./StoreAnalytics";
 import { ProactiveAlerts, generateAlerts } from "./dashboard/ProactiveAlerts";
 import { CompetitorIntelWidget, KeywordGapWidget, ABTestWidget, WeeklyReportWidget } from "./dashboard/IntelligenceDashboard";
 import { ProfitIntelWidget, InventoryWidget, CompetitorSpendWidget, ForecastWidget, BenchmarksWidget, FunnelWidget } from "./dashboard/EngineWidgets";
+import { DigitalTwinWidget, AgentBiddingWidget, WeatherArbitrageWidget, ReviewCreativeWidget, FlashSaleWidget, SearchSentinelWidget, PerformanceGuardWidget, SupplyChainWidget } from "./dashboard/AdvancedEngineWidgets";
 import { StoreOnboardingBanner } from "./StoreOnboarding";
 import useAppStore from "../stores/useAppStore";
 import { shallow } from "zustand/shallow";
@@ -403,6 +404,56 @@ export function DashboardView({
           <WidgetErrorBoundary label="Full Funnel Orchestrator">
           <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Full Funnel Orchestrator">
           <FunnelWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          {/* ═══ ADVANCED AI ENGINES (11-18) ═══ */}
+
+          <WidgetErrorBoundary label="Digital Twin Simulator">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Digital Twin Simulator">
+          <DigitalTwinWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Agent Bidding War Room">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Agent Bidding War Room">
+          <AgentBiddingWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Weather & Event Arbitrage">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Weather & Event Arbitrage">
+          <WeatherArbitrageWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Review-to-Creative Pipeline">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Review-to-Creative Pipeline">
+          <ReviewCreativeWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Flash Sale Engine">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Flash Sale Engine">
+          <FlashSaleWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Silent Profit Sentinel">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Silent Profit Sentinel">
+          <SearchSentinelWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Performance Insurance">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Performance Insurance">
+          <PerformanceGuardWidget/>
+          </LockedOverlay>
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Supply Chain Ads">
+          <LockedOverlay isPaid={isPaid} onUpgrade={handleUpgradeClick} title="Supply Chain Ads">
+          <SupplyChainWidget/>
           </LockedOverlay>
           </WidgetErrorBoundary>
 

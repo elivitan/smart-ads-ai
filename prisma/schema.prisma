@@ -565,3 +565,176 @@ model FunnelOrchestration {
   @@index([shop])
   @@index([shop, status])
 }
+
+// ═══════════════════════════════════════════════════
+// 8 ADVANCED AI ENGINES — Session 59
+// ═══════════════════════════════════════════════════
+
+// Engine 11: Digital Twin Simulator — full store simulation before spending
+model DigitalTwinSimulation {
+  id               String   @id @default(cuid())
+  shop             String
+  simulationType   String   // "campaign_launch" | "budget_change" | "seasonal" | "full_store"
+  inputParams      String   @db.Text  // JSON: {budget, audience, product, duration, macroFactors}
+  scenarioCount    Int      @default(1000)
+  predictedRevenue Float?
+  predictedRoas    Float?
+  confidenceLevel  Float?   // 0-1
+  riskScore        Int      @default(50) // 0-100
+  scenarioResults  String   @db.Text  // JSON: {p10, p25, p50, p75, p90, mean, stdDev}
+  macroFactors     String?  @db.Text  // JSON: {weather, holidays, competitorActivity, seasonality}
+  recommendation   String?  @db.Text  // "launch" | "wait" | "modify" + reason
+  createdAt        DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, simulationType])
+}
+
+// Engine 12: Multi-Agent Bidding Syndicate — AI agents debate budget allocation
+model AgentBiddingSession {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String?
+  sessionType     String   // "hourly_review" | "daily_rebalance" | "emergency"
+  agentVotes      String   @db.Text  // JSON: [{agent, recommendation, reasoning, confidence}]
+  consensusAction String?  @db.Text  // JSON: {action, budget, bidChange, reasoning}
+  agentsInvolved  Int      @default(3)
+  debateRounds    Int      @default(1)
+  executedAction  String?  // what was actually done
+  outcomeRoas     Float?   // measured after execution
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([createdAt])
+}
+
+// Engine 13: Weather & Event Arbitrage — real-time environmental triggers
+model WeatherEventTrigger {
+  id              String   @id @default(cuid())
+  shop            String
+  triggerType     String   // "weather" | "holiday" | "local_event" | "trend"
+  triggerData     String   @db.Text  // JSON: {condition, location, severity, duration}
+  affectedProducts String  @db.Text  // JSON: [{productId, relevanceScore}]
+  actionTaken     String?  @db.Text  // JSON: {campaignId, budgetChange, copyChange}
+  region          String?  // geo target
+  impactEstimate  Float?   // estimated revenue impact
+  actualImpact    Float?   // measured after event
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, triggerType])
+  @@index([expiresAt])
+}
+
+// Engine 14: Review-to-Creative Pipeline — customer voice in ads
+model ReviewCreativeInsight {
+  id              String   @id @default(cuid())
+  shop            String
+  productId       String?
+  sourceReviewId  String?  // Shopify review ID
+  extractedPhrase String   @db.Text  // the golden quote
+  sentiment       String   @default("positive") // "positive" | "neutral" | "negative"
+  frequency       Int      @default(1) // how many reviews mention similar
+  usedInAds       Int      @default(0)
+  ctrWhenUsed     Float?
+  convRateWhenUsed Float?
+  adCopyGenerated String?  @db.Text  // JSON: {headlines[], descriptions[]}
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, productId])
+  @@index([frequency])
+}
+
+// Engine 15: Algorithmic Price-Drop & Bid Spiking — synchronized flash sales
+model FlashSaleEvent {
+  id              String    @id @default(cuid())
+  shop            String
+  productId       String
+  productTitle    String    @default("")
+  triggerReason   String    // "overstock" | "slow_moving" | "seasonal_end" | "competitor_undercut"
+  originalPrice   Float
+  salePrice       Float
+  discountPct     Float     // 0-100
+  budgetMultiplier Float    @default(2.0) // bid spike factor
+  campaignId      String?
+  adCopyOverride  String?   @db.Text  // JSON: {headlines[], descriptions[]}
+  status          String    @default("pending") // "pending" | "active" | "completed" | "cancelled"
+  startsAt        DateTime
+  endsAt          DateTime
+  unitsSold       Int       @default(0)
+  revenueGenerated Float    @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([shop])
+  @@index([shop, status])
+  @@index([productId])
+}
+
+// Engine 16: Silent Profit Sentinel — hourly search term guardian
+model SearchTermSentinel {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String
+  searchTerm      String
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  cost            Float    @default(0)
+  conversions     Int      @default(0)
+  addToCarts      Int      @default(0)
+  wasteScore      Int      @default(0)  // 0-100, higher = more waste
+  actionTaken     String?  // "negative_exact" | "negative_phrase" | "flagged" | "approved"
+  savedAmount     Float?   // estimated savings from blocking
+  detectedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([wasteScore])
+}
+
+// Engine 17: Performance Insurance — auto-pause losing campaigns
+model PerformanceGuard {
+  id              String   @id @default(cuid())
+  shop            String
+  campaignId      String
+  campaignName    String   @default("")
+  guardType       String   // "auto_pause" | "budget_cut" | "bid_reduction" | "alert_only"
+  triggerMetric   String   // "roas_below" | "cost_above" | "ctr_below" | "conv_rate_below"
+  triggerValue    Float    // the threshold that was breached
+  actualValue     Float    // the actual metric value
+  actionTaken     String?  @db.Text  // JSON: {action, previousBudget, newBudget, reason}
+  moneySaved      Float    @default(0) // estimated savings
+  wasCorrect      Boolean? // retrospective: was the pause justified?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, campaignId])
+  @@index([guardType])
+}
+
+// Engine 18: Supply Chain Ads — shipment-aware campaign orchestration
+model SupplyChainSignal {
+  id              String    @id @default(cuid())
+  shop            String
+  productId       String
+  productTitle    String    @default("")
+  signalType      String    // "shipment_incoming" | "customs_delay" | "warehouse_received" | "pre_order_ready"
+  estimatedArrival DateTime?
+  actualArrival   DateTime?
+  quantity        Int       @default(0)
+  adAction        String?   // "pre_warm" | "launch_campaign" | "pause_until_arrival" | "boost_on_arrival"
+  campaignId      String?
+  preWarmStarted  Boolean   @default(false)
+  status          String    @default("pending") // "pending" | "in_transit" | "arrived" | "cancelled"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, status])
+  @@index([productId])
+  @@index([estimatedArrival])
+}

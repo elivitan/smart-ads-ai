@@ -59,6 +59,19 @@ const ALERT_CONFIG: Record<string, { tone: "success" | "warning" | "critical" | 
   forecast_revenue_down: { tone: "warning", icon: AlertCircleIcon },
   landing_mismatch: { tone: "warning", icon: AlertCircleIcon },
   funnel_rebalanced: { tone: "info", icon: TargetIcon },
+  // 8 advanced engine alert types (engines 11-18)
+  digital_twin_risk: { tone: "warning", icon: AlertCircleIcon },
+  digital_twin_opportunity: { tone: "success", icon: ArrowUpIcon },
+  agent_consensus_change: { tone: "info", icon: TargetIcon },
+  weather_trigger: { tone: "info", icon: ArrowUpIcon },
+  flash_sale_active: { tone: "success", icon: ArrowUpIcon },
+  flash_sale_ended: { tone: "info", icon: TargetIcon },
+  search_waste_detected: { tone: "critical", icon: AlertCircleIcon },
+  performance_guard_pause: { tone: "critical", icon: AlertCircleIcon },
+  performance_guard_save: { tone: "success", icon: ArrowUpIcon },
+  supply_chain_arriving: { tone: "info", icon: ArrowUpIcon },
+  supply_chain_delay: { tone: "warning", icon: AlertCircleIcon },
+  review_insight_found: { tone: "success", icon: TargetIcon },
 };
 
 const URGENCY_LABELS: Record<string, string> = {
