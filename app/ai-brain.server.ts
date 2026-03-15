@@ -899,6 +899,223 @@ Rules:
 }
 
 /**
+ * REVENUE PREDICTION ENGINE — "What happens if I increase budget?"
+ * Uses 30 days of real performance data to forecast revenue at different spend levels.
+ */
+
+interface PredictionPoint {
+  dailyBudget: number;
+  estimatedConversions: number;
+  estimatedRevenue: number;
+  estimatedProfit: number;
+  marginalRoas: number;
+}
+
+interface RevenuePrediction {
+  currentState: { dailyBudget: number; estimatedDailyRevenue: number; estimatedDailyProfit: number };
+  predictions: PredictionPoint[];
+  optimalBudget: number;
+  breakEvenBudget: number;
+  diminishingReturnsStart: number;
+  confidence: number;
+  hebrewSummary: string;
+}
+
+export async function predictRevenue(
+  dailyData: Array<{ cost: number; conversions: number; conversionValue: number }>,
+  currentDailyBudget: number,
+  profitMargin: number | null,
+  avgOrderValue: number | null,
+): Promise<RevenuePrediction> {
+  const margin = profitMargin || 30; // Default 30% if unknown
+  const minRoas = (100 / margin) * 1.2;
+
+  // Filter days with actual spend
+  const validDays = dailyData.filter((d) => d.cost > 0);
+  if (validDays.length < 7) {
+    return {
+      currentState: { dailyBudget: currentDailyBudget, estimatedDailyRevenue: 0, estimatedDailyProfit: 0 },
+      predictions: [],
+      optimalBudget: currentDailyBudget,
+      breakEvenBudget: currentDailyBudget,
+      diminishingReturnsStart: currentDailyBudget,
+      confidence: 10,
+      hebrewSummary: "אין מספיק נתונים לתחזית — צריך לפחות שבוע של נתונים.",
+    };
+  }
+
+  // Logarithmic regression: revenue = a * ln(spend + 1) + b
+  // Transform: x = ln(spend + 1), y = revenue
+  const xs = validDays.map((d) => Math.log(d.cost + 1));
+  const ys = validDays.map((d) => d.conversionValue);
+  const n = xs.length;
+
+  const sumX = xs.reduce((s, x) => s + x, 0);
+  const sumY = ys.reduce((s, y) => s + y, 0);
+  const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+  const sumX2 = xs.reduce((s, x) => s + x * x, 0);
+
+  const denominator = n * sumX2 - sumX * sumX;
+  const a = denominator !== 0 ? (n * sumXY - sumX * sumY) / denominator : 0;
+  const b = (sumY - a * sumX) / n;
+
+  // Revenue prediction function
+  const predictRev = (spend: number) => Math.max(0, a * Math.log(spend + 1) + b);
+
+  // Current state
+  const currentRevenue = predictRev(currentDailyBudget);
+  const currentProfit = currentRevenue * (margin / 100) - currentDailyBudget;
+
+  // Generate predictions at various budget levels
+  const budgetSteps = [
+    Math.max(1, currentDailyBudget * 0.5),
+    currentDailyBudget * 0.75,
+    currentDailyBudget,
+    currentDailyBudget * 1.25,
+    currentDailyBudget * 1.5,
+    currentDailyBudget * 2,
+    currentDailyBudget * 3,
+  ];
+
+  const predictions: PredictionPoint[] = budgetSteps.map((budget) => {
+    const revenue = predictRev(budget);
+    const profit = revenue * (margin / 100) - budget;
+    const prevRevenue = predictRev(Math.max(0, budget - 1));
+    const marginalRoas = revenue - prevRevenue;
+    const aov = avgOrderValue || (validDays.length > 0 ? validDays.reduce((s, d) => s + d.conversionValue, 0) / validDays.reduce((s, d) => s + d.conversions, 0) : 50);
+    const estimatedConversions = aov > 0 ? revenue / aov : 0;
+
+    return {
+      dailyBudget: Math.round(budget),
+      estimatedConversions: Math.round(estimatedConversions * 10) / 10,
+      estimatedRevenue: Math.round(revenue),
+      estimatedProfit: Math.round(profit),
+      marginalRoas: Math.round(marginalRoas * 100) / 100,
+    };
+  });
+
+  // Find optimal budget (where marginal ROAS = min profitable ROAS)
+  let optimalBudget = currentDailyBudget;
+  let breakEvenBudget = currentDailyBudget;
+  let diminishingStart = currentDailyBudget;
+
+  for (let budget = 1; budget <= currentDailyBudget * 5; budget += Math.max(1, Math.round(currentDailyBudget * 0.05))) {
+    const rev = predictRev(budget);
+    const prevRev = predictRev(budget - 1);
+    const marginal = rev - prevRev;
+    const profit = rev * (margin / 100) - budget;
+
+    if (marginal < minRoas && optimalBudget === currentDailyBudget) {
+      optimalBudget = budget;
+    }
+    if (profit <= 0 && breakEvenBudget === currentDailyBudget) {
+      breakEvenBudget = budget;
+    }
+    if (marginal < 1 && diminishingStart === currentDailyBudget) {
+      diminishingStart = budget;
+    }
+  }
+
+  // Confidence: more data + more spend variation = higher confidence
+  const spendValues = validDays.map((d) => d.cost);
+  const spendStdev = Math.sqrt(spendValues.reduce((s, v) => s + Math.pow(v - spendValues.reduce((a, b) => a + b, 0) / n, 2), 0) / n);
+  const spendVariation = currentDailyBudget > 0 ? spendStdev / currentDailyBudget : 0;
+  const confidence = Math.min(95, Math.round(validDays.length * 2.5 + spendVariation * 30));
+
+  // Hebrew summary via simple template (no AI call needed)
+  let hebrewSummary: string;
+  const optimalPrediction = predictions.find((p) => p.dailyBudget >= optimalBudget);
+  const currentPrediction = predictions.find((p) => p.dailyBudget === Math.round(currentDailyBudget));
+
+  if (optimalBudget > currentDailyBudget * 1.1) {
+    const additionalBudget = Math.round(optimalBudget - currentDailyBudget);
+    const additionalRevenue = Math.round(predictRev(optimalBudget) - currentRevenue);
+    hebrewSummary = `אם תגדיל תקציב ב-$${additionalBudget} ליום, צפוי עוד ~$${additionalRevenue} הכנסה יומית. מעל $${Math.round(diminishingStart)} ליום, כל שקל נוסף מחזיר פחות.`;
+  } else if (currentProfit < 0) {
+    hebrewSummary = `בתקציב הנוכחי אתה מפסיד כסף. כדאי להקטין ל-$${Math.round(breakEvenBudget * 0.8)} ליום או לשפר את ביצועי המודעות.`;
+  } else {
+    hebrewSummary = `התקציב הנוכחי ($${Math.round(currentDailyBudget)}/יום) קרוב לאופטימלי. הרווח היומי המשוער: $${Math.round(currentProfit)}.`;
+  }
+
+  return {
+    currentState: {
+      dailyBudget: currentDailyBudget,
+      estimatedDailyRevenue: Math.round(currentRevenue),
+      estimatedDailyProfit: Math.round(currentProfit),
+    },
+    predictions,
+    optimalBudget: Math.round(optimalBudget),
+    breakEvenBudget: Math.round(breakEvenBudget),
+    diminishingReturnsStart: Math.round(diminishingStart),
+    confidence,
+    hebrewSummary,
+  };
+}
+
+/**
+ * FRESH AD COPY GENERATOR — for creative fatigue
+ * Generates new headlines and descriptions when ads go stale.
+ */
+export async function suggestFreshAdCopy(data: {
+  campaignName: string;
+  productTitle: string;
+  currentHeadlines?: string[];
+  competitorAds?: AdEntry[];
+  storeContext?: string;
+}): Promise<{ headlines: string[]; descriptions: string[] } | null> {
+  const contextBlock = data.storeContext ? `${data.storeContext}\n\n` : "";
+  const currentBlock = data.currentHeadlines?.length
+    ? `\nCURRENT HEADLINES (stale — need fresh alternatives):\n${data.currentHeadlines.map((h) => `- "${h}"`).join("\n")}`
+    : "";
+  const competitorBlock = data.competitorAds?.slice(0, 3)
+    .map((a) => `- ${a.domain}: "${a.title}"`)
+    .join("\n") || "";
+
+  const prompt = `${contextBlock}You're refreshing ad copy for "${data.campaignName}" (product: "${data.productTitle}").
+The current ads are going stale — fewer people click each week. Write FRESH alternatives.
+${currentBlock}
+${competitorBlock ? `\nCOMPETITOR ADS TO BEAT:\n${competitorBlock}` : ""}
+
+Return ONLY valid JSON:
+{
+  "headlines": ["5 headlines, max 30 chars each, different angle from current"],
+  "descriptions": ["2 descriptions, max 90 chars each"]
+}
+
+Rules:
+- MUST be completely different from current headlines
+- Use different angles: urgency, value, quality, social proof, emotion
+- Each headline max 30 characters. Each description max 90 characters.`;
+
+  const startMs = Date.now();
+  try {
+    const response = await withRetry(
+      () => client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      { label: "AI-Brain:fresh-copy" },
+    );
+
+    logPrompt({ shop: "unknown", action: "fresh_copy", model: "claude-haiku-4-5-20251001", promptTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0, durationMs: Date.now() - startMs, success: true });
+
+    const text = (response as any).content[0].text.trim();
+    const { data: parsed } = safeParseAiJson(text);
+    if (!parsed) return null;
+
+    const result = parsed as Record<string, any>;
+    return {
+      headlines: (result.headlines || []).map((h: string) => h.slice(0, 30)),
+      descriptions: (result.descriptions || []).map((d: string) => d.slice(0, 90)),
+    };
+  } catch (err: any) {
+    logPrompt({ shop: "unknown", action: "fresh_copy", model: "claude-haiku-4-5-20251001", durationMs: Date.now() - startMs, success: false, error: err.message });
+    return null;
+  }
+}
+
+/**
  * AD COPY IMPROVER — "Make this headline better"
  * Claude looks at competitor ads and writes better copy.
  */
