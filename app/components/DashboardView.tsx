@@ -391,14 +391,14 @@ export function DashboardView({
 
           {/* ══ UNIFIED METRICS PANEL — gauges + key stats in one compact block ══ */}
           <div style={{background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.06)",borderRadius:16,padding:"16px 20px",marginBottom:20}}>
-            {/* Row 1: 6 Speedometers — core + engine metrics */}
-            <div className="speedo-row" style={{marginBottom:12}}>
-              <div className="speedo-card"><Speedometer value={avgScore} max={100} label="Ad Score" color="#6366f1" size={105}/></div>
-              <div className="speedo-card"><Speedometer value={parseFloat(mockRoas)*10} max={100} label="ROAS" color="#f59e0b" size={105}/></div>
-              <div className="speedo-card"><Speedometer value={competitorThreat==="Low"?25:competitorThreat==="Moderate"?55:85} max={100} label="Threat Level" color={threatColor} size={105}/></div>
-              <div className="speedo-card"><Speedometer value={Math.min(competitorCount*10,100)} max={100} label="Intel Coverage" color="#818cf8" size={105}/></div>
-              <div className="speedo-card"><Speedometer value={Math.min(mockCampaigns,20)} max={20} label="Campaigns" color="#22c55e" size={105}/></div>
-              <div className="speedo-card"><Speedometer value={highPotential} max={Math.max(totalProducts,1)} label="High-Potential" color="#06b6d4" size={105}/></div>
+            {/* Row 1: 6 Speedometers — 3×2 balanced grid */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10,marginBottom:14}}>
+              <div className="speedo-card"><Speedometer value={avgScore} max={100} label="Ad Score" color="#6366f1" size={100}/></div>
+              <div className="speedo-card"><Speedometer value={parseFloat(mockRoas)*10} max={100} label="ROAS" color="#f59e0b" size={100}/></div>
+              <div className="speedo-card"><Speedometer value={competitorThreat==="Low"?25:competitorThreat==="Moderate"?55:85} max={100} label="Threat Level" color={threatColor} size={100}/></div>
+              <div className="speedo-card"><Speedometer value={Math.min(competitorCount*10,100)} max={100} label="Intel Coverage" color="#818cf8" size={100}/></div>
+              <div className="speedo-card"><Speedometer value={Math.min(mockCampaigns,20)} max={20} label="Campaigns" color="#22c55e" size={100}/></div>
+              <div className="speedo-card"><Speedometer value={highPotential} max={Math.max(totalProducts,1)} label="High-Potential" color="#06b6d4" size={100}/></div>
             </div>
             {/* Row 2: Compact inline metric strip */}
             <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
@@ -429,68 +429,80 @@ export function DashboardView({
 
             {/* ══ AI ENGINES HUB — 2×2 category cards ══ */}
             <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:12,textAlign:"center"}}>23 AI Engines · Click to explore</div>
-              <div className="ds-hub">
+              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1,marginBottom:14,textAlign:"center"}}>23 AI Engines · Click to explore</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
                 {/* Card 1: Competitive Intelligence */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.22),rgba(129,140,248,.08))":"linear-gradient(135deg,rgba(129,140,248,.08),rgba(129,140,248,.02))",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.45:.12})`,boxShadow:activeCategory==="intel"?"0 0 20px rgba(129,140,248,.2), inset 0 1px 0 rgba(129,140,248,.15)":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(129,140,248,.35)"}}>🕵️</div>
-                    <div>
-                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Track, analyze & strike</div>
+                <div onClick={()=>setActiveCategory(activeCategory==="intel"?null:"intel")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="intel"?"linear-gradient(135deg,rgba(129,140,248,.18),rgba(129,140,248,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(129,140,248,${activeCategory==="intel"?.5:.15})`,boxShadow:activeCategory==="intel"?"0 0 24px rgba(129,140,248,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="intel"?"translateY(-2px)":"none"}}>
+                  <div style={{height:4,background:"linear-gradient(90deg,#818cf8,#6366f1)",borderRadius:"16px 16px 0 0"}}/>
+                  <div style={{padding:"16px 18px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#818cf8,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(129,140,248,.4)",flexShrink:0}}>🕵️</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Competitive Intelligence</div>
+                        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Track, analyze & strike</div>
+                      </div>
+                      <div style={{fontSize:11,color:activeCategory==="intel"?"#818cf8":"rgba(255,255,255,.25)",fontWeight:700,transition:"color .3s"}}>{activeCategory==="intel"?"▲":"▼"}</div>
                     </div>
-                    {activeCategory==="intel" && <div style={{marginLeft:"auto",fontSize:11,color:"#818cf8",fontWeight:700}}>▲ Close</div>}
-                  </div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(129,140,248,.1)",color:"#818cf8",fontWeight:600}}>{competitorCount} tracked</span>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(129,140,248,.1)",color:"#818cf8",fontWeight:600}}>{keywordGaps.length} gaps</span>
-                    {totalMonthlyGapLoss>0 && <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(239,68,68,.08)",color:"#ef4444",fontWeight:600}}>${totalMonthlyGapLoss.toLocaleString()}/mo loss</span>}
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{competitorCount} tracked</span>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(129,140,248,.12)",color:"#818cf8",fontWeight:600}}>{keywordGaps.length} gaps</span>
+                      {totalMonthlyGapLoss>0 && <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(239,68,68,.08)",color:"#ef4444",fontWeight:600}}>${totalMonthlyGapLoss.toLocaleString()}/mo loss</span>}
+                    </div>
                   </div>
                 </div>
                 {/* Card 2: Revenue & Profit */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.22),rgba(34,197,94,.08))":"linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.02))",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.45:.12})`,boxShadow:activeCategory==="revenue"?"0 0 20px rgba(34,197,94,.2), inset 0 1px 0 rgba(34,197,94,.15)":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(34,197,94,.35)"}}>💰</div>
-                    <div>
-                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>6 engines · Forecast, optimize & grow</div>
+                <div onClick={()=>setActiveCategory(activeCategory==="revenue"?null:"revenue")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="revenue"?"linear-gradient(135deg,rgba(34,197,94,.18),rgba(34,197,94,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(34,197,94,${activeCategory==="revenue"?.5:.15})`,boxShadow:activeCategory==="revenue"?"0 0 24px rgba(34,197,94,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="revenue"?"translateY(-2px)":"none"}}>
+                  <div style={{height:4,background:"linear-gradient(90deg,#22c55e,#10b981)",borderRadius:"16px 16px 0 0"}}/>
+                  <div style={{padding:"16px 18px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#22c55e,#10b981)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(34,197,94,.4)",flexShrink:0}}>💰</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Revenue & Profit</div>
+                        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>6 engines · Forecast, optimize & grow</div>
+                      </div>
+                      <div style={{fontSize:11,color:activeCategory==="revenue"?"#22c55e":"rgba(255,255,255,.25)",fontWeight:700,transition:"color .3s"}}>{activeCategory==="revenue"?"▲":"▼"}</div>
                     </div>
-                    {activeCategory==="revenue" && <div style={{marginLeft:"auto",fontSize:11,color:"#22c55e",fontWeight:700}}>▲ Close</div>}
-                  </div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>ROAS {mockRoas}x</span>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>{mockCampaigns} campaigns</span>
-                    {profitMargin && <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(34,197,94,.1)",color:"#22c55e",fontWeight:600}}>Margin {profitMargin}%</span>}
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>ROAS {mockRoas}x</span>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>{mockCampaigns} campaigns</span>
+                      {profitMargin && <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(34,197,94,.12)",color:"#22c55e",fontWeight:600}}>Margin {profitMargin}%</span>}
+                    </div>
                   </div>
                 </div>
                 {/* Card 3: Campaign Operations */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.22),rgba(168,85,247,.08))":"linear-gradient(135deg,rgba(168,85,247,.08),rgba(168,85,247,.02))",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.45:.12})`,boxShadow:activeCategory==="ops"?"0 0 20px rgba(168,85,247,.2), inset 0 1px 0 rgba(168,85,247,.15)":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(168,85,247,.35)"}}>⚙️</div>
-                    <div>
-                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>7 engines · Automate & orchestrate</div>
+                <div onClick={()=>setActiveCategory(activeCategory==="ops"?null:"ops")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="ops"?"linear-gradient(135deg,rgba(168,85,247,.18),rgba(168,85,247,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(168,85,247,${activeCategory==="ops"?.5:.15})`,boxShadow:activeCategory==="ops"?"0 0 24px rgba(168,85,247,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="ops"?"translateY(-2px)":"none"}}>
+                  <div style={{height:4,background:"linear-gradient(90deg,#a855f7,#7c3aed)",borderRadius:"16px 16px 0 0"}}/>
+                  <div style={{padding:"16px 18px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#a855f7,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(168,85,247,.4)",flexShrink:0}}>⚙️</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Campaign Operations</div>
+                        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>7 engines · Automate & orchestrate</div>
+                      </div>
+                      <div style={{fontSize:11,color:activeCategory==="ops"?"#a855f7":"rgba(255,255,255,.25)",fontWeight:700,transition:"color .3s"}}>{activeCategory==="ops"?"▲":"▼"}</div>
                     </div>
-                    {activeCategory==="ops" && <div style={{marginLeft:"auto",fontSize:11,color:"#a855f7",fontWeight:700}}>▲ Close</div>}
-                  </div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(168,85,247,.1)",color:"#a855f7",fontWeight:600}}>{mockCampaigns} active</span>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>Sync {isPaid?"ON":"OFF"}</span>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(168,85,247,.12)",color:"#a855f7",fontWeight:600}}>{mockCampaigns} active</span>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>Sync {isPaid?"ON":"OFF"}</span>
+                    </div>
                   </div>
                 </div>
                 {/* Card 4: Quality & Protection */}
-                <div className="ds-hub-card" onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.22),rgba(245,158,11,.08))":"linear-gradient(135deg,rgba(245,158,11,.08),rgba(245,158,11,.02))",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.45:.12})`,boxShadow:activeCategory==="quality"?"0 0 20px rgba(245,158,11,.2), inset 0 1px 0 rgba(245,158,11,.15)":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                    <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:"0 4px 12px rgba(245,158,11,.35)"}}>🛡️</div>
-                    <div>
-                      <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Test, guard & report</div>
+                <div onClick={()=>setActiveCategory(activeCategory==="quality"?null:"quality")} style={{borderRadius:16,padding:0,cursor:"pointer",transition:"all .3s ease",overflow:"hidden",background:activeCategory==="quality"?"linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.06))":"rgba(255,255,255,.03)",border:`1px solid rgba(245,158,11,${activeCategory==="quality"?.5:.15})`,boxShadow:activeCategory==="quality"?"0 0 24px rgba(245,158,11,.25)":"0 2px 8px rgba(0,0,0,.15)",transform:activeCategory==="quality"?"translateY(-2px)":"none"}}>
+                  <div style={{height:4,background:"linear-gradient(90deg,#f59e0b,#d97706)",borderRadius:"16px 16px 0 0"}}/>
+                  <div style={{padding:"16px 18px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                      <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#d97706)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 16px rgba(245,158,11,.4)",flexShrink:0}}>🛡️</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>Quality & Protection</div>
+                        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>5 engines · Test, guard & report</div>
+                      </div>
+                      <div style={{fontSize:11,color:activeCategory==="quality"?"#f59e0b":"rgba(255,255,255,.25)",fontWeight:700,transition:"color .3s"}}>{activeCategory==="quality"?"▲":"▼"}</div>
                     </div>
-                    {activeCategory==="quality" && <div style={{marginLeft:"auto",fontSize:11,color:"#f59e0b",fontWeight:700}}>▲ Close</div>}
-                  </div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:"rgba(245,158,11,.1)",color:"#f59e0b",fontWeight:600}}>A/B Active</span>
-                    <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>{isPaid?"Protected":"Locked"}</span>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:"rgba(245,158,11,.12)",color:"#f59e0b",fontWeight:600}}>A/B Active</span>
+                      <span style={{fontSize:11,padding:"4px 10px",borderRadius:12,background:`rgba(${isPaid?"34,197,94":"245,158,11"},.08)`,color:isPaid?"#22c55e":"#f59e0b",fontWeight:600}}>{isPaid?"Protected":"Locked"}</span>
+                    </div>
                   </div>
                 </div>
               </div>
